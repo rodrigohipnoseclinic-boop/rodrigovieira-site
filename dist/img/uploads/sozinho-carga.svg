@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" font-family="DejaVu Sans, Verdana, Arial, sans-serif">
+  <defs>
+    <linearGradient id="fundo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9DB8AE"/>
+      <stop offset="1" stop-color="#E9DFCF"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#fundo)"/>
+  <circle cx="980" cy="170" r="90" fill="#C99E74" opacity=".55"/>
+  <path d="M0 500 C 200 470 420 520 640 495 S 1000 470 1200 495 L1200 630 L0 630 Z" fill="#FAF7F2" opacity=".55"/>
+  <path d="M0 540 C 240 515 460 560 700 538 S 1020 520 1200 540 L1200 630 L0 630 Z" fill="#FAF7F2" opacity=".6"/>
+  <g stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <line x1="600" y1="395" x2="540" y2="500" stroke="#2D4E66" stroke-width="28"/>
+    <line x1="540" y1="500" x2="500" y2="535" stroke="#2D4E66" stroke-width="24"/>
+    <line x1="600" y1="395" x2="650" y2="470" stroke="#2D4E66" stroke-width="28"/>
+    <line x1="650" y1="470" x2="650" y2="535" stroke="#2D4E66" stroke-width="24"/>
+    <line x1="590" y1="395" x2="650" y2="330" stroke="#86B5A8" stroke-width="58"/>
+    <line x1="650" y1="342" x2="690" y2="395" stroke="#E8B990" stroke-width="15"/>
+  </g>
+  <circle cx="690" cy="296" r="30" fill="#3E2B22"/>
+  <circle cx="700" cy="302" r="26" fill="#E8B990"/>
+  <g>
+    <ellipse cx="560" cy="318" rx="78" ry="36" fill="#6E8794"/>
+    <ellipse cx="548" cy="266" rx="68" ry="32" fill="#8199A5"/>
+    <ellipse cx="540" cy="218" rx="54" ry="28" fill="#98ADB7"/>
+    <ellipse cx="530" cy="176" rx="40" ry="24" fill="#AFC0C8"/>
+  </g>
+  <g font-size="19" fill="#FAF7F2" text-anchor="middle" font-style="italic">
+    <text x="560" y="325">tem gente pior</text>
+    <text x="548" y="273">é só fase</text>
+    <text x="540" y="225">eu dou conta</text>
+    <text x="530" y="182">amanhã passa</text>
+  </g>
+  <path d="M598 346 L640 340" stroke="#2D4E66" stroke-width="5" stroke-linecap="round"/>
+  <text x="70" y="82" font-size="36" font-weight="bold" fill="#213A4F">Quase ninguém chega</text>
+  <text x="70" y="126" font-size="36" font-weight="bold" fill="#213A4F">no primeiro problema.</text>
+  <text x="70" y="580" font-size="26" fill="#213A4F">Chega depois de anos tentando dar conta sozinho.</text>
+</svg>

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" font-family="DejaVu Sans, Verdana, Arial, sans-serif">
+  <rect width="1200" height="630" fill="#FAF7F2"/>
+  <text x="70" y="90" font-size="22" letter-spacing="3" fill="#8A7A66">O QUE MUITA GENTE IMAGINA</text>
+  <g fill="#B9B2A6">
+    <circle cx="90" cy="165" r="16" opacity=".95"/><circle cx="140" cy="165" r="16" opacity=".9"/>
+    <circle cx="190" cy="165" r="16" opacity=".85"/><circle cx="240" cy="165" r="16" opacity=".8"/>
+    <circle cx="290" cy="165" r="16" opacity=".75"/><circle cx="340" cy="165" r="16" opacity=".7"/>
+    <circle cx="390" cy="165" r="16" opacity=".65"/><circle cx="440" cy="165" r="16" opacity=".6"/>
+    <circle cx="490" cy="165" r="16" opacity=".55"/><circle cx="540" cy="165" r="16" opacity=".5"/>
+    <circle cx="590" cy="165" r="16" opacity=".45"/><circle cx="640" cy="165" r="16" opacity=".4"/>
+    <circle cx="690" cy="165" r="16" opacity=".35"/><circle cx="740" cy="165" r="16" opacity=".3"/>
+    <circle cx="790" cy="165" r="16" opacity=".25"/><circle cx="840" cy="165" r="16" opacity=".2"/>
+    <circle cx="890" cy="165" r="16" opacity=".15"/><circle cx="940" cy="165" r="16" opacity=".12"/>
+    <circle cx="990" cy="165" r="16" opacity=".09"/><circle cx="1040" cy="165" r="16" opacity=".06"/>
+  </g>
+  <text x="70" y="240" font-size="30" fill="#213A4F" opacity=".75">toda semana, por tempo indeterminado...</text>
+  <line x1="70" y1="305" x2="1130" y2="305" stroke="#E9DFCF" stroke-width="3"/>
+  <text x="70" y="370" font-size="22" letter-spacing="3" fill="#4E8B78">COMO EU TRABALHO</text>
+  <line x1="150" y1="470" x2="650" y2="470" stroke="#9DB8AE" stroke-width="6"/>
+  <g>
+    <circle cx="150" cy="470" r="42" fill="#4E8B78"/>
+    <circle cx="317" cy="470" r="42" fill="#4E8B78"/>
+    <circle cx="484" cy="470" r="42" fill="#4E8B78"/>
+    <circle cx="650" cy="470" r="42" fill="#FAF7F2" stroke="#4E8B78" stroke-width="5" stroke-dasharray="9 9"/>
+  </g>
+  <g font-size="19" fill="#FAF7F2" text-anchor="middle" font-weight="bold">
+    <text x="150" y="477">mês 1</text>
+    <text x="317" y="477">mês 2</text>
+    <text x="484" y="477">mês 3</text>
+  </g>
+  <text x="650" y="477" font-size="19" font-weight="bold" fill="#4E8B78" text-anchor="middle">mês 4</text>
+  <text x="730" y="462" font-size="36" font-weight="bold" fill="#213A4F">3 a 4 meses</text>
+  <text x="730" y="505" font-size="22" fill="#213A4F" opacity=".8">sessões mensais, direto ao ponto</text>
+  <text x="70" y="585" font-size="20" fill="#8A7A66">Tempo habitual do tratamento. Cada caso é avaliado na primeira consulta.</text>
+</svg>

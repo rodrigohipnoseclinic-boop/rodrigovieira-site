@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" font-family="DejaVu Sans, Verdana, Arial, sans-serif">
+  <defs>
+    <linearGradient id="ceu" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9DB8AE"/>
+      <stop offset="1" stop-color="#F0D9B5"/>
+    </linearGradient>
+    <linearGradient id="luz" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FAF7F2" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#FAF7F2" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="#213A4F"/>
+  <rect y="520" width="1200" height="110" fill="#1B2E3F"/>
+  <polygon points="740,500 1080,500 1130,630 690,630" fill="url(#luz)"/>
+  <rect x="720" y="70" width="380" height="430" rx="6" fill="url(#ceu)" stroke="#FAF7F2" stroke-width="10"/>
+  <circle cx="910" cy="400" r="78" fill="#C99E74" opacity=".9"/>
+  <path d="M720 440 C 800 410 880 450 960 425 S 1060 430 1100 420 L1100 500 L720 500 Z" fill="#7FA597" opacity=".55"/>
+  <line x1="910" y1="70" x2="910" y2="500" stroke="#FAF7F2" stroke-width="8"/>
+  <line x1="720" y1="285" x2="1100" y2="285" stroke="#FAF7F2" stroke-width="8"/>
+  <g stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <line x1="520" y1="505" x2="535" y2="432" stroke="#86B5A8" stroke-width="56"/>
+    <line x1="520" y1="508" x2="610" y2="468" stroke="#2D4E66" stroke-width="34"/>
+    <line x1="610" y1="468" x2="626" y2="512" stroke="#2D4E66" stroke-width="30"/>
+    <line x1="538" y1="436" x2="604" y2="458" stroke="#E8B990" stroke-width="16"/>
+  </g>
+  <ellipse cx="640" cy="518" rx="26" ry="11" fill="#2D4E66"/>
+  <circle cx="548" cy="386" r="31" fill="#3E2B22"/>
+  <circle cx="558" cy="392" r="26" fill="#E8B990"/>
+  <path d="M566 400 q8 4 14 0" stroke="#7A5A44" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <text x="70" y="130" font-size="46" font-weight="bold" fill="#EAF0F5">Por que a gente tenta</text>
+  <text x="70" y="192" font-size="46" font-weight="bold" fill="#EAF0F5">resolver tudo sozinho</text>
+  <text x="70" y="244" font-size="26" fill="#9DB8AE">e por que isso cansa tanto</text>
+</svg>
