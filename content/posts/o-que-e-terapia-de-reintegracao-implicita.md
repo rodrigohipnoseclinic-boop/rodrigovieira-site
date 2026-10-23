@@ -2,7 +2,8 @@
 titulo: "O que é a Terapia de Reintegração Implícita (T.R.I.)?"
 data: 2026-10-14T09:00:00-03:00
 resumo: "Conheça a abordagem que trabalha as memórias emocionais implícitas, aquelas que fazem o corpo reagir antes mesmo de você pensar."
-capa: /img/capas/tri.svg
+capa: /img/uploads/tri-capa.png
+capa_descricao: "Ilustração de uma cabeça de perfil com uma rede de conexões neurais e uma nova conexão dourada se integrando"
 categoria: Tratamento
 tags:
   - tri
@@ -20,11 +21,15 @@ Nossa memória funciona em dois grandes sistemas. A **memória explícita** guar
 
 Essas memórias implícitas não "sabem" que o tempo passou. Elas reagem como se a situação antiga ainda estivesse acontecendo.
 
+![Comparação entre a memória explícita, que guarda fatos e histórias, e a memória implícita, que guarda o que o corpo aprendeu sem palavras](/img/uploads/tri-memorias.png)
+
 ## Como a T.R.I. trabalha?
 
 A T.R.I. busca identificar as experiências emocionais que deram origem ao padrão de sofrimento e ajudar o cérebro a **reintegrar** essas experiências, atualizando o significado que elas carregam.
 
 Quando isso acontece, a reação automática perde força. Não porque você se obrigou a controlar, mas porque o sistema emocional deixou de interpretar aquela situação como ameaça.
+
+![As quatro etapas da reintegração: experiência antiga, memória implícita, reintegração e reação que perde força](/img/uploads/tri-processo.png)
 
 ## Qual a diferença para uma terapia só de conversa?
 

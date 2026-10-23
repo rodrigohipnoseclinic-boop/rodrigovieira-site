@@ -2,7 +2,8 @@
 titulo: "Como funciona a hipnose clínica?"
 data: 2026-10-20T09:00:00-03:00
 resumo: "Entenda o que acontece na mente e no corpo durante a hipnose clínica, para que ela serve e por que você não perde o controle em nenhum momento."
-capa: /img/capas/hipnose.svg
+capa: /img/uploads/hipnose-capa.png
+capa_descricao: "Ilustração de uma pessoa relaxada em uma poltrona, de olhos fechados, em um ambiente calmo"
 categoria: Hipnose clínica
 tags:
   - hipnose
@@ -28,11 +29,15 @@ Não. Essa é a dúvida mais comum, e a resposta é sempre a mesma: **você perm
 
 Ninguém faz algo contra os próprios valores durante a hipnose. Na verdade, muitas pessoas se surpreendem com o quanto se sentem presentes e lúcidas.
 
+![Comparação entre o que muita gente imagina da hipnose de palco e o que acontece na hipnose clínica](/img/uploads/hipnose-mito-realidade.png)
+
 ## Por que entender o problema nem sempre resolve?
 
 Grande parte das nossas reações emocionais foi aprendida de forma **implícita**, ou seja, sem passar pela consciência. O cérebro registrou que determinada situação era perigosa e passou a reagir automaticamente, antes de qualquer pensamento.
 
 É por isso que tantas pessoas dizem: "eu sei que não faz sentido, mas meu corpo reage mesmo assim". A razão entendeu; o sistema de alerta ainda não.
+
+![Iceberg mostrando a mente consciente acima da água e a memória implícita, onde a reação foi aprendida, abaixo](/img/uploads/hipnose-iceberg.png)
 
 A hipnose clínica ajuda a trabalhar diretamente nesse nível mais profundo, onde a reação foi aprendida.
 

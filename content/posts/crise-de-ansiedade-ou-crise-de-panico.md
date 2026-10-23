@@ -2,7 +2,8 @@
 titulo: "Crise de ansiedade ou crise de pânico: qual a diferença?"
 data: 2026-10-07T09:00:00-03:00
 resumo: "Elas se parecem, mas não são a mesma coisa. Veja como diferenciar, o que acontece no seu cérebro e o que fazer no momento da crise."
-capa: /img/capas/panico.svg
+capa: /img/uploads/panico-capa.png
+capa_descricao: "Ilustração de uma pessoa com a mão no peito, assustada, e uma linha de batimento cardíaco acelerada ao fundo"
 categoria: Ansiedade e pânico
 tags:
   - ansiedade
@@ -26,6 +27,8 @@ A crise de pânico costuma ser **súbita e muito intensa**. Ela pode aparecer do
 
 Depois da primeira crise, muitas pessoas passam a ter **medo da próxima**. E esse medo, por si só, mantém o sistema de alerta ligado.
 
+![Gráfico comparando a crise de pânico, que tem pico em poucos minutos, com a crise de ansiedade, que cresce aos poucos](/img/uploads/panico-grafico.png)
+
 ## O que acontece no cérebro durante a crise?
 
 Nos dois casos, o sistema de defesa do corpo é ativado. Regiões ligadas à detecção de ameaça, como a amígdala, disparam o alarme, e o corpo se prepara para lutar ou fugir: o coração acelera, a respiração fica curta, os músculos se contraem.
@@ -39,6 +42,8 @@ Algumas atitudes ajudam o corpo a sair do modo alerta:
 1. **Alongue a expiração.** Inspire pelo nariz contando até 4 e solte o ar pela boca, devagar, contando até 6 ou 8. A expiração longa ajuda a acalmar o sistema nervoso.
 2. **Ancore-se no presente.** Nomeie, em voz baixa, cinco coisas que você está vendo ao seu redor.
 3. **Não lute contra a sensação.** Lembre-se de que a crise tem começo, pico e fim, e que ela vai passar.
+
+![Guia da respiração: inspire contando até 4 e solte o ar contando até 6 ou 8, mais três atitudes para o momento da crise](/img/uploads/panico-respiracao.png)
 
 ## Quando procurar ajuda?
 
