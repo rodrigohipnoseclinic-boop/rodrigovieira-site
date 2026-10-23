@@ -1,0 +1,228 @@
+# Painel de edição do site (Sveltia CMS)
+# Repositório: github.com/rodrigohipnoseclinic-boop/rodrigovieira-site
+backend:
+  name: github
+  repo: rodrigohipnoseclinic-boop/rodrigovieira-site
+  branch: main
+  commit_messages:
+    create: "Novo post: {{slug}}"
+    update: "Atualiza {{slug}}"
+    delete: "Remove {{slug}}"
+    uploadMedia: "Envia arquivo {{path}}"
+
+site_url: https://rodrigovieiraterapeuta.com.br
+display_url: https://rodrigovieiraterapeuta.com.br
+locale: pt
+
+media_folder: static/img/uploads
+public_folder: /img/uploads
+
+collections:
+  - name: posts
+    label: Posts do blog
+    label_singular: Post
+    description: Escreva aqui seus textos e vídeos. Depois de salvar, o site atualiza sozinho em 1 a 2 minutos.
+    folder: content/posts
+    create: true
+    extension: md
+    format: frontmatter
+    slug: "{{titulo}}"
+    identifier_field: titulo
+    summary: "{{titulo}} · {{data | date('DD/MM/YYYY')}}"
+    sortable_fields: [data, titulo]
+    view_filters:
+      - { label: Rascunhos, field: rascunho, pattern: true }
+    fields:
+      - { name: titulo, label: Título, widget: string, hint: "Dica: títulos em forma de pergunta funcionam muito bem (ex.: Como funciona a hipnose clínica?)" }
+      - { name: data, label: Data de publicação, widget: datetime, hint: "Se colocar uma data futura, o post só aparece no site a partir dessa data (na próxima atualização do site)." }
+      - { name: resumo, label: Resumo, widget: text, hint: "1 ou 2 frases. Aparece no card do blog, abaixo do título e no Google." }
+      - { name: capa, label: Imagem de capa, widget: image, required: false, hint: "Formato horizontal, de preferência 1600 x 800 px." }
+      - { name: capa_descricao, label: Descrição da imagem de capa, widget: string, required: false, hint: "Para acessibilidade e Google. Ex.: Pessoa respirando com calma em frente à janela." }
+      - name: categoria
+        label: Categoria
+        widget: select
+        options: ["Ansiedade e pânico", "Hipnose clínica", "Tratamento", "Neurociência", "Relacionamentos", "Crianças e família", "Compulsões e vícios", "Autoestima"]
+      - { name: tags, label: Palavras-chave, widget: list, required: false, hint: "Separe por vírgula. Ajudam a mostrar posts relacionados." }
+      - { name: video, label: Vídeo principal (opcional), widget: string, required: false, hint: "Cole o link do YouTube, Vimeo ou Reels do Instagram. Ele aparece no topo do post." }
+      - { name: body, label: Texto, widget: markdown, hint: "Use 'Título 2' (H2) para cada subtítulo em forma de pergunta: o índice é criado automaticamente. Para incluir um vídeo no meio do texto, cole o link sozinho numa linha." }
+      - { name: rascunho, label: Salvar como rascunho (não aparece no site), widget: boolean, default: false, required: false }
+
+  - name: configuracoes
+    label: Página inicial e configurações
+    editor:
+      preview: false
+    files:
+      - name: home
+        label: Textos da página inicial
+        file: content/config/home.json
+        format: json
+        fields:
+          - name: hero
+            label: Topo (primeira tela)
+            widget: object
+            fields:
+              - { name: selo, label: Selo acima do título, widget: string }
+              - { name: titulo, label: Título principal, widget: text, hint: "Coloque *asteriscos* em volta da palavra que deve ficar em itálico verde. Ex.: Ele também pode *desaprender*." }
+              - { name: subtitulo, label: Subtítulo, widget: text }
+              - { name: botao, label: Texto do botão de WhatsApp, widget: string }
+              - { name: botao_secundario, label: Texto do segundo botão, widget: string }
+              - { name: prova, label: Linha de avaliações, widget: string, required: false }
+              - { name: foto, label: Foto principal, widget: image, hint: "Formato vertical (retrato)." }
+              - { name: selo_foto, label: Selo sobre a foto, widget: string, required: false }
+          - name: destaques
+            label: Números em destaque (abaixo do topo)
+            widget: list
+            fields:
+              - { name: numero, label: Destaque, widget: string }
+              - { name: texto, label: Descrição, widget: string }
+          - { name: temas, label: Faixa de temas que desliza, widget: list }
+          - name: para_quem
+            label: Você se reconhece? (para quem é)
+            widget: object
+            fields:
+              - { name: titulo, label: Título, widget: string }
+              - { name: intro, label: Introdução, widget: text }
+              - name: itens
+                label: Cards
+                widget: list
+                fields:
+                  - { name: icone, label: Ícone, widget: select, options: [onda, coracao, folha, ciclo, sol, casal, cerebro, escudo, raio, pino, tela] }
+                  - { name: titulo, label: Título, widget: string }
+                  - { name: texto, label: Texto, widget: text }
+          - name: metodo
+            label: O método (ao lado do cérebro 3D)
+            widget: object
+            fields:
+              - { name: titulo, label: Título, widget: string }
+              - { name: texto, label: Texto (linha em branco entre parágrafos), widget: text }
+              - { name: link_texto, label: Texto do link, widget: string, required: false }
+              - { name: link, label: Link (ex. um post do blog), widget: string, required: false }
+          - name: hipnose
+            label: Hipnose clínica e mitos
+            widget: object
+            fields:
+              - { name: titulo, label: Título, widget: string }
+              - { name: texto, label: Texto, widget: text }
+              - name: mitos
+                label: Mitos
+                widget: list
+                fields:
+                  - { name: mito, label: Mito, widget: string }
+                  - { name: verdade, label: Verdade, widget: text }
+          - name: como_funciona
+            label: Como funciona
+            widget: object
+            fields:
+              - { name: titulo, label: Título, widget: string }
+              - { name: intro, label: Introdução, widget: text }
+              - name: etapas
+                label: Etapas
+                widget: list
+                fields:
+                  - { name: titulo, label: Título, widget: string }
+                  - { name: texto, label: Texto, widget: text }
+          - name: sobre
+            label: Sobre o terapeuta
+            widget: object
+            fields:
+              - { name: titulo, label: Chamada pequena, widget: string }
+              - { name: subtitulo, label: Nome, widget: string }
+              - { name: texto, label: Texto (linha em branco entre parágrafos), widget: text }
+              - { name: foto, label: Foto, widget: image }
+              - name: numeros
+                label: Números
+                widget: list
+                fields:
+                  - { name: numero, label: Número, widget: string }
+                  - { name: texto, label: Descrição, widget: string }
+              - { name: formacoes, label: Formações (selos), widget: list }
+          - name: depoimentos
+            label: Depoimentos
+            widget: object
+            fields:
+              - { name: titulo, label: Título, widget: string }
+              - { name: intro, label: Introdução, widget: string }
+              - name: itens
+                label: Depoimentos
+                widget: list
+                fields:
+                  - { name: nome, label: Nome (ex. Ana P.), widget: string }
+                  - { name: texto, label: Depoimento, widget: text }
+          - name: consulta
+            label: Consulta de avaliação (online e presencial)
+            widget: object
+            fields:
+              - { name: titulo, label: Título, widget: string }
+              - { name: intro, label: Introdução, widget: text }
+              - { name: online_titulo, label: Título online, widget: string }
+              - { name: online_texto, label: Texto online, widget: string }
+              - { name: presencial_titulo, label: Título presencial, widget: string }
+              - { name: presencial_texto, label: Texto presencial, widget: string }
+          - name: blog
+            label: Chamada do blog
+            widget: object
+            fields:
+              - { name: titulo, label: Título, widget: string }
+              - { name: intro, label: Introdução, widget: text }
+          - name: cursos
+            label: Faixa dos cursos online
+            widget: object
+            fields:
+              - { name: titulo, label: Título, widget: string }
+              - { name: texto, label: Texto, widget: text }
+              - { name: botao, label: Texto do botão, widget: string }
+              - { name: link, label: Link, widget: string }
+          - name: faq
+            label: Perguntas frequentes
+            widget: object
+            fields:
+              - { name: titulo, label: Título, widget: string }
+              - name: perguntas
+                label: Perguntas
+                widget: list
+                fields:
+                  - { name: pergunta, label: Pergunta, widget: string }
+                  - { name: resposta, label: Resposta, widget: text }
+          - name: cta_final
+            label: Chamada final
+            widget: object
+            fields:
+              - { name: titulo, label: Título, widget: string }
+              - { name: texto, label: Texto, widget: text }
+              - { name: botao, label: Texto do botão, widget: string }
+              - { name: foto, label: Foto (redonda), widget: image, required: false }
+
+      - name: site
+        label: Contato, autor e cores
+        file: content/config/site.json
+        format: json
+        fields:
+          - { name: nome, label: Nome no site, widget: string }
+          - { name: titulo_profissional, label: Linha abaixo do nome, widget: string }
+          - { name: url, label: Endereço do site, widget: string }
+          - { name: descricao_seo, label: Descrição para o Google, widget: text }
+          - { name: imagem_compartilhamento, label: Imagem ao compartilhar o site, widget: image }
+          - { name: whatsapp, label: WhatsApp (só números, com 55 e DDD), widget: string }
+          - { name: whatsapp_exibicao, label: WhatsApp como aparece no site, widget: string }
+          - { name: mensagem_whatsapp, label: Mensagem automática do WhatsApp, widget: text }
+          - { name: instagram, label: Instagram (sem @), widget: string }
+          - { name: linktree, label: Link dos cursos, widget: string }
+          - { name: cidade, label: Cidade, widget: string }
+          - { name: regiao, label: Região atendida, widget: string }
+          - name: autor
+            label: Caixa do autor (nos posts)
+            widget: object
+            fields:
+              - { name: nome, label: Nome, widget: string }
+              - { name: foto, label: Foto (quadrada), widget: image }
+              - { name: bio, label: Mini biografia, widget: text }
+          - name: cores
+            label: Cores do site
+            widget: object
+            fields:
+              - { name: principal, label: Cor principal (botões), widget: color }
+              - { name: principal_escura, label: Cor principal escura (títulos e faixas), widget: color }
+              - { name: destaque, label: Cor de destaque (detalhes), widget: color }
+              - { name: fundo, label: Fundo, widget: color }
+              - { name: fundo_alternativo, label: Fundo das seções alternadas, widget: color }
+              - { name: texto, label: Texto, widget: color }

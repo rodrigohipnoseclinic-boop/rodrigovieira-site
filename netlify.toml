@@ -1,0 +1,17 @@
+[build]
+  command = "node build.mjs"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[[redirects]]
+  from = "https://frolicking-twilight-95f5e2.netlify.app/*"
+  to = "https://rodrigovieiraterapeuta.com.br/:splat"
+  status = 301
+  force = true
+
+[[headers]]
+  for = "/img/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"

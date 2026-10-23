@@ -1,0 +1,27 @@
+{
+  "nome": "Dr. Rodrigo Vieira",
+  "titulo_profissional": "Neurociência · Hipnose · T.R.I.",
+  "url": "https://rodrigovieiraterapeuta.com.br",
+  "descricao_seo": "Tratamento com hipnose clínica e Terapia de Reintegração Implícita (T.R.I.) para ansiedade, pânico, traumas e compulsões. Atendimento presencial em Amparo-SP e online.",
+  "imagem_compartilhamento": "/img/compartilhar.jpg",
+  "whatsapp": "5519997498217",
+  "whatsapp_exibicao": "(19) 99749-8217",
+  "mensagem_whatsapp": "Olá, Dr. Rodrigo! Vim pelo site e gostaria de agendar uma consulta de avaliação.",
+  "instagram": "rodrigovieira.dr",
+  "linktree": "https://linktr.ee/rodrigovieira.dr",
+  "cidade": "Amparo - SP",
+  "regiao": "Amparo e Circuito das Águas",
+  "autor": {
+    "nome": "Dr. Rodrigo Vieira",
+    "foto": "/img/rodrigo-autor.jpg",
+    "bio": "Neurocientista, biomédico e psicanalista, especialista em hipnose clínica e terapeuta em Terapia de Reintegração Implícita (T.R.I.). Há 9 anos atende adultos, crianças e casais, presencialmente em Amparo-SP e online."
+  },
+  "cores": {
+    "principal": "#3F6F63",
+    "principal_escura": "#2F574D",
+    "destaque": "#B8873A",
+    "fundo": "#F7F5F0",
+    "fundo_alternativo": "#EDF1EC",
+    "texto": "#1C2B33"
+  }
+}

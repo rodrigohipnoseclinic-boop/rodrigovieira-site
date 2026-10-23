@@ -1,0 +1,115 @@
+{
+  "hero": {
+    "selo": "Presencial em Amparo/SP e online",
+    "titulo": "Seu cérebro aprendeu a viver em alerta. Ele também pode *desaprender*.",
+    "subtitulo": "Tratamento breve que atua na memória implícita, onde ansiedade, pânico, compulsões e padrões emocionais se instalam, para a mudança acontecer de dentro e não só na força de vontade.",
+    "botao": "Quero agendar minha avaliação",
+    "botao_secundario": "Como funciona",
+    "prova": "105 avaliações 5 estrelas no Google · +3.000 atendimentos",
+    "foto": "/img/rodrigo-consultorio.jpg",
+    "selo_foto": "9 anos de experiência"
+  },
+  "destaques": [
+    { "numero": "9 anos", "texto": "de experiência em atendimento" },
+    { "numero": "Biomédico", "texto": "e neurocientista" },
+    { "numero": "Tratamento breve", "texto": "em média de 3 a 4 meses" },
+    { "numero": "Presencial e online", "texto": "Amparo/SP ou de onde você estiver" }
+  ],
+  "temas": ["Ansiedade", "Síndrome do pânico", "Compulsões", "Traumas", "Autossabotagem", "Modo alerta"],
+  "para_quem": {
+    "titulo": "Você sabe o que precisa mudar. *O difícil é conseguir.*",
+    "intro": "Para quem já entendeu racionalmente o próprio problema, mas sente que o corpo e as emoções continuam reagindo como se o perigo ainda estivesse ali.",
+    "itens": [
+      { "icone": "onda", "titulo": "Ansiedade que não desliga", "texto": "Aperto no peito, pensamento acelerado e a sensação de alerta mesmo quando está tudo bem." },
+      { "icone": "coracao", "titulo": "Crises de pânico", "texto": "O coração dispara, vem o medo de perder o controle e, depois, a vigilância constante para que a crise não volte." },
+      { "icone": "ciclo", "titulo": "Compulsões que se repetem", "texto": "Pornografia, compras, comida ou telas: a promessa de parar e a recaída logo depois." },
+      { "icone": "raio", "titulo": "Reações desproporcionais", "texto": "Explosões, medo ou travamento diante de situações que, racionalmente, não pediriam isso." },
+      { "icone": "sol", "titulo": "Autossabotagem", "texto": "Padrões antigos que voltam nos relacionamentos, no trabalho e na forma como você se trata." },
+      { "icone": "casal", "titulo": "Crianças e casais", "texto": "Atendimento também para crianças, com a participação dos responsáveis, e terapia de casal." }
+    ]
+  },
+  "metodo": {
+    "titulo": "Terapia de Reintegração Implícita",
+    "texto": "Boa parte das nossas reações emocionais nasce de aprendizados guardados na memória implícita: registros que o cérebro aciona de forma automática, antes de qualquer decisão consciente. Por isso entender o problema nem sempre basta para resolvê-lo.\n\nA T.R.I., associada à hipnose clínica, acessa esses registros em um estado de foco e consciência ampliada para reorganizar o significado emocional que eles carregam. O objetivo é que a resposta antiga deixe de ser disparada, em vez de ser apenas controlada.",
+    "link_texto": "Ler mais sobre a T.R.I.",
+    "link": "/blog/o-que-e-terapia-de-reintegracao-implicita/"
+  },
+  "hipnose": {
+    "titulo": "Foco profundo, com você no controle",
+    "texto": "A hipnose clínica é um estado natural de atenção concentrada, parecido com o de quando você fica absorto em um livro ou filme. Nesse estado, fica mais fácil acessar memórias e emoções que, no dia a dia, ficam fora do alcance da conversa.",
+    "mitos": [
+      { "mito": "Vou ficar inconsciente.", "verdade": "Você permanece acordado, ouve tudo e se lembra da sessão." },
+      { "mito": "O terapeuta controla minha mente.", "verdade": "Ninguém faz você agir contra a sua vontade, e você pode interromper a qualquer momento." },
+      { "mito": "Hipnose é coisa de show.", "verdade": "Na clínica, ela é uma ferramenta terapêutica conduzida com objetivo, ética e cuidado." }
+    ]
+  },
+  "como_funciona": {
+    "titulo": "Como funciona",
+    "intro": "Um processo com começo, meio e fim, pensado para gerar mudança de verdade.",
+    "etapas": [
+      { "titulo": "Consulta de avaliação", "texto": "Entendemos sua história e o que está acontecendo. Ao final, você recebe a proposta de tratamento com valor e duração definidos." },
+      { "titulo": "Tratamento breve", "texto": "Em geral, de 3 a 4 meses, com sessões mensais focadas na raiz do que você sente." },
+      { "titulo": "Presencial ou online", "texto": "Atendimento no consultório em Amparo/SP ou por vídeo, de onde você estiver." }
+    ]
+  },
+  "sobre": {
+    "titulo": "Quem vai te atender",
+    "subtitulo": "Dr. Rodrigo Vieira",
+    "texto": "Biomédico, psicanalista e neurocientista, especialista em hipnose clínica e formado em Terapia de Reintegração Implícita. Há 9 anos atende em terapia individual, de crianças e de casais, unindo o entendimento de como o cérebro aprende e reage a um método prático para transformar padrões emocionais.\n\nReferência em Hipnose Clínica em Amparo e no Circuito das Águas.",
+    "foto": "/img/rodrigo-sobre.jpg",
+    "numeros": [
+      { "numero": "9 anos", "texto": "de experiência em atendimento" },
+      { "numero": "+3.000", "texto": "atendimentos realizados" },
+      { "numero": "105", "texto": "avaliações 5 estrelas no Google" }
+    ],
+    "formacoes": ["Biomédico", "Psicanalista", "Neurocientista", "Especialista em hipnose clínica", "Formado em T.R.I."]
+  },
+  "depoimentos": {
+    "titulo": "Quem passou pelo processo conta",
+    "intro": "105 avaliações 5 estrelas no Google. Alguns relatos de pacientes:",
+    "itens": [
+      { "nome": "Anderson D.", "texto": "Foi com toda certeza a melhor terapia que já fiz. Resultado extremamente rápido e eficaz. Recuperei minha autoestima, minha paz, a confiança em mim mesmo. Minha ansiedade e tristeza, aperto no peito, literalmente sumiram e aprendi muito sobre mim mesmo e como lidar com situações adversas." },
+      { "nome": "Marcos B.", "texto": "Minha experiência com o Dr. Rodrigo está sendo uma virada de chave. Já havia tentado inúmeros métodos, mas sem resultados. Tenho um progresso enorme pela primeira vez na vida. Vinha de uma vida travada e hoje estou seguindo sem nada me segurando." },
+      { "nome": "Ederson V.", "texto": "A terapia foi uma experiência transformadora para mim. Ter esse espaço de escuta, acolhimento e reflexão fez toda a diferença no meu processo pessoal. Cada sessão me ajudou a enxergar situações com mais clareza e entender melhor minhas emoções." },
+      { "nome": "Kátia R.", "texto": "Às vezes carregamos sentimentos que ficaram guardados, escondidos até de nós mesmos. Com a hipnose, o Rodrigo me conduziu a estas situações que marcaram minha vida de forma negativa. Esta terapia me ajudou a me perdoar e ressignificar estas experiências." },
+      { "nome": "Marielen M.", "texto": "Profissional incrível! Atendimento muito acolhedor, me senti confortável desde o início. O processo foi transformador e trouxe mudanças muito positivas na minha forma de enxergar a vida. Recomendo muito!" },
+      { "nome": "Ricardo T.", "texto": "Cheguei quebrado emocionalmente. Na primeira sessão, já comecei a ver o mundo de outra forma. Super recomendo. Muito obrigado, Dr. Rodrigo." }
+    ]
+  },
+  "consulta": {
+    "titulo": "Consulta de avaliação",
+    "intro": "Escolha a modalidade e toque para agendar pelo WhatsApp. O valor e os horários são informados no atendimento.",
+    "online_titulo": "Consulta online",
+    "online_texto": "Por vídeo, de qualquer lugar",
+    "presencial_titulo": "Consulta presencial",
+    "presencial_texto": "No consultório em Amparo/SP"
+  },
+  "blog": {
+    "titulo": "Conteúdos para cuidar da sua mente",
+    "intro": "Textos e vídeos sobre ansiedade, hipnose clínica, neurociência e autorregulação emocional."
+  },
+  "cursos": {
+    "titulo": "Quer começar por conta própria?",
+    "texto": "Conheça o Neuro Calma, curso de educação emocional para sair do modo alerta, e o curso de Gerenciamento para o Transtorno do Pânico. Protocolos práticos para aplicar no seu ritmo.",
+    "botao": "Conhecer os cursos",
+    "link": "https://linktr.ee/rodrigovieira.dr"
+  },
+  "faq": {
+    "titulo": "Perguntas frequentes",
+    "perguntas": [
+      { "pergunta": "Como é a consulta de avaliação?", "resposta": "É uma conversa para entender sua história e o que está acontecendo. Ao final, você recebe a proposta de tratamento com valor e duração definidos, para decidir com tranquilidade." },
+      { "pergunta": "Quanto tempo dura o tratamento?", "resposta": "Em geral, de 3 a 4 meses, com sessões mensais. A duração exata é definida na consulta de avaliação, de acordo com cada caso." },
+      { "pergunta": "O atendimento online funciona?", "resposta": "Sim. O atendimento online segue a mesma estrutura do presencial. Você só precisa de um lugar reservado, fone de ouvido e uma boa conexão de internet." },
+      { "pergunta": "Na hipnose eu perco o controle?", "resposta": "Não. Você permanece acordado, ouve tudo, se lembra da sessão e pode interromper a qualquer momento." },
+      { "pergunta": "Preciso parar meu tratamento médico ou minha medicação?", "resposta": "Não. A terapia pode caminhar junto com o acompanhamento médico ou psiquiátrico. Qualquer mudança na medicação deve ser feita somente com o seu médico." },
+      { "pergunta": "Vocês atendem crianças e casais?", "resposta": "Sim. Há atendimento para crianças, sempre com a participação dos responsáveis, e também terapia de casal." },
+      { "pergunta": "Como faço para agendar?", "resposta": "Toque em qualquer botão de WhatsApp deste site. O valor e os horários disponíveis são informados no atendimento." }
+    ]
+  },
+  "cta_final": {
+    "titulo": "O primeiro passo é uma conversa.",
+    "texto": "Agende sua consulta de avaliação e entenda o que está por trás do que você sente.",
+    "botao": "Falar no WhatsApp",
+    "foto": "/img/rodrigo-autor.jpg"
+  }
+}
