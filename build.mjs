@@ -523,13 +523,13 @@ function pagina404() {
 function paginaInscricao() {
   return layout({
     titulo: "Inscreva-se",
-    descricao: "Receba por e-mail os novos conteúdos sobre ansiedade, hipnose clínica e regulação emocional do Dr. Rodrigo Vieira.",
+    descricao: "Deixe seu contato para receber novidades do Dr. Rodrigo Vieira sobre ansiedade, hipnose clínica e regulação emocional.",
     url: "/inscreva-se/",
     corpoClasse: "pg-inscricao",
     conteudo: `<section class="blog-topo">
   <span class="sobretitulo">Inscreva-se</span>
-  <h1>Receba os novos conteúdos</h1>
-  <p>Deixe seu nome e e-mail e receba cada novo post sobre ansiedade, hipnose clínica e regulação emocional direto na sua caixa de entrada.</p>
+  <h1>Receba novidades</h1>
+  <p>Deixe seu contato para receber novidades sobre ansiedade, hipnose clínica e regulação emocional.</p>
 </section>
 <section class="secao secao--inscricao">
   <form class="form-inscricao" name="inscricao" method="POST" action="/inscreva-se/obrigado/" data-netlify="true" netlify-honeypot="sobrenome">
@@ -538,7 +538,7 @@ function paginaInscricao() {
     <label>Nome<input type="text" name="nome" autocomplete="name" required></label>
     <label>E-mail<input type="email" name="email" autocomplete="email" required></label>
     <label>WhatsApp <small>(opcional)</small><input type="tel" name="whatsapp" autocomplete="tel"></label>
-    <label class="form-inscricao__ok"><input type="checkbox" name="autorizo" value="sim" required> Autorizo receber conteúdos do ${esc(site.nome)}. Posso cancelar quando quiser.</label>
+    <label class="form-inscricao__ok"><input type="checkbox" name="autorizo" value="sim" required> Autorizo o ${esc(site.nome)} a entrar em contato comigo com novidades. Posso pedir para sair quando quiser.</label>
     <button class="btn" type="submit">Quero me inscrever</button>
   </form>
 </section>`,
@@ -550,7 +550,7 @@ function paginaObrigado() {
     titulo: "Inscrição confirmada",
     url: "/inscreva-se/obrigado/",
     extraHead: '<meta name="robots" content="noindex">',
-    conteudo: `<section class="blog-topo"><span class="sobretitulo">Tudo certo</span><h1>Obrigado pela inscrição!</h1><p>Você vai receber os próximos conteúdos no seu e-mail. Enquanto isso, que tal ler o blog?</p><div class="acoes acoes--centro"><a class="btn" href="/blog/">Ver o blog</a><a class="btn btn--linha" href="/">Ir para o início</a></div></section>`,
+    conteudo: `<section class="blog-topo"><span class="sobretitulo">Tudo certo</span><h1>Obrigado pela inscrição!</h1><p>Recebemos seu contato e vamos te avisar das novidades. Enquanto isso, que tal ler o blog?</p><div class="acoes acoes--centro"><a class="btn" href="/blog/">Ver o blog</a><a class="btn btn--linha" href="/">Ir para o início</a></div></section>`,
   });
 }
 
