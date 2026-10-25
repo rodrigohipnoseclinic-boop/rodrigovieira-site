@@ -529,7 +529,7 @@ function paginaInscricao() {
     conteudo: `<section class="blog-topo">
   <span class="sobretitulo">Inscreva-se</span>
   <h1>Receba os novos conteúdos</h1>
-  <p>Deixe seu nome e e-mail para ser avisado quando sair um novo post sobre ansiedade, hipnose clínica e regulação emocional.</p>
+  <p>Deixe seu nome e e-mail e receba cada novo post sobre ansiedade, hipnose clínica e regulação emocional direto na sua caixa de entrada.</p>
 </section>
 <section class="secao secao--inscricao">
   <form class="form-inscricao" name="inscricao" method="POST" action="/inscreva-se/obrigado/" data-netlify="true" netlify-honeypot="sobrenome">
@@ -618,6 +618,8 @@ gravar("inscreva-se/index.html", paginaInscricao());
 gravar("inscreva-se/obrigado/index.html", paginaObrigado());
 gravar("visitas/index.html", paginaVisitas());
 gravar("404.html", pagina404());
+// Lista de posts lida pelo envio automático de e-mails (netlify/functions/enviar-novidades.mjs)
+gravar("novidades.json", JSON.stringify(posts.slice(0, 20).map((p) => ({ url: p.url, titulo: p.titulo, resumo: p.resumo || "", capa: p.capa || "" }))));
 
 const urls = ["/", "/blog/", "/inscreva-se/", ...posts.map((p) => p.url)];
 gravar("sitemap.xml", `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${abs(u)}</loc></url>`).join("\n")}\n</urlset>\n`);
