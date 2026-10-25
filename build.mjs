@@ -144,7 +144,9 @@ const NAV = [
   ["/#tratamento", "Tratamento"],
   ["/blog/", "Blog"],
   ["/#duvidas", "Dúvidas"],
+  ["/inscreva-se/", "Inscreva-se"],
 ];
+
 
 function layout({ titulo, descricao, url, imagem, conteudo, corpoClasse = "", jsonld = "", tipo = "website", extraHead = "", scripts = "" }) {
   const tituloCompleto = titulo ? `${titulo} | ${site.nome}` : `${site.nome} | ${site.titulo_profissional}`;
@@ -518,6 +520,81 @@ function pagina404() {
   });
 }
 
+function paginaInscricao() {
+  return layout({
+    titulo: "Inscreva-se",
+    descricao: "Receba por e-mail os novos conteúdos sobre ansiedade, hipnose clínica e regulação emocional do Dr. Rodrigo Vieira.",
+    url: "/inscreva-se/",
+    corpoClasse: "pg-inscricao",
+    conteudo: `<section class="blog-topo">
+  <span class="sobretitulo">Inscreva-se</span>
+  <h1>Receba os novos conteúdos</h1>
+  <p>Deixe seu nome e e-mail para ser avisado quando sair um novo post sobre ansiedade, hipnose clínica e regulação emocional.</p>
+</section>
+<section class="secao secao--inscricao">
+  <form class="form-inscricao" name="inscricao" method="POST" action="/inscreva-se/obrigado/" data-netlify="true" netlify-honeypot="sobrenome">
+    <input type="hidden" name="form-name" value="inscricao">
+    <p class="escondido"><label>Não preencha: <input name="sobrenome"></label></p>
+    <label>Nome<input type="text" name="nome" autocomplete="name" required></label>
+    <label>E-mail<input type="email" name="email" autocomplete="email" required></label>
+    <label>WhatsApp <small>(opcional)</small><input type="tel" name="whatsapp" autocomplete="tel"></label>
+    <label class="form-inscricao__ok"><input type="checkbox" name="autorizo" value="sim" required> Autorizo receber conteúdos do ${esc(site.nome)}. Posso cancelar quando quiser.</label>
+    <button class="btn" type="submit">Quero me inscrever</button>
+  </form>
+</section>`,
+  });
+}
+
+function paginaObrigado() {
+  return layout({
+    titulo: "Inscrição confirmada",
+    url: "/inscreva-se/obrigado/",
+    extraHead: '<meta name="robots" content="noindex">',
+    conteudo: `<section class="blog-topo"><span class="sobretitulo">Tudo certo</span><h1>Obrigado pela inscrição!</h1><p>Você vai receber os próximos conteúdos no seu e-mail. Enquanto isso, que tal ler o blog?</p><div class="acoes acoes--centro"><a class="btn" href="/blog/">Ver o blog</a><a class="btn btn--linha" href="/">Ir para o início</a></div></section>`,
+  });
+}
+
+// Painel de visitas (endereço não divulgado; os números vêm de /api/visitas)
+function paginaVisitas() {
+  return layout({
+    titulo: "Visitas do site",
+    url: "/visitas/",
+    extraHead: '<meta name="robots" content="noindex">',
+    conteudo: `<section class="blog-topo">
+  <span class="sobretitulo">Painel</span>
+  <h1>Visitas do site</h1>
+  <p>Pessoas = visitantes diferentes no dia. Visualizações = páginas abertas.</p>
+</section>
+<section class="secao secao--visitas">
+  <div class="visitas-num" id="v-num"><p class="centro">Carregando…</p></div>
+  <h2>Pessoas por dia <small>(últimos 30 dias)</small></h2>
+  <div class="visitas-graf" id="v-graf"></div>
+  <h2>Páginas mais vistas <small>(últimos 30 dias)</small></h2>
+  <ol class="visitas-pag" id="v-pag"></ol>
+</section>
+<script>
+fetch("/api/visitas").then(function (r) { return r.json(); }).then(function (d) {
+  function soma(n, k) { return d.slice(-n).reduce(function (t, x) { return t + x[k]; }, 0); }
+  var blocos = [["Hoje", 1], ["7 dias", 7], ["30 dias", 30], ["90 dias", 90]];
+  document.getElementById("v-num").innerHTML = blocos.map(function (b) {
+    return '<div><span>' + b[0] + '</span><strong>' + soma(b[1], "pes") + '</strong><small>pessoas · ' + soma(b[1], "vis") + ' visualizações</small></div>';
+  }).join("");
+  var ult = d.slice(-30), max = Math.max.apply(null, ult.map(function (x) { return x.pes; }).concat(1));
+  document.getElementById("v-graf").innerHTML = ult.map(function (x) {
+    var dt = x.dia.split("-").reverse().slice(0, 2).join("/");
+    return '<div title="' + dt + ': ' + x.pes + ' pessoas"><i style="height:' + (x.pes / max * 100) + '%"></i><span>' + dt + '</span></div>';
+  }).join("");
+  var pag = {};
+  ult.forEach(function (x) { for (var k in x.pag) pag[k] = (pag[k] || 0) + x.pag[k]; });
+  var lista = Object.keys(pag).sort(function (a, b) { return pag[b] - pag[a]; }).slice(0, 15);
+  document.getElementById("v-pag").innerHTML = lista.length ? lista.map(function (k) {
+    return '<li><a href="' + k.replace(/"/g, "") + '">' + (k === "/" ? "Página inicial" : k.replace(/</g, "&lt;")) + '</a><b>' + pag[k] + '</b></li>';
+  }).join("") : "<li>Ainda sem visitas registradas.</li>";
+}).catch(function () { document.getElementById("v-num").innerHTML = '<p class="centro">Não foi possível carregar os números agora.</p>'; });
+</script>`,
+  });
+}
+
 // ---------- gravação ----------
 function gravar(rel, conteudo) {
   const f = path.join(OUT, rel);
@@ -537,10 +614,13 @@ posts.forEach((p) => {
 gravar("index.html", paginaInicial(posts));
 gravar("blog/index.html", paginaBlog(posts));
 posts.forEach((p) => gravar(`blog/${p.slug}/index.html`, paginaPost(p, posts)));
+gravar("inscreva-se/index.html", paginaInscricao());
+gravar("inscreva-se/obrigado/index.html", paginaObrigado());
+gravar("visitas/index.html", paginaVisitas());
 gravar("404.html", pagina404());
 
-const urls = ["/", "/blog/", ...posts.map((p) => p.url)];
+const urls = ["/", "/blog/", "/inscreva-se/", ...posts.map((p) => p.url)];
 gravar("sitemap.xml", `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${abs(u)}</loc></url>`).join("\n")}\n</urlset>\n`);
-gravar("robots.txt", `User-agent: *\nDisallow: /admin/\nSitemap: ${abs("/sitemap.xml")}\n`);
+gravar("robots.txt", `User-agent: *\nDisallow: /admin/\nDisallow: /visitas/\nSitemap: ${abs("/sitemap.xml")}\n`);
 
 console.log(`Site gerado: ${posts.length} post(s) publicados em /dist`);
