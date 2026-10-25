@@ -144,7 +144,15 @@ const NAV = [
   ["/#tratamento", "Tratamento"],
   ["/blog/", "Blog"],
   ["/#duvidas", "Dúvidas"],
+  ["/inscreva-se/", "Inscreva-se"],
 ];
+
+// Google Analytics: só entra no site se o ID (G-XXXX) estiver preenchido no painel
+const gaId = (site.google_analytics || "").trim();
+const ANALYTICS = /^G-[A-Z0-9]+$/i.test(gaId)
+  ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${gaId}"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date());gtag("config","${gaId}");</script>`
+  : "";
 
 function layout({ titulo, descricao, url, imagem, conteudo, corpoClasse = "", jsonld = "", tipo = "website", extraHead = "", scripts = "" }) {
   const tituloCompleto = titulo ? `${titulo} | ${site.nome}` : `${site.nome} | ${site.titulo_profissional}`;
@@ -174,6 +182,7 @@ function layout({ titulo, descricao, url, imagem, conteudo, corpoClasse = "", js
 <link rel="stylesheet" href="/css/style.css?v=${Date.now().toString(36)}">
 <style>${cssVars}</style>
 ${jsonld ? `<script type="application/ld+json">${jsonld}</script>` : ""}
+${ANALYTICS}
 ${extraHead}
 </head>
 <body class="${corpoClasse}">
@@ -518,6 +527,40 @@ function pagina404() {
   });
 }
 
+function paginaInscricao() {
+  return layout({
+    titulo: "Inscreva-se",
+    descricao: "Receba por e-mail os novos conteúdos sobre ansiedade, hipnose clínica e regulação emocional do Dr. Rodrigo Vieira.",
+    url: "/inscreva-se/",
+    corpoClasse: "pg-inscricao",
+    conteudo: `<section class="blog-topo">
+  <span class="sobretitulo">Inscreva-se</span>
+  <h1>Receba os novos conteúdos</h1>
+  <p>Deixe seu nome e e-mail para ser avisado quando sair um novo post sobre ansiedade, hipnose clínica e regulação emocional.</p>
+</section>
+<section class="secao secao--inscricao">
+  <form class="form-inscricao" name="inscricao" method="POST" action="/inscreva-se/obrigado/" data-netlify="true" netlify-honeypot="sobrenome">
+    <input type="hidden" name="form-name" value="inscricao">
+    <p class="escondido"><label>Não preencha: <input name="sobrenome"></label></p>
+    <label>Nome<input type="text" name="nome" autocomplete="name" required></label>
+    <label>E-mail<input type="email" name="email" autocomplete="email" required></label>
+    <label>WhatsApp <small>(opcional)</small><input type="tel" name="whatsapp" autocomplete="tel"></label>
+    <label class="form-inscricao__ok"><input type="checkbox" name="autorizo" value="sim" required> Autorizo receber conteúdos do ${esc(site.nome)}. Posso cancelar quando quiser.</label>
+    <button class="btn" type="submit">Quero me inscrever</button>
+  </form>
+</section>`,
+  });
+}
+
+function paginaObrigado() {
+  return layout({
+    titulo: "Inscrição confirmada",
+    url: "/inscreva-se/obrigado/",
+    extraHead: '<meta name="robots" content="noindex">',
+    conteudo: `<section class="blog-topo"><span class="sobretitulo">Tudo certo</span><h1>Obrigado pela inscrição!</h1><p>Você vai receber os próximos conteúdos no seu e-mail. Enquanto isso, que tal ler o blog?</p><div class="acoes acoes--centro"><a class="btn" href="/blog/">Ver o blog</a><a class="btn btn--linha" href="/">Ir para o início</a></div></section>`,
+  });
+}
+
 // ---------- gravação ----------
 function gravar(rel, conteudo) {
   const f = path.join(OUT, rel);
@@ -537,9 +580,11 @@ posts.forEach((p) => {
 gravar("index.html", paginaInicial(posts));
 gravar("blog/index.html", paginaBlog(posts));
 posts.forEach((p) => gravar(`blog/${p.slug}/index.html`, paginaPost(p, posts)));
+gravar("inscreva-se/index.html", paginaInscricao());
+gravar("inscreva-se/obrigado/index.html", paginaObrigado());
 gravar("404.html", pagina404());
 
-const urls = ["/", "/blog/", ...posts.map((p) => p.url)];
+const urls = ["/", "/blog/", "/inscreva-se/", ...posts.map((p) => p.url)];
 gravar("sitemap.xml", `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${abs(u)}</loc></url>`).join("\n")}\n</urlset>\n`);
 gravar("robots.txt", `User-agent: *\nDisallow: /admin/\nSitemap: ${abs("/sitemap.xml")}\n`);
 

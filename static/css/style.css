@@ -353,3 +353,13 @@ p{margin:0 0 1em}
 .btn--vazado:hover{background:#fff;color:var(--c-principal-escura);border-color:#fff}
 .cta-final__foto{border-radius:50%;aspect-ratio:1/1;max-width:320px}
 @media (prefers-reduced-motion:reduce){.faixa-temas__trilho,.hx-ring{animation:none}}
+
+.secao--inscricao{padding-top:0}
+.form-inscricao{max-width:520px;margin:0 auto;display:grid;gap:1.1rem;background:#fff;padding:clamp(1.5rem,5vw,2.5rem);border-radius:var(--raio);box-shadow:var(--sombra)}
+.form-inscricao label{display:grid;gap:.4rem;font-weight:600;font-size:.95rem}
+.form-inscricao small{font-weight:400;opacity:.7}
+.form-inscricao input[type=text],.form-inscricao input[type=email],.form-inscricao input[type=tel]{font:inherit;font-weight:400;padding:.8em 1em;border:1.5px solid var(--c-linha);border-radius:12px;background:var(--c-fundo);color:var(--c-texto);width:100%}
+.form-inscricao input:focus{outline:2px solid var(--c-principal);outline-offset:1px}
+.form-inscricao__ok{display:flex!important;gap:.6rem;align-items:flex-start;font-weight:400!important;font-size:.9rem!important}
+.form-inscricao__ok input{margin-top:.25em;accent-color:var(--c-principal)}
+.escondido{position:absolute;left:-9999px}
