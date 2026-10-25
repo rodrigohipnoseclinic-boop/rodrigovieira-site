@@ -209,7 +209,6 @@ collections:
           - { name: linktree, label: Link dos cursos, widget: string }
           - { name: cidade, label: Cidade, widget: string }
           - { name: regiao, label: Região atendida, widget: string }
-          - { name: google_analytics, label: "ID do Google Analytics (começa com G-; deixe vazio para desligar)", widget: string, required: false }
           - name: autor
             label: Caixa do autor (nos posts)
             widget: object

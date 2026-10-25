@@ -147,12 +147,6 @@ const NAV = [
   ["/inscreva-se/", "Inscreva-se"],
 ];
 
-// Google Analytics: só entra no site se o ID (G-XXXX) estiver preenchido no painel
-const gaId = (site.google_analytics || "").trim();
-const ANALYTICS = /^G-[A-Z0-9]+$/i.test(gaId)
-  ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${gaId}"></script>
-<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date());gtag("config","${gaId}");</script>`
-  : "";
 
 function layout({ titulo, descricao, url, imagem, conteudo, corpoClasse = "", jsonld = "", tipo = "website", extraHead = "", scripts = "" }) {
   const tituloCompleto = titulo ? `${titulo} | ${site.nome}` : `${site.nome} | ${site.titulo_profissional}`;
@@ -182,7 +176,6 @@ function layout({ titulo, descricao, url, imagem, conteudo, corpoClasse = "", js
 <link rel="stylesheet" href="/css/style.css?v=${Date.now().toString(36)}">
 <style>${cssVars}</style>
 ${jsonld ? `<script type="application/ld+json">${jsonld}</script>` : ""}
-${ANALYTICS}
 ${extraHead}
 </head>
 <body class="${corpoClasse}">
@@ -561,6 +554,47 @@ function paginaObrigado() {
   });
 }
 
+// Painel de visitas (endereço não divulgado; os números vêm de /api/visitas)
+function paginaVisitas() {
+  return layout({
+    titulo: "Visitas do site",
+    url: "/visitas/",
+    extraHead: '<meta name="robots" content="noindex">',
+    conteudo: `<section class="blog-topo">
+  <span class="sobretitulo">Painel</span>
+  <h1>Visitas do site</h1>
+  <p>Pessoas = visitantes diferentes no dia. Visualizações = páginas abertas.</p>
+</section>
+<section class="secao secao--visitas">
+  <div class="visitas-num" id="v-num"><p class="centro">Carregando…</p></div>
+  <h2>Pessoas por dia <small>(últimos 30 dias)</small></h2>
+  <div class="visitas-graf" id="v-graf"></div>
+  <h2>Páginas mais vistas <small>(últimos 30 dias)</small></h2>
+  <ol class="visitas-pag" id="v-pag"></ol>
+</section>
+<script>
+fetch("/api/visitas").then(function (r) { return r.json(); }).then(function (d) {
+  function soma(n, k) { return d.slice(-n).reduce(function (t, x) { return t + x[k]; }, 0); }
+  var blocos = [["Hoje", 1], ["7 dias", 7], ["30 dias", 30], ["90 dias", 90]];
+  document.getElementById("v-num").innerHTML = blocos.map(function (b) {
+    return '<div><span>' + b[0] + '</span><strong>' + soma(b[1], "pes") + '</strong><small>pessoas · ' + soma(b[1], "vis") + ' visualizações</small></div>';
+  }).join("");
+  var ult = d.slice(-30), max = Math.max.apply(null, ult.map(function (x) { return x.pes; }).concat(1));
+  document.getElementById("v-graf").innerHTML = ult.map(function (x) {
+    var dt = x.dia.split("-").reverse().slice(0, 2).join("/");
+    return '<div title="' + dt + ': ' + x.pes + ' pessoas"><i style="height:' + (x.pes / max * 100) + '%"></i><span>' + dt + '</span></div>';
+  }).join("");
+  var pag = {};
+  ult.forEach(function (x) { for (var k in x.pag) pag[k] = (pag[k] || 0) + x.pag[k]; });
+  var lista = Object.keys(pag).sort(function (a, b) { return pag[b] - pag[a]; }).slice(0, 15);
+  document.getElementById("v-pag").innerHTML = lista.length ? lista.map(function (k) {
+    return '<li><a href="' + k.replace(/"/g, "") + '">' + (k === "/" ? "Página inicial" : k.replace(/</g, "&lt;")) + '</a><b>' + pag[k] + '</b></li>';
+  }).join("") : "<li>Ainda sem visitas registradas.</li>";
+}).catch(function () { document.getElementById("v-num").innerHTML = '<p class="centro">Não foi possível carregar os números agora.</p>'; });
+</script>`,
+  });
+}
+
 // ---------- gravação ----------
 function gravar(rel, conteudo) {
   const f = path.join(OUT, rel);
@@ -582,10 +616,11 @@ gravar("blog/index.html", paginaBlog(posts));
 posts.forEach((p) => gravar(`blog/${p.slug}/index.html`, paginaPost(p, posts)));
 gravar("inscreva-se/index.html", paginaInscricao());
 gravar("inscreva-se/obrigado/index.html", paginaObrigado());
+gravar("visitas/index.html", paginaVisitas());
 gravar("404.html", pagina404());
 
 const urls = ["/", "/blog/", "/inscreva-se/", ...posts.map((p) => p.url)];
 gravar("sitemap.xml", `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${abs(u)}</loc></url>`).join("\n")}\n</urlset>\n`);
-gravar("robots.txt", `User-agent: *\nDisallow: /admin/\nSitemap: ${abs("/sitemap.xml")}\n`);
+gravar("robots.txt", `User-agent: *\nDisallow: /admin/\nDisallow: /visitas/\nSitemap: ${abs("/sitemap.xml")}\n`);
 
 console.log(`Site gerado: ${posts.length} post(s) publicados em /dist`);
