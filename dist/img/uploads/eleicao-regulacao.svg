@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" font-family="DejaVu Sans, Verdana, Arial, sans-serif">
+  <defs>
+    <linearGradient id="fundo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9DB8AE"/>
+      <stop offset="1" stop-color="#E9DFCF"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#fundo)"/>
+  <circle cx="1000" cy="150" r="90" fill="#C99E74" opacity=".5"/>
+  <path d="M0 520 C 240 495 460 540 700 518 S 1020 500 1200 520 L1200 630 L0 630 Z" fill="#FAF7F2" opacity=".6"/>
+
+  <text x="70" y="90" font-size="36" font-weight="bold" fill="#213A4F">Do modo alerta à regulação</text>
+  <text x="70" y="134" font-size="22" fill="#2F574D">o corpo volta ao eixo quando a gente dá o sinal certo</text>
+
+  <text x="70" y="226" font-size="20" font-weight="bold" fill="#8A3F2E">modo alerta</text>
+  <text x="70" y="252" font-size="17" fill="#213A4F">coração acelerado, sono ruim, tensão</text>
+  <path d="M70 360 L110 296 L142 420 L186 280 L222 430 L262 304 L296 404 L334 330 C 372 356, 392 380, 430 360 S 506 340, 540 360 S 616 380, 650 360" fill="none" stroke="#8A3F2E" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M650 360 C 690 340, 730 380, 770 360 S 850 340, 890 360" fill="none" stroke="#3F6F63" stroke-width="5" stroke-linecap="round"/>
+  <text x="560" y="426" font-size="20" font-weight="bold" fill="#2F574D">regulação</text>
+  <text x="560" y="452" font-size="17" fill="#213A4F">respiração longa, rotina, descanso</text>
+
+  <g>
+    <circle cx="1000" cy="360" r="120" fill="none" stroke="#3F6F63" stroke-width="3" opacity=".25"/>
+    <circle cx="1000" cy="360" r="90" fill="none" stroke="#3F6F63" stroke-width="3" opacity=".4"/>
+    <circle cx="1000" cy="360" r="60" fill="none" stroke="#3F6F63" stroke-width="3" opacity=".6"/>
+    <path d="M950 520 L956 400 Q1000 372 1044 400 L1050 520 Z" fill="#86B5A8"/>
+    <circle cx="1000" cy="340" r="30" fill="#E8B990"/>
+    <path d="M974 330 Q1000 300 1026 330 Q1014 318 1000 318 Q986 318 974 330 Z" fill="#3E2B22"/>
+    <path d="M988 350 Q1000 358 1012 350" stroke="#7A5A44" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <line x1="960" y1="420" x2="990" y2="446" stroke="#E8B990" stroke-width="16" stroke-linecap="round"/>
+    <line x1="1040" y1="420" x2="1010" y2="446" stroke="#E8B990" stroke-width="16" stroke-linecap="round"/>
+  </g>
+
+  <text x="70" y="580" font-size="25" fill="#213A4F">Soltar o ar devagar avisa o cérebro de que o perigo passou.</text>
+</svg>

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" font-family="DejaVu Sans, Verdana, Arial, sans-serif">
+  <defs>
+    <linearGradient id="fundo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#213A4F"/>
+      <stop offset="1" stop-color="#2D4E66"/>
+    </linearGradient>
+    <g id="p">
+      <path d="M-26 0 L-22 -78 Q0 -96 22 -78 L26 0 Z" fill="currentColor"/>
+      <circle cx="0" cy="-112" r="22" fill="#E8B990"/>
+    </g>
+  </defs>
+  <rect width="1200" height="630" fill="url(#fundo)"/>
+  <rect y="548" width="1200" height="82" fill="#1B2E3F"/>
+  <text x="70" y="112" font-size="48" font-weight="bold" fill="#EAF0F5">A eleição acabou.</text>
+  <text x="70" y="174" font-size="48" font-weight="bold" fill="#EAF0F5">O corpo, nem sempre.</text>
+  <text x="70" y="224" font-size="25" fill="#9DB8AE">polarização, derrota, vitória e o que sobra nos nervos</text>
+  <g opacity=".9">
+    <use href="#p" transform="translate(120,548) scale(1.15)" style="color:#86B5A8"/>
+    <use href="#p" transform="translate(215,548) scale(1.3)" style="color:#6FA396"/>
+    <use href="#p" transform="translate(310,548) scale(1.1)" style="color:#86B5A8"/>
+    <use href="#p" transform="translate(405,548) scale(1.25)" style="color:#6FA396"/>
+    <use href="#p" transform="translate(500,548) scale(1.15)" style="color:#86B5A8"/>
+  </g>
+  <g opacity=".9">
+    <use href="#p" transform="translate(700,548) scale(1.2)" style="color:#C99E74"/>
+    <use href="#p" transform="translate(795,548) scale(1.1)" style="color:#B8873A"/>
+    <use href="#p" transform="translate(890,548) scale(1.3)" style="color:#C99E74"/>
+    <use href="#p" transform="translate(985,548) scale(1.15)" style="color:#B8873A"/>
+    <use href="#p" transform="translate(1080,548) scale(1.25)" style="color:#C99E74"/>
+  </g>
+  <polyline points="600,250 586,320 612,372 592,430 618,490 600,548" fill="none" stroke="#FAF7F2" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/>
+  <g stroke="#E8B990" stroke-width="4" stroke-linecap="round" opacity=".75">
+    <line x1="548" y1="300" x2="566" y2="318"/>
+    <line x1="540" y1="350" x2="562" y2="354"/>
+    <line x1="652" y1="300" x2="634" y2="318"/>
+    <line x1="660" y1="350" x2="638" y2="354"/>
+  </g>
+</svg>

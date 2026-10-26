@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" font-family="DejaVu Sans, Verdana, Arial, sans-serif">
+  <defs>
+    <linearGradient id="esq" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3B4F5E"/>
+      <stop offset="1" stop-color="#26394A"/>
+    </linearGradient>
+    <linearGradient id="dir" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F0D9B5"/>
+      <stop offset="1" stop-color="#E9DFCF"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="630" fill="url(#esq)"/>
+  <rect x="600" width="600" height="630" fill="url(#dir)"/>
+  <rect y="540" width="600" height="90" fill="#1B2E3F" opacity=".7"/>
+  <rect x="600" y="540" width="600" height="90" fill="#C99E74" opacity=".35"/>
+
+  <text x="50" y="80" font-size="34" font-weight="bold" fill="#EAF0F5">Quem perdeu</text>
+  <text x="50" y="122" font-size="21" fill="#9DB8AE">tristeza, raiva, medo, insônia</text>
+  <text x="650" y="80" font-size="34" font-weight="bold" fill="#213A4F">Quem ganhou</text>
+  <text x="650" y="122" font-size="21" fill="#5E4A33">euforia, adrenalina, vontade de provocar</text>
+
+  <g>
+    <ellipse cx="270" cy="228" rx="80" ry="30" fill="#6E8794" opacity=".85"/>
+    <ellipse cx="320" cy="205" rx="58" ry="24" fill="#8199A5" opacity=".85"/>
+    <g stroke="#9DB8AE" stroke-width="3" stroke-linecap="round" opacity=".7">
+      <line x1="240" y1="262" x2="234" y2="282"/>
+      <line x1="272" y1="262" x2="266" y2="282"/>
+      <line x1="304" y1="262" x2="298" y2="282"/>
+    </g>
+  </g>
+  <g transform="translate(300,540) rotate(10)">
+    <path d="M-52 0 L-44 -156 Q0 -190 44 -156 L52 0 Z" fill="#4F7F73"/>
+    <circle cx="14" cy="-206" r="42" fill="#E8B990"/>
+    <path d="M-28 -226 Q14 -262 56 -226 Q40 -246 14 -246 Q-10 -246 -28 -226 Z" fill="#3E2B22"/>
+  </g>
+  <g stroke="#E8B990" stroke-width="24" stroke-linecap="round" fill="none">
+    <line x1="268" y1="390" x2="262" y2="470"/>
+    <line x1="340" y1="388" x2="338" y2="470"/>
+  </g>
+
+  <g fill="#B8873A">
+    <circle cx="720" cy="190" r="7"/>
+    <circle cx="800" cy="160" r="6" fill="#3F6F63"/>
+    <circle cx="1060" cy="180" r="7"/>
+    <circle cx="1120" cy="230" r="6" fill="#3F6F63"/>
+    <rect x="990" y="150" width="12" height="12" transform="rotate(25 996 156)"/>
+    <rect x="740" y="250" width="12" height="12" transform="rotate(-20 746 256)" fill="#3F6F63"/>
+  </g>
+  <g transform="translate(900,540)">
+    <path d="M-52 0 L-44 -156 Q0 -190 44 -156 L52 0 Z" fill="#3F6F63"/>
+    <circle cx="0" cy="-214" r="42" fill="#E8B990"/>
+    <path d="M-40 -226 Q0 -270 40 -226 Q24 -246 0 -246 Q-24 -246 -40 -226 Z" fill="#3E2B22"/>
+    <path d="M-16 -204 Q0 -186 16 -204" stroke="#7A5A44" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <g stroke="#E8B990" stroke-width="24" stroke-linecap="round" fill="none">
+      <line x1="-40" y1="-150" x2="-96" y2="-262"/>
+      <line x1="40" y1="-150" x2="96" y2="-262"/>
+    </g>
+  </g>
+
+  <text x="600" y="592" font-size="26" font-weight="bold" fill="#FAF7F2" text-anchor="middle">Nos dois lados, o corpo fica em alerta</text>
+</svg>
