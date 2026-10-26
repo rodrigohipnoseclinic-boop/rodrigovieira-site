@@ -532,9 +532,9 @@ function paginaInscricao() {
   <p>Deixe seu contato para receber novidades sobre ansiedade, hipnose clínica e regulação emocional.</p>
 </section>
 <section class="secao secao--inscricao">
-  <form class="form-inscricao" name="inscricao" method="POST" action="/inscreva-se/obrigado/" data-netlify="true" netlify-honeypot="sobrenome">
+  <form class="form-inscricao" name="inscricao" method="POST" action="/inscreva-se/obrigado/" data-netlify="true" netlify-honeypot="bot-field">
     <input type="hidden" name="form-name" value="inscricao">
-    <p class="escondido"><label>Não preencha: <input name="sobrenome"></label></p>
+    <p class="escondido" aria-hidden="true"><label>Não preencha: <input name="bot-field" type="text" autocomplete="off" tabindex="-1"></label></p>
     <label>Nome<input type="text" name="nome" autocomplete="name" required></label>
     <label>E-mail<input type="email" name="email" autocomplete="email" required></label>
     <label>WhatsApp <small>(opcional)</small><input type="tel" name="whatsapp" autocomplete="tel"></label>
