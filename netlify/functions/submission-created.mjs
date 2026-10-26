@@ -14,7 +14,9 @@ export async function handler(event) {
   const nome = String(payload.data?.nome || "").trim().slice(0, 80);
   const id = crypto.createHash("sha256").update(email).digest("hex").slice(0, 24);
 
-  const loja = getStore({ name: "inscritos", consistency: "strong" });
+  // Esta função roda no modo Lambda (connectLambda), que não traz a configuração
+  // de leitura "strong" do Netlify Blobs e dava BlobsConsistencyError.
+  const loja = getStore({ name: "inscritos" });
   const existente = await loja.get(`pessoa/${id}`, { type: "json" });
   const token = existente?.token || crypto.randomBytes(16).toString("hex");
   await loja.setJSON(`pessoa/${id}`, { email, nome, token, desde: existente?.desde || new Date().toISOString() });
