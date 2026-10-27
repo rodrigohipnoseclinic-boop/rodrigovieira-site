@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agendar consulta · Dr. Rodrigo Vieira</title>
+<meta name="description" content="Agende sua consulta com o Dr. Rodrigo Vieira, presencial em Amparo-SP ou online.">
+<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/agenda.css">
+</head>
+<body>
+<header class="ag-topo"><a href="/">Dr. Rodrigo Vieira</a></header>
+<main class="ag">
+  <h1 id="titulo">Agendar consulta</h1>
+  <p id="descricao" class="muted"></p>
+  <p class="resumo" id="resumo"></p>
+  <div id="erro-geral" class="aviso aviso--erro oculto" role="alert"></div>
+
+  <form id="form" novalidate>
+    <section class="cartao" id="p1">
+      <p class="passo-tit"><b>1</b> Como prefere ser atendido?</p>
+      <div class="opcoes" id="modalidades"></div>
+    </section>
+
+    <section class="cartao" id="p2" aria-disabled="true">
+      <p class="passo-tit"><b>2</b> Escolha o dia e o horário</p>
+      <div class="cal-nav">
+        <button type="button" class="btn btn--linha btn--peq" id="mes-ant" aria-label="Mês anterior">‹</button>
+        <strong id="mes-nome" aria-live="polite"></strong>
+        <button type="button" class="btn btn--linha btn--peq" id="mes-prox" aria-label="Próximo mês">›</button>
+      </div>
+      <div class="cal" id="cal"></div>
+      <p class="muted" id="cal-msg" aria-live="polite"></p>
+      <div class="horas" id="horas" role="group" aria-label="Horários disponíveis"></div>
+    </section>
+
+    <section class="cartao" id="p3" aria-disabled="true">
+      <p class="passo-tit"><b>3</b> Seus dados</p>
+      <p class="aviso aviso--info" id="escolha"></p>
+      <label class="campo"><span>Nome completo</span><input name="nome" autocomplete="name" required maxlength="100"></label>
+      <div class="linha2">
+        <label class="campo"><span>E-mail</span><input name="email" type="email" autocomplete="email" required maxlength="200"></label>
+        <label class="campo"><span>WhatsApp (com DDD)</span><input name="telefone" type="tel" autocomplete="tel" inputmode="tel" required maxlength="20" placeholder="(19) 99999-9999"></label>
+      </div>
+      <div class="campo">
+        <span>Sua foto (para identificação no atendimento)</span>
+        <div class="foto-box">
+          <div class="foto-prev" id="foto-prev">sem foto</div>
+          <div class="acoes" style="margin:0">
+            <label class="btn btn--peq">Tirar selfie<input type="file" accept="image/*" capture="user" id="foto-cam" class="oculto"></label>
+            <label class="btn btn--linha btn--peq">Enviar foto<input type="file" accept="image/*" id="foto-arq" class="oculto"></label>
+          </div>
+        </div>
+        <p class="muted" style="margin:.5em 0 0">Rosto visível, de frente. A foto é vista apenas pelo consultório.</p>
+      </div>
+      <input class="armadilha" name="site" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <label class="check"><input type="checkbox" name="consentimento" required>
+        <span>Autorizo o uso dos meus dados e da minha foto exclusivamente para o agendamento e a identificação no atendimento, conforme a LGPD. Posso pedir a exclusão a qualquer momento.</span></label>
+      <p class="aviso aviso--info" id="aviso-pag"></p>
+      <div id="erro" class="aviso aviso--erro oculto" role="alert"></div>
+      <div id="alternativas" class="oculto"></div>
+      <button class="btn" type="submit" id="enviar">Confirmar agendamento</button>
+    </section>
+  </form>
+
+  <section class="cartao oculto" id="sucesso" tabindex="-1">
+    <h2>Consulta agendada ✓</h2>
+    <div id="sucesso-txt"></div>
+    <div class="acoes"><a class="btn btn--linha" href="/">Voltar ao site</a></div>
+  </section>
+</main>
+<script src="/js/agendar.js" defer></script>
+</body>
+</html>

@@ -1,5 +1,7 @@
 # Sistema de agendamento: proposta técnica (Etapa 1)
 
+> **Atualização:** por decisão do Dr. Rodrigo, o pagamento saiu do sistema e é combinado diretamente com ele. O que foi implementado está em `docs/agendamento-guia.md`.
+
 Status: só proposta. Nada foi publicado e nada foi cobrado.
 
 ## Ambiente analisado

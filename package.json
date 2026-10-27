@@ -6,7 +6,8 @@
   "description": "Site profissional e blog do Dr. Rodrigo Vieira",
   "scripts": {
     "build": "node build.mjs",
-    "dev": "node build.mjs && npx --yes serve dist"
+    "dev": "node build.mjs && npx --yes serve dist",
+    "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
     "@netlify/blobs": "11.1.6",
