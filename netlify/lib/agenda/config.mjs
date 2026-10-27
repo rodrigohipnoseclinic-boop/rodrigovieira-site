@@ -18,6 +18,8 @@ export const PADRAO = {
   aviso_pagamento: "O pagamento é combinado diretamente com o Dr. Rodrigo.",
   // Pix antes do calendário. Desligado: o pagamento é combinado à parte.
   pix: { ativo: false, valor: 0, prazo_dias: 30 },
+  // Modelos de mensagem aprovados no WhatsApp Business (nomes exatos).
+  whatsapp: { ativo: false, numero_admin: "", idioma: "pt_BR", modelo_paciente: "consulta_confirmada", modelo_admin: "novo_agendamento", modelo_transferencia: "", modelo_cancelamento: "" },
   orientacoes_alteracao: "Para remarcar ou cancelar, fale pelo WhatsApp (19) 99749-8217 com pelo menos 24 horas de antecedência.",
   modalidades: {
     presencial: { ativa: true, nome: "Presencial", agenda: "principal", endereco: "Amparo - SP", orientacoes: "Chegue com 10 minutos de antecedência.", semana: semanaPadrao() },
@@ -73,6 +75,15 @@ export function normalizarConfig(e) {
       prazo_dias: inteiro(e.pix?.prazo_dias ?? 30, 1, 365, "Prazo para agendar após o pagamento"),
     },
   };
+  const w = e.whatsapp || {};
+  const modelo = (v) => texto(v, 60).toLowerCase().replace(/[^a-z0-9_]/g, "");
+  c.whatsapp = {
+    ativo: !!w.ativo, numero_admin: String(w.numero_admin || "").replace(/[^\d+]/g, "").slice(0, 20), idioma: texto(w.idioma, 10) || "pt_BR",
+    modelo_paciente: modelo(w.modelo_paciente), modelo_admin: modelo(w.modelo_admin),
+    modelo_transferencia: modelo(w.modelo_transferencia), modelo_cancelamento: modelo(w.modelo_cancelamento),
+  };
+  if (c.whatsapp.ativo && c.whatsapp.modelo_admin && c.whatsapp.numero_admin.replace(/\D/g, "").length < 10)
+    throw new Erro("Informe o seu número de WhatsApp com DDD para receber os avisos.");
   if (!(c.pix.valor >= 0 && c.pix.valor <= 10000)) throw new Erro("Valor da consulta inválido.");
   if (c.pix.ativo && c.pix.valor < 5) throw new Erro("Para ativar o Pix, informe o valor da consulta (mínimo R$ 5,00).");
   if (c.passo && c.passo < 5) throw new Erro("Espaçamento mínimo de 5 minutos.");

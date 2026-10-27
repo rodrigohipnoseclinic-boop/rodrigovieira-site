@@ -10,6 +10,8 @@ import * as A from "../lib/agenda/auth.mjs";
 import { agoraLocal, dataValida, paraMin } from "../lib/agenda/tempo.mjs";
 import { json, corpo, tratarErro, partes } from "../lib/agenda/http.mjs";
 import { provedor } from "../lib/agenda/pix.mjs";
+import * as PR from "../lib/agenda/prontuario.mjs";
+import { whatsappConfigurado } from "../lib/agenda/whatsapp.mjs";
 import { listarPedidos, atualizarStatus, liberarPedido, estornar, linkRetomar } from "../lib/agenda/pedidos.mjs";
 import { mensagemAvulsa } from "../lib/agenda/emails.mjs";
 import { SITE } from "../lib/email.mjs";
@@ -61,7 +63,7 @@ async function rotasLivres(L, req) {
 }
 
 async function rotasProtegidas(L, req, u) {
-  const [r, id, acao] = partes(req, "/api/painel");
+  const [r, id, acao, sub] = partes(req, "/api/painel");
   const q = new URL(req.url).searchParams;
   const M = req.method;
   const log = (a, d) => registrarLog(L.dados, u.email, a, d);
@@ -77,7 +79,7 @@ async function rotasProtegidas(L, req, u) {
 
   // ----- configurações e horários de atendimento -----
   if (r === "config") {
-    if (M === "GET") return json({ config: await lerConfig(L.dados), podeEditar: A.pode(u, "config") });
+    if (M === "GET") return json({ config: await lerConfig(L.dados), podeEditar: A.pode(u, "config"), whatsapp_configurado: whatsappConfigurado() });
     if (M === "PUT") {
       exigir(u, "config");
       const cfg = normalizarConfig(await corpo(req));
@@ -184,6 +186,7 @@ async function rotasProtegidas(L, req, u) {
     }
     if (M === "DELETE") {
       exigir(u, "admin");
+      if (await PR.temProntuario(L.dados, cid)) throw new Erro("Este cliente tem prontuário. Exclua o prontuário antes (verifique o prazo de guarda exigido para registros de atendimento).", 409);
       await excluirCliente(L, cid);
       await log("cliente-excluido", { id: cid });
       return json({ ok: true });
@@ -223,6 +226,43 @@ async function rotasProtegidas(L, req, u) {
       const e = await reenviar(L.dados, id);
       await log("email-reenviado", { id, status: e.status });
       return json({ email: { ...e, html: undefined, texto: undefined } });
+    }
+  }
+
+  // ----- prontuário (evoluções clínicas): só administrador -----
+  if (r === "prontuario") {
+    exigir(u, "admin");
+    const cid = String(id || "").replace(/[^a-f0-9]/g, "");
+    if (!cid) throw new Erro("Cliente inválido.");
+    if (M === "GET" && !acao) {
+      const c = (await ler(L.dados, `cliente/${cid}`)).dado;
+      if (!c) throw new Erro("Cliente não encontrado.", 404);
+      return json({ cliente: { id: c.id, nome: c.nome, telefone: c.telefone, email: c.email, foto: !!c.foto }, prontuario: await PR.lerProntuario(L.dados, cid), max: PR.MAX_EVOLUCOES });
+    }
+    if (M === "POST" && acao === "evolucoes" && !sub) {
+      const ev = await PR.adicionarEvolucao(L.dados, cid, await corpo(req), u.email);
+      await log("evolucao-adicionada", { cliente: cid, evolucao: ev.id, data: ev.data });
+      return json({ evolucao: ev }, 201);
+    }
+    if (M === "PUT" && acao === "evolucoes" && sub) {
+      await PR.editarEvolucao(L.dados, cid, sub, await corpo(req), u.email);
+      await log("evolucao-editada", { cliente: cid, evolucao: sub });
+      return json({ ok: true });
+    }
+    if (M === "DELETE" && acao === "evolucoes" && sub) {
+      await PR.excluirEvolucao(L.dados, cid, sub);
+      await log("evolucao-excluida", { cliente: cid, evolucao: sub });
+      return json({ ok: true });
+    }
+    if (M === "POST" && acao === "processos") {
+      const p = await PR.novoProcesso(L.dados, cid, await corpo(req));
+      await log("processo-iniciado", { cliente: cid, numero: p.numero });
+      return json({ processo: p }, 201);
+    }
+    if (M === "DELETE" && !acao) {
+      await PR.excluirProntuario(L.dados, cid);
+      await log("prontuario-excluido", { cliente: cid });
+      return json({ ok: true });
     }
   }
 

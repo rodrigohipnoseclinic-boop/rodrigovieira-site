@@ -46,6 +46,41 @@ Os e-mails usam o Gmail que o site já tem configurado (`GMAIL_USUARIO` e `GMAIL
 - Liberar novo horário (depois de cancelar a consulta).
 - Estornar (só o administrador).
 
+## WhatsApp (API oficial da Meta): como ativar
+O sistema avisa pelo WhatsApp:
+- **O paciente:** quando o agendamento é confirmado. Se houver modelo, também na remarcação e no cancelamento.
+- **Você:** a cada novo agendamento.
+
+Para ativar:
+1. Crie a conta em **Meta Business** (business.facebook.com) e adicione o produto **WhatsApp** a um app em developers.facebook.com.
+2. Cadastre o número que vai enviar as mensagens. Esse número fica ligado à API. O número de uso pessoal pode continuar no app comum se você usar um número diferente para a API, ou o modo de coexistência do WhatsApp Business, se estiver disponível para a sua conta.
+3. Crie um **token de acesso permanente** (usuário do sistema) e copie o **ID do número**.
+4. No Netlify, crie as variáveis `WHATSAPP_TOKEN` e `WHATSAPP_PHONE_ID`.
+5. Em **WhatsApp Manager → Modelos de mensagem**, crie e envie para aprovação estes modelos, na categoria **Utilidade** e no idioma **Português (BR)**:
+
+   **`consulta_confirmada`** (vai para o paciente)
+   > Olá, {{1}}! Sua consulta com {{2}} está confirmada para {{3}} às {{4}} ({{5}}). Se precisar remarcar, responda esta mensagem.
+
+   **`novo_agendamento`** (vai para você)
+   > Novo agendamento: {{1}}, em {{2}} às {{3}} ({{4}}). Telefone: {{5}}.
+
+   Opcionais, que usam os mesmos 5 campos da confirmação: `consulta_remarcada` e `consulta_cancelada`.
+6. No painel, em Configurações → WhatsApp, marque **Enviar mensagens**, informe o seu número e confira os nomes dos modelos.
+
+Se uma mensagem falhar, ela aparece em **Registros** com o botão **Reenviar**, igual ao e-mail.
+
+**Custo:** a Meta cobra por mensagem de utilidade entregue, na casa de centavos (confira a tabela atual para o Brasil). Não há mensalidade.
+
+## Prontuário (evoluções clínicas)
+- Abra em **Clientes → (cliente) → Prontuário**, ou pelo botão **Prontuário** no detalhe da consulta.
+- Cole a evolução, ajuste a data e salve. Cada evolução pode ser editada, copiada ou excluída.
+- Cada **processo** aceita até 15 evoluções. **Iniciar novo processo** encerra o atual, que continua disponível para revisão em **Processos anteriores**.
+- O acesso é **só do administrador**: a assistente não vê o prontuário.
+- Todas as ações ficam no registro de alterações, sem o conteúdo do texto.
+- Os textos são gravados **cifrados**. Para ativar, crie no Netlify a variável `PRONTUARIO_CHAVE`, com uma frase secreta de pelo menos 32 caracteres. **Guarde uma cópia em local seguro: sem ela, as evoluções não podem ser lidas.** Não troque essa chave depois de começar a usar.
+- O backup inclui o prontuário cifrado, que só abre com a mesma chave.
+- Um cliente com prontuário não pode ser excluído antes de o prontuário ser excluído. Verifique o prazo de guarda exigido pelo seu conselho profissional.
+
 ## O que o painel faz
 | Área | Administrador | Assistente |
 |---|---|---|
@@ -57,6 +92,7 @@ Os e-mails usam o Gmail que o site já tem configurado (`GMAIL_USUARIO` e `GMAIL
 | Estornar Pix | ✓ | — |
 | Horários de atendimento, duração, intervalo, preços e textos | ✓ | — |
 | Usuários, registro de alterações, backup | ✓ | — |
+| Prontuário (evoluções clínicas) | ✓ | — |
 
 **Regras que o sistema garante:**
 - Nunca há duas consultas sobrepostas na mesma agenda, nem quando duas pessoas confirmam ao mesmo tempo.
@@ -67,7 +103,7 @@ Os e-mails usam o Gmail que o site já tem configurado (`GMAIL_USUARIO` e `GMAIL
 - Transferências e cancelamentos avisam o paciente por e-mail. Dá para desmarcar esse aviso.
 
 ## Dados e LGPD
-- O sistema guarda apenas nome, e-mail, WhatsApp e foto, com a data do consentimento.
+- O sistema guarda nome, e-mail, WhatsApp e foto, com a data do consentimento. As evoluções clínicas que você registrar ficam cifradas e só o administrador as vê.
 - As fotos ficam em um armazenamento separado e só aparecem para quem está logado no painel.
 - O administrador pode excluir o cadastro e a foto de um cliente. As consultas antigas ficam só com o nome.
 - **Backup:** em Usuários e conta → Baixar backup. Não inclui fotos nem senhas.
@@ -78,6 +114,7 @@ Os e-mails usam o Gmail que o site já tem configurado (`GMAIL_USUARIO` e `GMAIL
 | Hospedagem e banco de dados (Netlify e Netlify Blobs) | R$ 0 no plano atual. O plano gratuito tem limites mensais de uso, folgados para este volume |
 | Domínio `rodrigovieiraterapeuta.com.br` | Já pago (renovação anual do registro.br, cerca de R$ 40) |
 | E-mails (Gmail do site) | R$ 0, com limite de cerca de 500 por dia |
+| WhatsApp (API oficial da Meta) | Sem mensalidade. Centavos por mensagem; para cerca de 100 consultas por mês, algo em torno de R$ 5 a 20 (a confirmar) |
 | Pix (Asaas) | Sem mensalidade. Tarifa por Pix recebido, de aproximadamente R$ 1 a 2; **confirme na tabela atual do Asaas** |
 
 ## Migração do Tua Agenda (ainda não iniciada)
@@ -92,7 +129,8 @@ Só começa depois que o novo sistema estiver validado em uso real. Passos:
 - Netlify Blobs com gravação condicional: o mesmo dia não aceita duas gravações conflitantes.
 
 ## Testes
-- `npm test`: 26 testes de regras (horários, bloqueios, duração, disputa pelo mesmo horário, e-mails, login, LGPD, Pix e chamadas ao Asaas com respostas simuladas).
+- `npm test`: 32 testes de regras (horários, bloqueios, duração, disputa pelo mesmo horário, e-mails, WhatsApp, prontuário, login, LGPD, Pix e chamadas ao Asaas com respostas simuladas).
+- Servidor com `PRONTUARIO_CHAVE` e `node test/e2e-prontuario.mjs`: prontuário e WhatsApp no painel, com 6 cenários aprovados.
 - `node test/servidor-dev.mjs` com `node test/e2e.mjs`: simulação no navegador sem Pix, com 18 cenários aprovados.
 - Servidor com `AGENDA_PIX_SIMULADO=1` e `node test/e2e-pix.mjs`: fluxo Pix completo no navegador, com 13 cenários aprovados.
 - Antes de usar com pacientes, confirme na pré-visualização do Netlify: um agendamento real, o e-mail chegando e o login no painel.

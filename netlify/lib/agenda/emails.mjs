@@ -5,6 +5,7 @@ import { configurado, transporte, remetente } from "../email.mjs";
 import { ler, listarChaves } from "./armazem.mjs";
 import { dataExtenso } from "./tempo.mjs";
 import { Erro } from "./config.mjs";
+import { enviarWhatsapp, numeroWhatsapp } from "./whatsapp.mjs";
 
 const esc = (s = "") => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -79,7 +80,7 @@ async function tentar(loja, chave, reg, enviar) {
 }
 
 // Cria (uma única vez) e envia os dois e-mails de um evento da consulta.
-export async function notificar(loja, cfg, c, evento, { avisarPaciente = true, enviar = enviarSmtp } = {}) {
+export async function notificar(loja, cfg, c, evento, { avisarPaciente = true, enviar = enviarSmtp, enviarWa = enviarWhatsapp } = {}) {
   const m = montarMensagens(cfg, c, evento);
   const n = c.historico.length;
   const destinos = [["admin", cfg.email_admin || process.env.GMAIL_USUARIO || ""]];
@@ -91,6 +92,32 @@ export async function notificar(loja, cfg, c, evento, { avisarPaciente = true, e
     const r = await loja.setJSON(chave, reg, { onlyIfNew: true });
     out.push(r.modified ? await tentar(loja, chave, reg, enviar) : (await ler(loja, chave)).dado);
   }
+  for (const reg of mensagensWhatsapp(cfg, c, evento, avisarPaciente)) {
+    const chave = `email/${c.id}-${n}-wa-${reg.quem}`;
+    Object.assign(reg, { id: chave.slice(6), consulta: c.id, evento, canal: "whatsapp", status: "pendente", criado: new Date().toISOString() });
+    const r = await loja.setJSON(chave, reg, { onlyIfNew: true });
+    out.push(r.modified ? await tentar(loja, chave, reg, enviarWa) : (await ler(loja, chave)).dado);
+  }
+  return out;
+}
+
+// WhatsApp (modelos aprovados pela Meta). Paciente: confirmação e, se houver
+// modelo, transferência e cancelamento. Administrador: novo agendamento.
+function mensagensWhatsapp(cfg, c, evento, avisarPaciente) {
+  const w = cfg.whatsapp;
+  if (!w?.ativo) return [];
+  const data = c.data.split("-").reverse().join("/");
+  const mod = cfg.modalidades[c.modalidade]?.nome || c.modalidade;
+  const out = [];
+  const modeloPac = { confirmacao: w.modelo_paciente, transferencia: w.modelo_transferencia, cancelamento: w.modelo_cancelamento }[evento];
+  const numPac = numeroWhatsapp(c.cliente.telefone);
+  if (avisarPaciente && modeloPac && numPac)
+    out.push({ quem: "paciente", para: numPac, modelo: modeloPac, idioma: w.idioma, assunto: `WhatsApp (${modeloPac})`,
+      parametros: [c.cliente.nome.split(" ")[0], cfg.profissional, data, c.inicio, mod] });
+  const numAdm = numeroWhatsapp(w.numero_admin);
+  if (evento === "confirmacao" && w.modelo_admin && numAdm)
+    out.push({ quem: "admin", para: numAdm, modelo: w.modelo_admin, idioma: w.idioma, assunto: `WhatsApp (${w.modelo_admin})`,
+      parametros: [c.cliente.nome, data, c.inicio, mod, c.cliente.telefone || "-"] });
   return out;
 }
 
@@ -102,12 +129,12 @@ export async function mensagemAvulsa(loja, id, { quem, para, assunto, titulo, li
   return r.modified ? tentar(loja, chave, reg, enviar) : (await ler(loja, chave)).dado;
 }
 
-export async function reenviar(loja, id, enviar = enviarSmtp) {
+export async function reenviar(loja, id, enviar) {
   const chave = `email/${String(id).replace(/[^A-Za-z0-9-]/g, "")}`;
   const { dado } = await ler(loja, chave);
   if (!dado) throw new Erro("E-mail não encontrado.", 404);
   if (dado.status === "enviado") return dado;
-  return tentar(loja, chave, dado, enviar);
+  return tentar(loja, chave, dado, enviar || (dado.canal === "whatsapp" ? enviarWhatsapp : enviarSmtp));
 }
 
 export async function listarEmails(loja, { soErros = false, limite = 100 } = {}) {

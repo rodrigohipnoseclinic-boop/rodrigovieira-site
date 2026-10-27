@@ -169,7 +169,9 @@
       <details><summary class="muted">Histórico · ${c.id}</summary><ul class="muted" style="font-size:.85rem">${hist}</ul></details>
       <div id="m" class="aviso oculto" role="alert"></div><div id="acao"></div>
       <div class="acoes">${c.status === "confirmada" && pode("consultas") ? `<button class="btn btn--peq" id="transf">Transferir</button><button class="btn btn--perigo btn--peq" id="btn-cancelar">Cancelar consulta</button>` : ""}
+      ${st.eu.papel === "admin" && c.cliente.id ? `<button class="btn btn--linha btn--peq" id="pront">Prontuário</button>` : ""}
       <button class="btn btn--linha btn--peq" data-fechar>Fechar</button></div>`);
+    if ($("#pront")) $("#pront").onclick = () => { dlg.close(); telaProntuario(c.cliente.id); };
     if (!$("#transf")) return;
     $("#transf").onclick = () => {
       $("#acao").innerHTML = `<form id="ft" class="cartao" style="background:var(--c-fundo);margin-top:12px"><strong>Transferir para</strong>
@@ -385,7 +387,8 @@
 
   // ---------- configurações ----------
   async function telaConfig() {
-    st.cfg = (await api("config")).config;
+    const rc = await api("config");
+    st.cfg = rc.config;
     const c = st.cfg;
     const campo = (nome, rot, tipo = "text", extra = "") => `<label class="campo"><span>${rot}</span><input name="${nome}" type="${tipo}" value="${esc(c[nome])}" ${extra}></label>`;
     $("#tela").innerHTML = `<h1>Configurações</h1><form class="cartao" id="fc">
@@ -405,6 +408,15 @@
       <label class="check"><input type="checkbox" name="pix_ativo" ${c.pix.ativo ? "checked" : ""}> <span><strong>Exigir Pix antes de liberar o calendário</strong><br><span class="muted">Desligado: o paciente agenda direto e o pagamento é combinado à parte.</span></span></label>
       <div class="linha2"><label class="campo"><span>Valor da consulta (R$)</span><input name="pix_valor" type="number" step="0.01" min="0" value="${c.pix.valor}"></label>
       <label class="campo"><span>Prazo para agendar após pagar (dias)</span><input name="pix_prazo_dias" type="number" min="1" max="365" value="${c.pix.prazo_dias}"></label></div>
+      <h2>WhatsApp</h2>
+      <p class="muted">${rc.whatsapp_configurado ? `<span class="etq">credenciais da Meta configuradas</span>` : `<span class="etq etq--erro">faltam WHATSAPP_TOKEN e WHATSAPP_PHONE_ID no Netlify</span>`}</p>
+      <label class="check"><input type="checkbox" name="wa_ativo" ${c.whatsapp.ativo ? "checked" : ""}> <span><strong>Enviar mensagens pelo WhatsApp</strong><br><span class="muted">Confirmação ao paciente e aviso para você a cada novo agendamento.</span></span></label>
+      <label class="campo"><span>Seu WhatsApp (recebe o aviso de novo agendamento)</span><input name="wa_numero_admin" type="tel" value="${esc(c.whatsapp.numero_admin)}" placeholder="(19) 99999-9999"></label>
+      <div class="linha2"><label class="campo"><span>Modelo: confirmação ao paciente</span><input name="wa_modelo_paciente" value="${esc(c.whatsapp.modelo_paciente)}"></label>
+      <label class="campo"><span>Modelo: aviso para você</span><input name="wa_modelo_admin" value="${esc(c.whatsapp.modelo_admin)}"></label></div>
+      <div class="linha2"><label class="campo"><span>Modelo: remarcação (opcional)</span><input name="wa_modelo_transferencia" value="${esc(c.whatsapp.modelo_transferencia)}"></label>
+      <label class="campo"><span>Modelo: cancelamento (opcional)</span><input name="wa_modelo_cancelamento" value="${esc(c.whatsapp.modelo_cancelamento)}"></label></div>
+      <p class="muted">Use os nomes exatos dos modelos aprovados no WhatsApp Business. Deixe vazio para não enviar aquele tipo de mensagem.</p>
       <label class="campo"><span>Como pedir alterações (vai no e-mail do paciente)</span><textarea name="orientacoes_alteracao" rows="2">${esc(c.orientacoes_alteracao)}</textarea></label>
       <div id="m" class="aviso oculto" role="alert"></div><button class="btn">Salvar configurações</button></form>`;
     $("#fc").onsubmit = async (ev) => {
@@ -413,6 +425,8 @@
       for (const k of ["duracao", "intervalo", "passo", "antecedencia_horas", "janela_dias"]) d[k] = Number(d[k]);
       d.pix = { ativo: !!d.pix_ativo, valor: Number(d.pix_valor), prazo_dias: Number(d.pix_prazo_dias) };
       delete d.pix_ativo; delete d.pix_valor; delete d.pix_prazo_dias;
+      d.whatsapp = { ...st.cfg.whatsapp, ativo: !!d.wa_ativo };
+      for (const k of Object.keys(d)) if (k.startsWith("wa_")) { if (k !== "wa_ativo") d.whatsapp[k.slice(3)] = d[k]; delete d[k]; }
       try { st.cfg = (await api("config", { metodo: "PUT", dados: { ...st.cfg, ...d } })).config; aviso($("#m"), "Configurações salvas.", "ok"); }
       catch (x) { aviso($("#m"), x.message); }
     };
@@ -436,7 +450,8 @@
         <div><h2>${esc(c.nome)}</h2><p style="margin:0">📞 ${esc(c.telefone)}<br>✉️ ${esc(c.email || "—")}</p>
         <p class="muted" style="font-size:.85rem">Cadastro: ${new Date(c.criado).toLocaleDateString("pt-BR")}${c.consentimento ? ` · consentimento LGPD em ${new Date(c.consentimento).toLocaleDateString("pt-BR")}` : ""}</p></div></div>
         <h3 style="margin-top:12px">Consultas</h3><ul>${consultas.reverse().map((x) => `<li>${br(x.data)} ${x.inicio} · ${esc(nomeMod(x.modalidade))} · ${x.status}</li>`).join("") || "<li class='muted'>nenhuma</li>"}</ul>
-        <div id="m" class="aviso oculto"></div><div class="acoes">${st.eu.papel === "admin" ? `<button class="btn btn--perigo btn--peq" id="excluir">Excluir dados (LGPD)</button>` : ""}<button class="btn btn--linha btn--peq" data-fechar>Fechar</button></div>`);
+        <div id="m" class="aviso oculto"></div><div class="acoes">${st.eu.papel === "admin" ? `<button class="btn btn--peq" id="pront">Prontuário</button><button class="btn btn--perigo btn--peq" id="excluir">Excluir dados (LGPD)</button>` : ""}<button class="btn btn--linha btn--peq" data-fechar>Fechar</button></div>`);
+      if ($("#pront")) $("#pront").onclick = () => { dlg.close(); telaProntuario(c.id); };
       if ($("#excluir")) $("#excluir").onclick = async () => {
         if (!confirm(`Excluir cadastro e foto de ${c.nome}? As consultas ficarão apenas com o nome. Não dá para desfazer.`)) return;
         try { await api(`clientes/${c.id}`, { metodo: "DELETE" }); dlg.close(); telaClientes(); } catch (x) { aviso($("#m"), x.message); }
@@ -444,13 +459,82 @@
     };
   }
 
+  // ---------- prontuário ----------
+  async function telaProntuario(cid) {
+    document.querySelectorAll(".pn-menu [data-tela]").forEach((b) => b.classList.toggle("at", b.dataset.tela === "clientes"));
+    $("#tela").onclick = null;
+    let r;
+    try { r = await api(`prontuario/${cid}`); }
+    catch (x) { $("#tela").innerHTML = `<button class="btn btn--linha btn--peq" id="voltar">‹ Clientes</button><div class="aviso aviso--erro">${esc(x.message)}</div>`; $("#voltar").onclick = () => ir("clientes"); return; }
+    const { cliente: c, prontuario: p, max } = r;
+    const atual = p.processos.find((x) => !x.fim);
+    const passados = p.processos.filter((x) => x.fim).reverse();
+    const evo = (e, editavel) => `<article class="cartao" style="padding:14px 16px;margin-bottom:10px" data-ev="${e.id}">
+      <div class="barra" style="margin:0 0 6px"><strong>${br(e.data)}</strong>${e.editado ? `<small class="muted">editada</small>` : ""}<span class="esp"></span>
+        <button class="btn btn--linha btn--peq" data-copiar="${e.id}" style="padding:.3em .8em">Copiar</button>
+        ${editavel ? `<button class="btn btn--linha btn--peq" data-editar="${e.id}" style="padding:.3em .8em">Editar</button><button class="x" data-apagar="${e.id}" aria-label="Excluir evolução">×</button>` : ""}</div>
+      <div style="white-space:pre-wrap" data-texto>${esc(e.texto)}</div></article>`;
+    const todas = p.processos.flatMap((x) => x.evolucoes);
+    const n = atual ? atual.evolucoes.length : 0;
+    $("#tela").innerHTML = `<button class="btn btn--linha btn--peq" id="voltar">‹ Clientes</button>
+      <div style="display:flex;gap:16px;align-items:center;margin:14px 0">${c.foto ? `<img class="foto-g" style="width:72px;height:72px" alt="" src="/api/painel/clientes/${c.id}/foto">` : ""}
+        <div><h1 style="margin:0">${esc(c.nome)}</h1><p class="muted" style="margin:0">${esc(c.telefone)} · ${p.processos.length} processo(s) · ${todas.length} evolução(ões)</p></div></div>
+      <section class="cartao"><div class="barra"><h2 style="margin:0">${atual ? `Processo ${atual.numero}${atual.titulo ? ` · ${esc(atual.titulo)}` : ""}` : "Novo processo"}</h2><span class="esp"></span>
+        <span class="etq ${n >= max ? "etq--erro" : ""}">${n}/${max} evoluções</span></div>
+        ${atual ? `<p class="muted" style="margin-top:0">Iniciado em ${br(atual.inicio)}</p>` : ""}
+        ${n >= max ? `<p class="aviso aviso--info">Este processo chegou a ${max} evoluções. Inicie um novo processo para continuar.</p>` : `
+        <form id="fe"><label class="campo" style="max-width:220px"><span>Data da sessão</span><input type="date" name="data" value="${hojeISO()}" required></label>
+          <label class="campo"><span>Evolução</span><textarea name="texto" rows="8" placeholder="Cole aqui a evolução da sessão" required></textarea></label>
+          <div id="m" class="aviso oculto" role="alert"></div><button class="btn btn--peq">Salvar evolução</button></form>`}
+        <div class="acoes"><button class="btn btn--linha btn--peq" id="novo-proc">Iniciar novo processo</button></div>
+        <div style="margin-top:16px">${atual ? atual.evolucoes.slice().reverse().map((e) => evo(e, true)).join("") || `<p class="muted">Nenhuma evolução neste processo ainda.</p>` : ""}</div></section>
+      ${passados.length ? `<h2>Processos anteriores</h2>${passados.map((x) => `<details class="cartao"><summary><strong>Processo ${x.numero}${x.titulo ? ` · ${esc(x.titulo)}` : ""}</strong>
+        <span class="muted"> · ${br(x.inicio)} a ${br(x.fim)} · ${x.evolucoes.length} evolução(ões)</span></summary><div style="margin-top:12px">${x.evolucoes.map((e) => evo(e, true)).join("")}</div></details>`).join("")}` : ""}`;
+    $("#voltar").onclick = () => ir("clientes");
+    const recarregar = () => telaProntuario(cid);
+    if ($("#fe")) $("#fe").onsubmit = async (ev) => {
+      ev.preventDefault();
+      try { await api(`prontuario/${cid}/evolucoes`, { metodo: "POST", dados: form(ev.target) }); recarregar(); }
+      catch (x) { aviso($("#m"), x.message); }
+    };
+    $("#novo-proc").onclick = async () => {
+      const titulo = prompt("Iniciar um novo processo de atendimento. O processo atual será encerrado e continuará disponível para consulta.\n\nTítulo (opcional):", "");
+      if (titulo === null) return;
+      try { await api(`prontuario/${cid}/processos`, { metodo: "POST", dados: { titulo } }); recarregar(); } catch (x) { alert(x.message); }
+    };
+    $("#tela").onclick = async (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      const ev = b.dataset.copiar || b.dataset.editar || b.dataset.apagar;
+      if (!ev) return;
+      const e1 = todas.find((x) => x.id === ev);
+      if (b.dataset.copiar) {
+        try { await navigator.clipboard.writeText(e1.texto); b.textContent = "Copiado ✓"; } catch { alert("Não foi possível copiar."); }
+      } else if (b.dataset.apagar) {
+        if (!confirm(`Excluir a evolução de ${br(e1.data)}? Não dá para desfazer.`)) return;
+        await api(`prontuario/${cid}/evolucoes/${ev}`, { metodo: "DELETE" }); recarregar();
+      } else {
+        const art = b.closest("[data-ev]");
+        art.innerHTML = `<form><label class="campo" style="max-width:220px"><span>Data</span><input type="date" name="data" value="${e1.data}"></label>
+          <textarea name="texto" rows="8" style="width:100%;font:inherit;padding:.7em;border:1.5px solid var(--c-linha);border-radius:12px">${esc(e1.texto)}</textarea>
+          <div class="acoes" style="margin-top:8px"><button class="btn btn--peq">Salvar</button><button type="button" class="btn btn--linha btn--peq" data-cancelar>Cancelar</button></div></form>`;
+        art.querySelector("[data-cancelar]").onclick = recarregar;
+        art.querySelector("form").onsubmit = async (x) => {
+          x.preventDefault();
+          try { await api(`prontuario/${cid}/evolucoes/${ev}`, { metodo: "PUT", dados: form(x.target) }); recarregar(); } catch (y) { alert(y.message); }
+        };
+      }
+    };
+  }
+
   // ---------- registros ----------
   async function telaRegistros() {
     const [{ emails }, log] = await Promise.all([api("emails"), st.eu.papel === "admin" ? api("log") : Promise.resolve({ registros: [] })]);
     const ev = { confirmacao: "confirmação", transferencia: "transferência", cancelamento: "cancelamento", pagamento: "pagamento" };
-    $("#tela").innerHTML = `<h1>Registros</h1><h2>E-mails</h2>
+    const canal = (e) => (e.canal === "whatsapp" ? "WhatsApp" : "e-mail");
+    $("#tela").innerHTML = `<h1>Registros</h1><h2>Mensagens (e-mail e WhatsApp)</h2>
       ${emails.length ? `<div class="rol"><table class="tabela"><tr><th>Quando</th><th>Para</th><th>Tipo</th><th>Status</th><th></th></tr>
-      ${emails.map((e) => `<tr><td>${new Date(e.criado).toLocaleString("pt-BR")}</td><td>${esc(e.para || "—")}<br><small class="muted">${e.quem}</small></td><td>${ev[e.evento] || e.evento}</td>
+      ${emails.map((e) => `<tr><td>${new Date(e.criado).toLocaleString("pt-BR")}</td><td>${esc(e.para || "—")}<br><small class="muted">${e.quem}</small></td><td>${ev[e.evento] || e.evento}<br><small class="muted">${canal(e)}</small></td>
         <td>${e.status === "enviado" ? `<span class="etq">enviado</span>` : `<span class="etq etq--erro">${e.status}</span><br><small>${esc(e.erro || "")}</small>`}</td>
         <td>${e.status !== "enviado" ? `<button class="btn btn--linha btn--peq" data-reenviar="${e.id}">Reenviar</button>` : ""}</td></tr>`).join("")}</table></div>` : `<p class="muted">Nenhum e-mail ainda.</p>`}
       ${st.eu.papel === "admin" ? `<h2 style="margin-top:24px">Alterações (últimos 2 meses)</h2><div class="rol"><table class="tabela"><tr><th>Quando</th><th>Quem</th><th>Ação</th><th>Detalhes</th></tr>
