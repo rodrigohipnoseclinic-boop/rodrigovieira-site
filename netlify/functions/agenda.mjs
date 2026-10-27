@@ -7,7 +7,7 @@ import { reservar, alternativas } from "../lib/agenda/reservas.mjs";
 import { salvarCliente, decodificarFoto, validarDados, anexarConsulta } from "../lib/agenda/clientes.mjs";
 import { notificar } from "../lib/agenda/emails.mjs";
 import { agoraLocal, dataValida, datasEntre, somaDias, difDias } from "../lib/agenda/tempo.mjs";
-import { json, corpo, tratarErro, partes } from "../lib/agenda/http.mjs";
+import { json, corpo, tratarErro, partes, definirBase, baseUrl } from "../lib/agenda/http.mjs";
 import { provedor, simularPagamento } from "../lib/agenda/pix.mjs";
 import { criarPedido, autenticar, atualizarStatus, publico as pedidoPublico, reservarComPedido, processarWebhook } from "../lib/agenda/pedidos.mjs";
 
@@ -71,6 +71,7 @@ async function confirmada(L, cfg, consulta) {
 
 export default async (req, context) => {
   try {
+    definirBase(req);
     const L = lojas();
     const cfg = await lerConfig(L.dados);
     const agora = agoraLocal();

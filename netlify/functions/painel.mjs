@@ -8,13 +8,12 @@ import { salvarCliente, anexarConsulta, listarClientes, excluirCliente, decodifi
 import { notificar, reenviar, listarEmails } from "../lib/agenda/emails.mjs";
 import * as A from "../lib/agenda/auth.mjs";
 import { agoraLocal, dataValida, paraMin } from "../lib/agenda/tempo.mjs";
-import { json, corpo, tratarErro, partes } from "../lib/agenda/http.mjs";
+import { json, corpo, tratarErro, partes, definirBase, baseUrl } from "../lib/agenda/http.mjs";
 import { provedor } from "../lib/agenda/pix.mjs";
 import * as PR from "../lib/agenda/prontuario.mjs";
 import { whatsappConfigurado } from "../lib/agenda/whatsapp.mjs";
 import { listarPedidos, atualizarStatus, liberarPedido, estornar, linkRetomar } from "../lib/agenda/pedidos.mjs";
 import { mensagemAvulsa } from "../lib/agenda/emails.mjs";
-import { SITE } from "../lib/email.mjs";
 
 const exigir = (u, area) => { if (!A.pode(u, area)) throw new Erro("Seu perfil não tem acesso a esta área.", 403); };
 
@@ -198,7 +197,7 @@ async function rotasProtegidas(L, req, u) {
     exigir(u, "pagamentos");
     const prov = provedor();
     if (M === "GET") return json({ pedidos: await listarPedidos(L.dados), configurado: prov.configurado, provedor: prov.nome,
-      webhook: `${SITE}/api/agenda/webhook`, ambiente: process.env.ASAAS_AMBIENTE === "producao" ? "produção" : "teste (sandbox)" });
+      webhook: `${baseUrl()}/api/agenda/webhook`, ambiente: process.env.ASAAS_AMBIENTE === "producao" ? "produção" : "teste (sandbox)" });
     const cfg = await lerConfig(L.dados);
     if (M === "POST" && id && acao === "verificar") return json({ pedido: await atualizarStatus(L.dados, cfg, prov, id) });
     if (M === "POST" && id && acao === "liberar") {
@@ -307,6 +306,7 @@ async function rotasProtegidas(L, req, u) {
 
 export default async (req) => {
   try {
+    definirBase(req);
     if (req.method !== "GET" && req.headers.get("x-painel") !== "1") throw new Erro("Requisição recusada.", 403);
     const L = lojas();
     const livre = await rotasLivres(L, req);

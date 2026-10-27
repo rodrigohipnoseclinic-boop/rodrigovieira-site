@@ -1,5 +1,6 @@
 // Respostas JSON e tratamento de erros comuns às funções da agenda.
 import { Erro } from "./config.mjs";
+import { SITE } from "../email.mjs";
 
 export const json = (dado, status = 200, headers = {}) =>
   new Response(JSON.stringify(dado), {
@@ -21,3 +22,13 @@ export function tratarErro(e) {
 
 // Rota relativa ao prefixo da função: "/api/agenda/horarios" -> ["horarios"].
 export const partes = (req, prefixo) => new URL(req.url).pathname.slice(prefixo.length).split("/").filter(Boolean);
+
+// Endereço público onde o sistema está rodando (site oficial ou pré-visualização
+// do Netlify). Só aceita o domínio oficial ou subdomínios do próprio site no
+// Netlify, para um cabeçalho Host forjado não alterar os links dos e-mails.
+let base = SITE;
+export function definirBase(req) {
+  const o = new URL(req.url).origin;
+  base = o === SITE || /^https:\/\/[a-z0-9-]+--frolicking-twilight-95f5e2\.netlify\.app$/.test(o) ? o : SITE;
+}
+export const baseUrl = () => base;

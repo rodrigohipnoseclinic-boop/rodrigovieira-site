@@ -6,7 +6,7 @@ import { Erro } from "./config.mjs";
 import { reservar, buscar } from "./reservas.mjs";
 import { salvarCliente } from "./clientes.mjs";
 import { mensagemAvulsa } from "./emails.mjs";
-import { SITE } from "../email.mjs";
+import { baseUrl } from "./http.mjs";
 import { segredo } from "./auth.mjs";
 import { agoraLocal, somaDias, dataExtenso } from "./tempo.mjs";
 
@@ -33,7 +33,7 @@ const novoToken = () => {
   return { token, token_hash: hashToken(token), token_cifrado: cifrar(token) };
 };
 const limpaId = (id) => String(id || "").replace(/[^A-Za-z0-9]/g, "");
-export const linkRetomar = (id, token) => `${SITE}/agendar/?p=${id}&t=${token}`;
+export const linkRetomar = (id, token) => `${baseUrl()}/agendar/?p=${id}&t=${token}`;
 
 export function validarCpf(v) {
   const c = String(v || "").replace(/\D/g, "");
