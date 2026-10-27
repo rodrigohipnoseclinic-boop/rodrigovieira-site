@@ -9,6 +9,10 @@ import { notificar, reenviar, listarEmails } from "../lib/agenda/emails.mjs";
 import * as A from "../lib/agenda/auth.mjs";
 import { agoraLocal, dataValida, paraMin } from "../lib/agenda/tempo.mjs";
 import { json, corpo, tratarErro, partes } from "../lib/agenda/http.mjs";
+import { provedor } from "../lib/agenda/pix.mjs";
+import { listarPedidos, atualizarStatus, liberarPedido, estornar, linkRetomar } from "../lib/agenda/pedidos.mjs";
+import { mensagemAvulsa } from "../lib/agenda/emails.mjs";
+import { SITE } from "../lib/email.mjs";
 
 const exigir = (u, area) => { if (!A.pode(u, area)) throw new Erro("Seu perfil não tem acesso a esta área.", 403); };
 
@@ -183,6 +187,31 @@ async function rotasProtegidas(L, req, u) {
       await excluirCliente(L, cid);
       await log("cliente-excluido", { id: cid });
       return json({ ok: true });
+    }
+  }
+
+  // ----- pagamentos Pix -----
+  if (r === "pagamentos") {
+    exigir(u, "pagamentos");
+    const prov = provedor();
+    if (M === "GET") return json({ pedidos: await listarPedidos(L.dados), configurado: prov.configurado, provedor: prov.nome,
+      webhook: `${SITE}/api/agenda/webhook`, ambiente: process.env.ASAAS_AMBIENTE === "producao" ? "produção" : "teste (sandbox)" });
+    const cfg = await lerConfig(L.dados);
+    if (M === "POST" && id && acao === "verificar") return json({ pedido: await atualizarStatus(L.dados, cfg, prov, id) });
+    if (M === "POST" && id && acao === "liberar") {
+      const { pedido: p, token } = await liberarPedido(L.dados, id);
+      await log("pix-liberado", { pedido: p.id });
+      const e = await mensagemAvulsa(L.dados, `lib-${p.id}-${p.eventos.length}`, {
+        quem: "paciente", para: p.cliente.email, evento: "pagamento", assunto: "Escolha um novo horário para sua consulta", titulo: "Escolha um novo horário",
+        linhas: [["Atendimento", cfg.servico], ["Link para agendar", linkRetomar(p.id, token)]], rodape: "Seu pagamento continua válido para um novo agendamento.",
+      });
+      return json({ ok: true, email: e.status });
+    }
+    if (M === "POST" && id && acao === "estornar") {
+      exigir(u, "admin");
+      const p = await estornar(L.dados, prov, id);
+      await log("pix-estornado", { pedido: p.id, valor: p.valor });
+      return json({ pedido: p });
     }
   }
 

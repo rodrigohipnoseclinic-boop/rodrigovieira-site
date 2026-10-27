@@ -8,6 +8,8 @@ import { salvarCliente, decodificarFoto, validarDados, anexarConsulta } from "..
 import { notificar } from "../lib/agenda/emails.mjs";
 import { agoraLocal, dataValida, datasEntre, somaDias, difDias } from "../lib/agenda/tempo.mjs";
 import { json, corpo, tratarErro, partes } from "../lib/agenda/http.mjs";
+import { provedor, simularPagamento } from "../lib/agenda/pix.mjs";
+import { criarPedido, autenticar, atualizarStatus, publico as pedidoPublico, reservarComPedido, processarWebhook } from "../lib/agenda/pedidos.mjs";
 
 const modalidadeAtiva = (cfg, m) => {
   if (!MODALIDADES.includes(m) || !cfg.modalidades[m].ativa) throw new Erro("Modalidade indisponível.");
@@ -19,6 +21,7 @@ function info(cfg, agora) {
     profissional: cfg.profissional, servico: cfg.servico, descricao: cfg.descricao, duracao: cfg.duracao,
     aviso_pagamento: cfg.aviso_pagamento, contato: cfg.contato, orientacoes_alteracao: cfg.orientacoes_alteracao,
     hoje: agora.data, ate: somaDias(agora.data, cfg.janela_dias),
+    pix: { ativo: cfg.pix.ativo, valor: cfg.pix.valor, prazo_dias: cfg.pix.prazo_dias },
     modalidades: MODALIDADES.filter((m) => cfg.modalidades[m].ativa).map((m) => ({
       id: m, nome: cfg.modalidades[m].nome,
       endereco: m === "presencial" ? cfg.modalidades[m].endereco : "",
@@ -51,6 +54,21 @@ async function limitar(loja, ip) {
   });
 }
 
+// Registro, e-mails e resposta comuns às duas formas de reservar.
+async function confirmada(L, cfg, consulta) {
+  const m = consulta.modalidade;
+  if (consulta.pedido && consulta.cliente.id) await anexarConsulta(L.dados, consulta.cliente.id, consulta).catch(() => {});
+  await registrarLog(L.dados, "paciente", "consulta-criada", { id: consulta.id, data: consulta.data, inicio: consulta.inicio, modalidade: m, pedido: consulta.pedido });
+  const emails = await notificar(L.dados, cfg, consulta, "confirmacao");
+  const mod = cfg.modalidades[m];
+  return json({
+    ok: true,
+    consulta: { id: consulta.id, data: consulta.data, inicio: consulta.inicio, fim: consulta.fim, modalidade: mod.nome,
+      endereco: m === "presencial" ? mod.endereco : "", orientacoes: mod.orientacoes },
+    email_enviado: emails.find((x) => x.quem === "paciente")?.status === "enviado",
+  }, 201);
+}
+
 export default async (req, context) => {
   try {
     const L = lojas();
@@ -58,8 +76,45 @@ export default async (req, context) => {
     const agora = agoraLocal();
     const [rota] = partes(req, "/api/agenda");
     const q = new URL(req.url).searchParams;
+    const prov = () => provedor();
+    // Com Pix ativo, o calendário só abre para quem tem um pagamento confirmado.
+    const exigirPago = async () => {
+      if (!cfg.pix.ativo) return null;
+      let p = await autenticar(L.dados, q.get("pedido"), q.get("token"));
+      if (p.status === "pendente") p = await atualizarStatus(L.dados, cfg, prov(), p.id);
+      if (p.status !== "pago") throw new Erro("O calendário é liberado depois da confirmação do pagamento.", 402);
+      return p;
+    };
 
     if (req.method === "GET" && rota === "info") return json(info(cfg, agora));
+
+    if (req.method === "POST" && rota === "webhook") {
+      await processarWebhook(L.dados, cfg, prov(), req, await corpo(req));
+      return json({ ok: true });
+    }
+    if (req.method === "POST" && rota === "simular-pagamento" && process.env.AGENDA_PIX_SIMULADO === "1") {
+      const p = await autenticar(L.dados, q.get("pedido"), q.get("token"));
+      return json({ ok: simularPagamento(p.provedor_id) });
+    }
+    if (req.method === "POST" && rota === "pedido") {
+      const b = await corpo(req);
+      if (b.site) return json({ erro: "Envio recusado." }, 400);
+      if (!cfg.pix.ativo) throw new Erro("Pagamento online desativado.");
+      const m = modalidadeAtiva(cfg, b.modalidade);
+      if (!b.consentimento) throw new Erro("É preciso aceitar o uso dos dados para o agendamento.");
+      const dados = validarDados(b);
+      const foto = decodificarFoto(b.foto);
+      await limitar(L.dados, context?.ip);
+      const { pedido, token } = await criarPedido(L, cfg, prov(), { modalidade: m, dados, cpf: b.cpf, foto });
+      return json({ pedido: pedidoPublico(pedido, cfg), token }, 201);
+    }
+    if (req.method === "GET" && rota === "pedido") {
+      let p = await autenticar(L.dados, q.get("pedido"), q.get("token"));
+      p = await atualizarStatus(L.dados, cfg, prov(), p.id);
+      return json({ pedido: pedidoPublico(p, cfg) });
+    }
+
+    if (req.method === "GET" && (rota === "dias" || rota === "horarios")) await exigirPago();
     if (req.method === "GET" && rota === "dias")
       return json({ dias: await dias(L.dados, cfg, modalidadeAtiva(cfg, q.get("modalidade")), q.get("mes"), agora) });
     if (req.method === "GET" && rota === "horarios") {
@@ -67,6 +122,20 @@ export default async (req, context) => {
       if (!dataValida(data)) throw new Erro("Data inválida.");
       const m = modalidadeAtiva(cfg, q.get("modalidade"));
       return json({ horarios: horariosLivres(cfg, m, data, await lerDia(L.dados, data), await lerExcecoes(L.dados), agora) });
+    }
+
+    if (req.method === "POST" && rota === "reservar" && cfg.pix.ativo) {
+      const b = await corpo(req);
+      const m = modalidadeAtiva(cfg, b.modalidade);
+      if (!dataValida(b.data) || difDias(agora.data, b.data) < 0) throw new Erro("Data inválida.");
+      let consulta;
+      try {
+        consulta = await reservarComPedido(L, cfg, prov(), { pedido: b.pedido, token: b.token, modalidade: m, data: b.data, inicio: b.inicio }, agora);
+      } catch (e) {
+        if (e.indisponivel) return json({ erro: e.message, indisponivel: true, alternativas: await alternativas(L.dados, cfg, m, b.data, agora) }, 409);
+        throw e;
+      }
+      return confirmada(L, cfg, consulta);
     }
 
     if (req.method === "POST" && rota === "reservar") {
@@ -104,15 +173,7 @@ export default async (req, context) => {
         console.error("Cadastro após reserva:", e);
         await registrarLog(L.dados, "sistema", "erro-cadastro", { consulta: consulta.id, erro: e.message });
       }
-      await registrarLog(L.dados, "paciente", "consulta-criada", { id: consulta.id, data: consulta.data, inicio: consulta.inicio, modalidade: m });
-      const emails = await notificar(L.dados, cfg, consulta, "confirmacao");
-      const mod = cfg.modalidades[m];
-      return json({
-        ok: true,
-        consulta: { id: consulta.id, data: consulta.data, inicio: consulta.inicio, fim: consulta.fim, modalidade: mod.nome,
-          endereco: m === "presencial" ? mod.endereco : "", orientacoes: mod.orientacoes },
-        email_enviado: emails.find((x) => x.quem === "paciente")?.status === "enviado",
-      }, 201);
+      return confirmada(L, cfg, consulta);
     }
     return json({ erro: "Não encontrado." }, 404);
   } catch (e) {

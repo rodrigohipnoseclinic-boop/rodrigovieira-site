@@ -33,7 +33,8 @@ export async function atualizar(loja, chave, mudar, vazio = () => ({})) {
 
 export async function lerConfig(loja) {
   const { dado } = await ler(loja, "config");
-  return dado || structuredClone(PADRAO);
+  const p = structuredClone(PADRAO);
+  return dado ? { ...p, ...dado, pix: { ...p.pix, ...dado.pix } } : p;
 }
 
 export async function lerExcecoes(loja) {

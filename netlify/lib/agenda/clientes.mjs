@@ -42,7 +42,7 @@ export async function salvarCliente(lojas, dados, foto, por) {
 
 export async function anexarConsulta(loja, clienteId, consulta) {
   await atualizar(loja, `cliente/${clienteId}`, (c) => {
-    c.consultas = [...(c.consultas || []), consulta.id].slice(-200);
+    if (!(c.consultas || []).includes(consulta.id)) c.consultas = [...(c.consultas || []), consulta.id].slice(-200);
     return c;
   });
 }

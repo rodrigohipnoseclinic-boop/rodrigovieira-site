@@ -94,6 +94,14 @@ export async function notificar(loja, cfg, c, evento, { avisarPaciente = true, e
   return out;
 }
 
+// Mensagem fora do ciclo da consulta (ex.: Pix confirmado). Criada uma vez.
+export async function mensagemAvulsa(loja, id, { quem, para, assunto, titulo, linhas, rodape = "", evento, consulta = null }, enviar = enviarSmtp) {
+  const chave = `email/${id}`;
+  const reg = { id, consulta, evento, quem, para, assunto, html: html(titulo, linhas, rodape), texto: texto(titulo, linhas, rodape), status: "pendente", criado: new Date().toISOString() };
+  const r = await loja.setJSON(chave, reg, { onlyIfNew: true });
+  return r.modified ? tentar(loja, chave, reg, enviar) : (await ler(loja, chave)).dado;
+}
+
 export async function reenviar(loja, id, enviar = enviarSmtp) {
   const chave = `email/${String(id).replace(/[^A-Za-z0-9-]/g, "")}`;
   const { dado } = await ler(loja, chave);

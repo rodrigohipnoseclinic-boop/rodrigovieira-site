@@ -16,6 +16,8 @@ export const PADRAO = {
   email_admin: "",
   contato: "WhatsApp (19) 99749-8217",
   aviso_pagamento: "O pagamento é combinado diretamente com o Dr. Rodrigo.",
+  // Pix antes do calendário. Desligado: o pagamento é combinado à parte.
+  pix: { ativo: false, valor: 0, prazo_dias: 30 },
   orientacoes_alteracao: "Para remarcar ou cancelar, fale pelo WhatsApp (19) 99749-8217 com pelo menos 24 horas de antecedência.",
   modalidades: {
     presencial: { ativa: true, nome: "Presencial", agenda: "principal", endereco: "Amparo - SP", orientacoes: "Chegue com 10 minutos de antecedência.", semana: semanaPadrao() },
@@ -65,7 +67,14 @@ export function normalizarConfig(e) {
     aviso_pagamento: texto(e.aviso_pagamento),
     orientacoes_alteracao: texto(e.orientacoes_alteracao),
     modalidades: {},
+    pix: {
+      ativo: !!e.pix?.ativo,
+      valor: Math.round(Number(e.pix?.valor || 0) * 100) / 100,
+      prazo_dias: inteiro(e.pix?.prazo_dias ?? 30, 1, 365, "Prazo para agendar após o pagamento"),
+    },
   };
+  if (!(c.pix.valor >= 0 && c.pix.valor <= 10000)) throw new Erro("Valor da consulta inválido.");
+  if (c.pix.ativo && c.pix.valor < 5) throw new Erro("Para ativar o Pix, informe o valor da consulta (mínimo R$ 5,00).");
   if (c.passo && c.passo < 5) throw new Erro("Espaçamento mínimo de 5 minutos.");
   for (const m of MODALIDADES) {
     const x = e.modalidades?.[m] || {};

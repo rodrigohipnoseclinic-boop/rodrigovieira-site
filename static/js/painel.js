@@ -10,7 +10,7 @@
   const soma = (d, n) => new Date(Date.parse(d + "T00:00:00Z") + n * 864e5).toISOString().slice(0, 10);
   const dow = (d) => new Date(d + "T00:00:00Z").getUTCDay();
   const st = { eu: null, cfg: null, tela: "agenda", vista: "semana", ref: hojeISO() };
-  const pode = (area) => st.eu?.papel === "admin" || ["agenda", "consultas", "bloqueios", "clientes", "emails"].includes(area);
+  const pode = (area) => st.eu?.papel === "admin" || ["agenda", "consultas", "bloqueios", "clientes", "emails", "pagamentos"].includes(area);
 
   async function api(caminho, { metodo = "GET", dados } = {}) {
     const r = await fetch(`/api/painel/${caminho}`, {
@@ -71,7 +71,7 @@
 
   // ---------- estrutura ----------
   const TELAS = [
-    ["agenda", "Agenda", "agenda"], ["bloqueios", "Bloqueios e extras", "bloqueios"], ["horarios", "Horários de atendimento", "config"],
+    ["agenda", "Agenda", "agenda"], ["pagamentos", "Pagamentos", "pagamentos"], ["bloqueios", "Bloqueios e extras", "bloqueios"], ["horarios", "Horários de atendimento", "config"],
     ["config", "Configurações", "config"], ["clientes", "Clientes", "clientes"], ["registros", "Registros", "emails"], ["conta", "Usuários e conta", "agenda"],
   ];
   async function entrarNoPainel() {
@@ -94,7 +94,7 @@
     $("#tela").onclick = null;
     document.querySelectorAll(".pn-menu [data-tela]").forEach((b) => b.classList.toggle("at", b.dataset.tela === tela));
     $("#tela").innerHTML = `<p class="muted">Carregando…</p>`;
-    ({ agenda: telaAgenda, bloqueios: telaBloqueios, horarios: telaHorarios, config: telaConfig, clientes: telaClientes, registros: telaRegistros, conta: telaConta })[tela]()
+    ({ agenda: telaAgenda, pagamentos: telaPagamentos, bloqueios: telaBloqueios, horarios: telaHorarios, config: telaConfig, clientes: telaClientes, registros: telaRegistros, conta: telaConta })[tela]()
       .catch((e) => { $("#tela").innerHTML = `<div class="aviso aviso--erro">${esc(e.message)}</div>`; });
   }
   const nomeMod = (m) => st.cfg.modalidades[m]?.nome || m;
@@ -162,7 +162,7 @@
         ${c.cliente.id ? `<img class="foto-g" alt="Foto de ${esc(c.cliente.nome)}" src="/api/painel/clientes/${c.cliente.id}/foto" onerror="this.style.display='none'">` : ""}
         <div style="flex:1;min-width:200px"><h2>${esc(c.cliente.nome)}</h2>
         <p style="margin:0">${SEM[dow(c.data)]}, ${br(c.data)} · ${c.inicio}–${c.fim} (${c.duracao} min)</p>
-        <p style="margin:0"><span class="etq ${c.modalidade === "online" ? "etq--azul" : ""}">${esc(nomeMod(c.modalidade))}</span> ${c.status === "cancelada" ? `<span class="etq etq--erro">cancelada</span>` : ""}</p></div></div>
+        <p style="margin:0"><span class="etq ${c.modalidade === "online" ? "etq--azul" : ""}">${esc(nomeMod(c.modalidade))}</span> ${c.status === "cancelada" ? `<span class="etq etq--erro">cancelada</span>` : ""} ${c.pedido ? `<span class="etq">pago via Pix</span>` : ""}</p></div></div>
       <p style="margin-top:12px">${c.cliente.telefone ? `📞 <a href="tel:${esc(c.cliente.telefone)}">${esc(c.cliente.telefone)}</a> · <a href="${wa}" target="_blank" rel="noopener">WhatsApp</a><br>` : ""}
         ${c.cliente.email ? `✉️ <a href="mailto:${esc(c.cliente.email)}">${esc(c.cliente.email)}</a>` : ""}</p>
       ${c.observacao ? `<p class="muted">Obs.: ${esc(c.observacao)}</p>` : ""}
@@ -248,6 +248,34 @@
         dlg.close(); st.ref = d.data; telaAgenda();
       } catch (x) { aviso($("#m"), x.message); }
     };
+  }
+
+  // ---------- pagamentos ----------
+  async function telaPagamentos() {
+    const r = await api("pagamentos");
+    const reais = (v) => Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const ST = { pendente: ["aguardando", ""], pago: ["pago, sem horário", "etq--azul"], usado: ["pago e agendado", ""], estornado: ["estornado", "etq--erro"],
+      expirado: ["expirado", "etq--erro"], cancelado: ["cancelado", "etq--erro"], divergente: ["valor diferente", "etq--erro"] };
+    const recebido = r.pedidos.filter((p) => ["pago", "usado"].includes(p.status)).reduce((s, p) => s + p.valor, 0);
+    $("#tela").innerHTML = `<h1>Pagamentos</h1>
+      <div class="cartao"><p style="margin:0">Pix ${st.cfg.pix.ativo ? `<span class="etq">ligado</span> · ${reais(st.cfg.pix.valor)}` : `<span class="etq etq--erro">desligado</span>`}
+        · Provedor: ${esc(r.provedor)} ${r.configurado ? `(${esc(r.ambiente)})` : `<span class="etq etq--erro">sem chave</span>`}</p>
+        ${st.eu.papel === "admin" ? `<p class="muted" style="margin:.4em 0 0">Endereço do webhook para cadastrar no Asaas: <code>${esc(r.webhook)}</code></p>` : ""}
+        <p class="muted" style="margin:.4em 0 0">Recebido (listados): <strong>${reais(recebido)}</strong></p></div>
+      ${r.pedidos.length ? `<div class="rol"><table class="tabela"><tr><th>Data</th><th>Paciente</th><th>Valor</th><th>Status</th><th>Consulta</th><th></th></tr>
+      ${r.pedidos.map((p) => `<tr><td>${new Date(p.criado).toLocaleString("pt-BR")}</td><td>${esc(p.cliente.nome)}<br><small class="muted">${esc(p.cliente.telefone)}</small></td>
+        <td>${reais(p.valor)}</td><td><span class="etq ${ST[p.status]?.[1] || ""}">${ST[p.status]?.[0] || p.status}</span></td><td>${p.consulta ? `<small>${p.consulta}</small>` : "—"}</td>
+        <td style="white-space:nowrap">${p.status === "pendente" ? `<button class="btn btn--linha btn--peq" data-acao="verificar" data-id="${p.id}">Verificar</button>` : ""}
+          ${p.status === "usado" ? `<button class="btn btn--linha btn--peq" data-acao="liberar" data-id="${p.id}" title="Depois de cancelar a consulta, envia ao paciente um link para escolher outro horário">Liberar novo horário</button>` : ""}
+          ${st.eu.papel === "admin" && ["pago", "usado", "divergente"].includes(p.status) ? `<button class="btn btn--perigo btn--peq" data-acao="estornar" data-id="${p.id}">Estornar</button>` : ""}</td></tr>`).join("")}</table></div>`
+      : `<p class="muted">Nenhum pagamento ainda.</p>`}<div id="m" class="aviso oculto" role="alert"></div>`;
+    $("#tela").querySelectorAll("[data-acao]").forEach((b) => b.onclick = async () => {
+      const a = b.dataset.acao;
+      if (a === "estornar" && !confirm("Devolver o valor ao paciente pelo Pix? Não dá para desfazer.")) return;
+      b.disabled = true;
+      try { await api(`pagamentos/${b.dataset.id}/${a}`, { metodo: "POST" }); telaPagamentos(); }
+      catch (x) { aviso($("#m"), x.message); b.disabled = false; }
+    });
   }
 
   // ---------- bloqueios e extras ----------
@@ -372,13 +400,19 @@
       <h2>Contato e e-mails</h2>${campo("profissional", "Nome do profissional")}
       ${campo("email_admin", "E-mail que recebe as confirmações", "email")}
       ${campo("contato", "Contato informado ao paciente")}
-      ${campo("aviso_pagamento", "Aviso sobre pagamento")}
+      ${campo("aviso_pagamento", "Aviso sobre pagamento (quando o Pix está desligado)")}
+      <h2>Pagamento via Pix</h2>
+      <label class="check"><input type="checkbox" name="pix_ativo" ${c.pix.ativo ? "checked" : ""}> <span><strong>Exigir Pix antes de liberar o calendário</strong><br><span class="muted">Desligado: o paciente agenda direto e o pagamento é combinado à parte.</span></span></label>
+      <div class="linha2"><label class="campo"><span>Valor da consulta (R$)</span><input name="pix_valor" type="number" step="0.01" min="0" value="${c.pix.valor}"></label>
+      <label class="campo"><span>Prazo para agendar após pagar (dias)</span><input name="pix_prazo_dias" type="number" min="1" max="365" value="${c.pix.prazo_dias}"></label></div>
       <label class="campo"><span>Como pedir alterações (vai no e-mail do paciente)</span><textarea name="orientacoes_alteracao" rows="2">${esc(c.orientacoes_alteracao)}</textarea></label>
       <div id="m" class="aviso oculto" role="alert"></div><button class="btn">Salvar configurações</button></form>`;
     $("#fc").onsubmit = async (ev) => {
       ev.preventDefault();
       const d = form(ev.target);
       for (const k of ["duracao", "intervalo", "passo", "antecedencia_horas", "janela_dias"]) d[k] = Number(d[k]);
+      d.pix = { ativo: !!d.pix_ativo, valor: Number(d.pix_valor), prazo_dias: Number(d.pix_prazo_dias) };
+      delete d.pix_ativo; delete d.pix_valor; delete d.pix_prazo_dias;
       try { st.cfg = (await api("config", { metodo: "PUT", dados: { ...st.cfg, ...d } })).config; aviso($("#m"), "Configurações salvas.", "ok"); }
       catch (x) { aviso($("#m"), x.message); }
     };
@@ -413,7 +447,7 @@
   // ---------- registros ----------
   async function telaRegistros() {
     const [{ emails }, log] = await Promise.all([api("emails"), st.eu.papel === "admin" ? api("log") : Promise.resolve({ registros: [] })]);
-    const ev = { confirmacao: "confirmação", transferencia: "transferência", cancelamento: "cancelamento" };
+    const ev = { confirmacao: "confirmação", transferencia: "transferência", cancelamento: "cancelamento", pagamento: "pagamento" };
     $("#tela").innerHTML = `<h1>Registros</h1><h2>E-mails</h2>
       ${emails.length ? `<div class="rol"><table class="tabela"><tr><th>Quando</th><th>Para</th><th>Tipo</th><th>Status</th><th></th></tr>
       ${emails.map((e) => `<tr><td>${new Date(e.criado).toLocaleString("pt-BR")}</td><td>${esc(e.para || "—")}<br><small class="muted">${e.quem}</small></td><td>${ev[e.evento] || e.evento}</td>

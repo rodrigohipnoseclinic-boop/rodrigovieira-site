@@ -1,5 +1,5 @@
 // Servidor local para testar /agendar e /painel sem Netlify.
-// Uso: AGENDA_SEGREDO=<24+ caracteres> node test/servidor-dev.mjs [porta]
+// Uso: AGENDA_SEGREDO=<24+ caracteres> [AGENDA_PIX_SIMULADO=1] node test/servidor-dev.mjs [porta]
 // Os dados ficam só na memória e somem ao encerrar.
 import http from "node:http";
 import fs from "node:fs";
@@ -20,7 +20,7 @@ http.createServer(async (req, res) => {
   if (fn) {
     const partes = [];
     for await (const p of req) partes.push(p);
-    const r = await fn(new Request(url, { method: req.method, headers: req.headers, body: ["GET", "HEAD"].includes(req.method) ? undefined : Buffer.concat(partes) }), { ip: req.socket.remoteAddress });
+    const r = await fn(new Request(url, { method: req.method, headers: req.headers, body: ["GET", "HEAD"].includes(req.method) ? undefined : Buffer.concat(partes) }), { ip: req.headers["x-forwarded-for"] || req.socket.remoteAddress });
     res.writeHead(r.status, Object.fromEntries(r.headers));
     return res.end(Buffer.from(await r.arrayBuffer()));
   }

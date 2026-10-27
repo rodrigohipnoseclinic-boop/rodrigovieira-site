@@ -36,12 +36,35 @@
       <div class="cal" id="cal"></div>
       <p class="muted" id="cal-msg" aria-live="polite"></p>
       <div class="horas" id="horas" role="group" aria-label="Horários disponíveis"></div>
+      <div id="confirmar-box" class="oculto" style="margin-top:16px">
+        <p class="aviso aviso--info" id="escolha-pix"></p>
+        <div id="erro-cal" class="aviso aviso--erro oculto" role="alert"></div>
+        <div id="alternativas-cal" class="oculto"></div>
+        <button type="button" class="btn" id="confirmar-horario">Confirmar horário</button>
+      </div>
+    </section>
+
+    <section class="cartao oculto" id="p-pix">
+      <p class="passo-tit"><b>3</b> Pagamento via Pix</p>
+      <p>Valor: <strong id="pix-valor"></strong></p>
+      <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center">
+        <img id="pix-qr" alt="QR Code do Pix" width="200" height="200" style="border:1px solid var(--c-linha);border-radius:12px;background:#fff">
+        <div style="flex:1;min-width:220px">
+          <p class="muted" style="margin:0 0 6px">Abra o app do seu banco, escolha Pix e leia o QR Code ou use o código copia e cola:</p>
+          <textarea id="pix-codigo" readonly rows="3" style="width:100%;font:inherit;font-size:.8rem;padding:.6em;border:1.5px solid var(--c-linha);border-radius:12px"></textarea>
+          <button type="button" class="btn btn--linha btn--peq" id="pix-copiar">Copiar código</button>
+        </div>
+      </div>
+      <p class="aviso aviso--info" id="pix-status" aria-live="polite">Aguardando a confirmação do pagamento…</p>
+      <button type="button" class="btn btn--peq" id="pix-verificar">Já paguei, verificar</button>
+      <p class="muted" style="margin-top:12px">A confirmação costuma levar poucos segundos. Você também receberá por e-mail um link para escolher o horário depois.</p>
     </section>
 
     <section class="cartao" id="p3" aria-disabled="true">
       <p class="passo-tit"><b>3</b> Seus dados</p>
       <p class="aviso aviso--info" id="escolha"></p>
       <label class="campo"><span>Nome completo</span><input name="nome" autocomplete="name" required maxlength="100"></label>
+      <label class="campo oculto" id="campo-cpf"><span>CPF (exigido para emitir o Pix)</span><input name="cpf" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="000.000.000-00"></label>
       <div class="linha2">
         <label class="campo"><span>E-mail</span><input name="email" type="email" autocomplete="email" required maxlength="200"></label>
         <label class="campo"><span>WhatsApp (com DDD)</span><input name="telefone" type="tel" autocomplete="tel" inputmode="tel" required maxlength="20" placeholder="(19) 99999-9999"></label>

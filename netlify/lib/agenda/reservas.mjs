@@ -27,7 +27,7 @@ export async function alternativas(loja, cfg, modalidade, data, agora = agoraLoc
 
 // porPaciente = true: só aceita horários oferecidos ao público.
 // No painel, basta não haver conflito com outra consulta.
-export async function reservar(loja, cfg, { modalidade, data, inicio, cliente, origem, por, duracao, observacao = "" }, agora = agoraLocal()) {
+export async function reservar(loja, cfg, { modalidade, data, inicio, cliente, origem, por, duracao, observacao = "", pedido = null }, agora = agoraLocal()) {
   validarPedido(cfg, { modalidade, data, inicio });
   const porPaciente = origem === "paciente";
   const dur = porPaciente ? cfg.duracao : Number(duracao) || cfg.duracao;
@@ -47,7 +47,7 @@ export async function reservar(loja, cfg, { modalidade, data, inicio, cliente, o
     }
     dia.consultas.push({
       id, data, inicio: paraHM(ini), fim: paraHM(fim), duracao: dur, modalidade, status: "confirmada",
-      cliente, origem, observacao: String(observacao).slice(0, 500), criada: quando,
+      cliente, origem, pedido, observacao: String(observacao).slice(0, 500), criada: quando,
       historico: [{ quando, por, acao: "criada" }],
     });
     return dia;
