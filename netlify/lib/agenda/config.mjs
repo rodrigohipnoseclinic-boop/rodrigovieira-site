@@ -19,11 +19,11 @@ export const PADRAO = {
   // Pix antes do calendário. Desligado: o pagamento é combinado à parte.
   pix: { ativo: false, valor: 0, prazo_dias: 30 },
   // Modelos de mensagem aprovados no WhatsApp Business (nomes exatos).
-  whatsapp: { ativo: false, numero_admin: "", idioma: "pt_BR", modelo_paciente: "consulta_confirmada", modelo_admin: "novo_agendamento", modelo_transferencia: "", modelo_cancelamento: "" },
+  whatsapp: { ativo: false, numero_admin: "", idioma: "pt_BR", modelo_paciente: "consulta_confirmada", modelo_admin: "novo_agendamento", modelo_transferencia: "", modelo_cancelamento: "", modelo_cadastro: "cliente_aguardando" },
   orientacoes_alteracao: "Para remarcar ou cancelar, fale pelo WhatsApp (19) 99749-8217 com pelo menos 24 horas de antecedência.",
   modalidades: {
-    presencial: { ativa: true, nome: "Presencial", agenda: "principal", endereco: "Amparo - SP", orientacoes: "Chegue com 10 minutos de antecedência.", semana: semanaPadrao() },
-    online: { ativa: true, nome: "Online", agenda: "principal", endereco: "", orientacoes: "O link da videochamada será enviado pelo WhatsApp antes da consulta. Use um local reservado, com boa internet e fone de ouvido.", semana: semanaPadrao() },
+    presencial: { ativa: true, autoagendamento: false, nome: "Presencial", agenda: "principal", endereco: "Amparo - SP", orientacoes: "Chegue com 10 minutos de antecedência.", semana: semanaPadrao() },
+    online: { ativa: true, autoagendamento: true, nome: "Online", agenda: "principal", endereco: "", orientacoes: "O link da videochamada será enviado pelo WhatsApp antes da consulta. Use um local reservado, com boa internet e fone de ouvido.", semana: semanaPadrao() },
   },
 };
 
@@ -81,6 +81,7 @@ export function normalizarConfig(e) {
     ativo: !!w.ativo, numero_admin: String(w.numero_admin || "").replace(/[^\d+]/g, "").slice(0, 20), idioma: texto(w.idioma, 10) || "pt_BR",
     modelo_paciente: modelo(w.modelo_paciente), modelo_admin: modelo(w.modelo_admin),
     modelo_transferencia: modelo(w.modelo_transferencia), modelo_cancelamento: modelo(w.modelo_cancelamento),
+    modelo_cadastro: modelo(w.modelo_cadastro),
   };
   if (c.whatsapp.ativo && c.whatsapp.modelo_admin && c.whatsapp.numero_admin.replace(/\D/g, "").length < 10)
     throw new Erro("Informe o seu número de WhatsApp com DDD para receber os avisos.");
@@ -96,12 +97,17 @@ export function normalizarConfig(e) {
       if (p.length) semana[d] = p;
     }
     c.modalidades[m] = {
-      ativa: !!x.ativa, nome: texto(x.nome, 40) || PADRAO.modalidades[m].nome, agenda,
+      ativa: !!x.ativa, autoagendamento: !!(x.autoagendamento ?? PADRAO.modalidades[m].autoagendamento),
+      nome: texto(x.nome, 40) || PADRAO.modalidades[m].nome, agenda,
       endereco: texto(x.endereco, 300), orientacoes: texto(x.orientacoes), semana,
     };
   }
   if (!MODALIDADES.some((m) => c.modalidades[m].ativa)) throw new Erro("Deixe pelo menos uma modalidade ativa.");
   return c;
 }
+
+// O paciente escolhe o horário no site? (senão, envia cadastro e o horário
+// é combinado pelo WhatsApp). Configurações antigas sem o campo seguem o padrão.
+export const autoagenda = (cfg, m) => !!(cfg.modalidades[m]?.autoagendamento ?? PADRAO.modalidades[m]?.autoagendamento);
 
 export const passoEfetivo = (c) => c.passo || c.duracao + c.intervalo;

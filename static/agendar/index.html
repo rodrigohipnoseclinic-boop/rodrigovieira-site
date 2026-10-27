@@ -36,6 +36,12 @@
       <div class="cal" id="cal"></div>
       <p class="muted" id="cal-msg" aria-live="polite"></p>
       <div class="horas" id="horas" role="group" aria-label="Horários disponíveis"></div>
+      <div class="acoes" style="margin-top:14px"><button type="button" class="btn btn--linha btn--peq" id="sem-horario">Não achei um horário: prefiro combinar pelo WhatsApp</button></div>
+      <div id="aguardar-box" class="oculto" style="margin-top:12px">
+        <label class="campo"><span>Preferências de dia e horário (opcional)</span><textarea id="obs-pix" rows="2" maxlength="500" placeholder="Ex.: terças à tarde ou sábados pela manhã"></textarea></label>
+        <div id="erro-aguardar" class="aviso aviso--erro oculto" role="alert"></div>
+        <button type="button" class="btn" id="confirmar-aguardar">Concluir e aguardar contato</button>
+      </div>
       <div id="confirmar-box" class="oculto" style="margin-top:16px">
         <p class="aviso aviso--info" id="escolha-pix"></p>
         <div id="erro-cal" class="aviso aviso--erro oculto" role="alert"></div>
@@ -80,6 +86,7 @@
         </div>
         <p class="muted" style="margin:.5em 0 0">Rosto visível, de frente. A foto é vista apenas pelo consultório.</p>
       </div>
+      <label class="campo oculto" id="campo-obs"><span>Preferências de dia e horário (opcional)</span><textarea name="obs" rows="2" maxlength="500" placeholder="Ex.: terças à tarde ou sábados pela manhã"></textarea></label>
       <input class="armadilha" name="site" tabindex="-1" autocomplete="off" aria-hidden="true">
       <label class="check"><input type="checkbox" name="consentimento" required>
         <span>Autorizo o uso dos meus dados e da minha foto exclusivamente para o agendamento e a identificação no atendimento, e o envio de mensagens sobre a consulta por e-mail e WhatsApp, conforme a LGPD. Posso pedir a exclusão a qualquer momento.</span></label>

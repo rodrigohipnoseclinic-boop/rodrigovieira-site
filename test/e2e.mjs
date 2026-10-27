@@ -12,7 +12,27 @@ const SEG = "segredo-de-teste-com-mais-de-24";
 // ---------- paciente (celular) ----------
 const cel = await b.newPage({ viewport: { width: 390, height: 844 } });
 await cel.goto(`${BASE}/agendar/`);
-await cel.getByText("Presencial").click();
+// presencial: sem calendário, só cadastro (horário combinado pelo WhatsApp)
+await cel.getByText("Presencial", { exact: true }).click();
+assert.ok(await cel.locator("#p2").evaluate((e) => e.classList.contains("oculto")));
+assert.equal((await cel.locator("#enviar").textContent()).trim(), "Enviar cadastro");
+const semCal = await fetch(`${BASE}/api/agenda/dias?modalidade=presencial&mes=2026-11`);
+assert.equal(semCal.status, 403);
+await cel.fill("[name=nome]", "Paula Presencial");
+await cel.fill("[name=email]", "paula@exemplo.com");
+await cel.fill("[name=telefone]", "(19) 98888-1111");
+await cel.fill("[name=obs]", "quintas à tarde");
+await cel.setInputFiles("#foto-arq", FOTO);
+await cel.waitForFunction(() => document.querySelector("#foto-prev").classList.contains("ok"));
+await cel.check("[name=consentimento]");
+await cel.click("#enviar");
+await cel.locator("#sucesso:not(.oculto)").waitFor();
+assert.match(await cel.locator("#sucesso").textContent(), /Cadastro recebido/);
+await cel.screenshot({ path: `${CAPT}/11-presencial-cadastro.png`, fullPage: true });
+ok("presencial: sem acesso ao calendário (403); cadastro com selfie enviado para a lista de espera");
+
+await cel.goto(`${BASE}/agendar/`);
+await cel.getByText("Online", { exact: true }).click();
 await cel.locator("#cal button.livre").first().click();
 await cel.locator(".hora").first().waitFor();
 const primeiraHora = await cel.locator(".hora").first().textContent();
@@ -35,13 +55,13 @@ await cel.click("#enviar");
 await cel.locator("#sucesso:not(.oculto)").waitFor();
 assert.match(await cel.locator("#sucesso").textContent(), new RegExp(primeiraHora));
 await cel.screenshot({ path: `${CAPT}/2-paciente-confirmado.png`, fullPage: true });
-ok(`paciente agendou presencial às ${primeiraHora} com selfie`);
+ok(`paciente agendou online às ${primeiraHora} com selfie`);
 
 // horário ocupado some da lista
 const info = await (await fetch(`${BASE}/api/agenda/info`)).json();
-const dias = (await (await fetch(`${BASE}/api/agenda/dias?modalidade=presencial&mes=${info.hoje.slice(0, 7)}`)).json()).dias;
+const dias = (await (await fetch(`${BASE}/api/agenda/dias?modalidade=online&mes=${info.hoje.slice(0, 7)}`)).json()).dias;
 let dia = dias[0];
-if (!dia) dia = (await (await fetch(`${BASE}/api/agenda/dias?modalidade=presencial&mes=${info.ate.slice(0, 7)}`)).json()).dias[0];
+if (!dia) dia = (await (await fetch(`${BASE}/api/agenda/dias?modalidade=online&mes=${info.ate.slice(0, 7)}`)).json()).dias[0];
 
 // ---------- disputa: duas reservas simultâneas no mesmo horário ----------
 const { horarios } = await (await fetch(`${BASE}/api/agenda/horarios?modalidade=online&data=${dia}`)).json();
@@ -68,6 +88,26 @@ await pc.fill("[name=codigo]", SEG);
 await pc.click("button.btn");
 await pc.locator(".pn-menu").waitFor();
 ok("administrador criado e logado");
+
+await pc.click("[data-tela=clientes]");
+await pc.locator("text=Aguardando agendamento (1)").waitFor();
+await pc.locator("td", { hasText: "quintas à tarde" }).waitFor();
+await pc.click("#novo-cli");
+await pc.fill("#fcli [name=nome]", "Rui Sem Internet");
+await pc.fill("#fcli [name=telefone]", "19944443333");
+await pc.click("#fcli button.btn");
+await pc.locator("text=Aguardando agendamento (2)").waitFor();
+ok("lista de espera mostra o cadastro do site; novo cliente cadastrado pelo painel");
+await pc.locator("tr", { hasText: "Paula Presencial" }).locator("[data-agendar]").click();
+assert.equal(await pc.locator("#fn [name=nome]").inputValue(), "Paula Presencial");
+assert.equal(await pc.locator("#fn [name=modalidade]").inputValue(), "presencial");
+await pc.fill("#fn [name=inicio_livre]", "06:00");
+await pc.click("#fn button.btn");
+await pc.locator("dialog").waitFor({ state: "hidden" });
+await pc.click("[data-tela=clientes]");
+await pc.locator("text=Aguardando agendamento (1)").waitFor();
+ok("agendado pelo painel com o cadastro pronto; saiu da lista de espera");
+await pc.click("[data-tela=agenda]");
 
 // agenda: mês com a consulta do paciente
 await pc.click("[data-vista=mes]");
@@ -125,7 +165,7 @@ await pc.screenshot({ path: `${CAPT}/5-bloqueio-conflito.png` });
 ok("bloqueio em dia com consulta mostra o aviso de conflito");
 await pc.click("#forcar");
 await pc.locator("table.tabela").waitFor();
-const livresDepois = (await (await fetch(`${BASE}/api/agenda/horarios?modalidade=presencial&data=${dia}`)).json()).horarios;
+const livresDepois = (await (await fetch(`${BASE}/api/agenda/horarios?modalidade=online&data=${dia}`)).json()).horarios;
 assert.equal(livresDepois.length, 0);
 ok("dia bloqueado deixa de oferecer horários ao paciente");
 

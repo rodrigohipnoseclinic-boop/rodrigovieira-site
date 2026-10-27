@@ -1,18 +1,24 @@
 // API pública do agendamento (/agendar): horários livres e reserva.
 import crypto from "node:crypto";
 import { lojas, lerConfig, lerDia, lerExcecoes, atualizar, registrarLog } from "../lib/agenda/armazem.mjs";
-import { Erro, MODALIDADES } from "../lib/agenda/config.mjs";
+import { Erro, MODALIDADES, autoagenda } from "../lib/agenda/config.mjs";
 import { horariosLivres } from "../lib/agenda/disponibilidade.mjs";
 import { reservar, alternativas } from "../lib/agenda/reservas.mjs";
-import { salvarCliente, decodificarFoto, validarDados, anexarConsulta } from "../lib/agenda/clientes.mjs";
-import { notificar } from "../lib/agenda/emails.mjs";
+import { salvarCliente, decodificarFoto, validarDados, anexarConsulta, marcarAguardando } from "../lib/agenda/clientes.mjs";
+import { notificar, avisarAguardando } from "../lib/agenda/emails.mjs";
 import { agoraLocal, dataValida, datasEntre, somaDias, difDias } from "../lib/agenda/tempo.mjs";
 import { json, corpo, tratarErro, partes, definirBase, baseUrl } from "../lib/agenda/http.mjs";
 import { provedor, simularPagamento } from "../lib/agenda/pix.mjs";
-import { criarPedido, autenticar, atualizarStatus, publico as pedidoPublico, reservarComPedido, processarWebhook } from "../lib/agenda/pedidos.mjs";
+import { criarPedido, autenticar, atualizarStatus, publico as pedidoPublico, reservarComPedido, processarWebhook, aguardarContato } from "../lib/agenda/pedidos.mjs";
 
 const modalidadeAtiva = (cfg, m) => {
   if (!MODALIDADES.includes(m) || !cfg.modalidades[m].ativa) throw new Erro("Modalidade indisponível.");
+  return m;
+};
+// Modalidade em que o próprio paciente escolhe o horário (calendário).
+const comCalendario = (cfg, m) => {
+  modalidadeAtiva(cfg, m);
+  if (!autoagenda(cfg, m)) throw new Erro(`Para atendimento ${cfg.modalidades[m].nome.toLowerCase()}, envie seu cadastro: o horário é combinado pelo WhatsApp.`, 403);
   return m;
 };
 
@@ -25,6 +31,7 @@ function info(cfg, agora) {
     modalidades: MODALIDADES.filter((m) => cfg.modalidades[m].ativa).map((m) => ({
       id: m, nome: cfg.modalidades[m].nome,
       endereco: m === "presencial" ? cfg.modalidades[m].endereco : "",
+      autoagendamento: autoagenda(cfg, m),
     })),
   };
 }
@@ -101,7 +108,7 @@ export default async (req, context) => {
       const b = await corpo(req);
       if (b.site) return json({ erro: "Envio recusado." }, 400);
       if (!cfg.pix.ativo) throw new Erro("Pagamento online desativado.");
-      const m = modalidadeAtiva(cfg, b.modalidade);
+      const m = comCalendario(cfg, b.modalidade);
       if (!b.consentimento) throw new Erro("É preciso aceitar o uso dos dados para o agendamento.");
       const dados = validarDados(b);
       const foto = decodificarFoto(b.foto);
@@ -115,19 +122,44 @@ export default async (req, context) => {
       return json({ pedido: pedidoPublico(p, cfg) });
     }
 
+    // Cadastro sem horário: o consultório combina a data pelo WhatsApp.
+    if (req.method === "POST" && rota === "cadastro") {
+      const b = await corpo(req);
+      if (b.site) return json({ erro: "Envio recusado." }, 400);
+      const m = modalidadeAtiva(cfg, b.modalidade);
+      if (cfg.pix.ativo && autoagenda(cfg, m)) throw new Erro("Faça o pagamento via Pix para concluir o cadastro.");
+      if (!b.consentimento) throw new Erro("É preciso aceitar o uso dos dados para o cadastro.");
+      const dados = validarDados(b);
+      const foto = decodificarFoto(b.foto);
+      await limitar(L.dados, context?.ip);
+      const cli = await salvarCliente(L, dados, foto, "paciente");
+      const info = { origem: "site", modalidade: m, obs: b.obs };
+      await marcarAguardando(L.dados, cli.id, info);
+      await registrarLog(L.dados, "paciente", "cadastro-aguardando", { cliente: cli.id });
+      await avisarAguardando(L.dados, cfg, cli, info);
+      return json({ ok: true }, 201);
+    }
+    if (req.method === "POST" && rota === "aguardar") {
+      const b = await corpo(req);
+      const { pedido, cliente } = await aguardarContato(L, cfg, prov(), b);
+      await registrarLog(L.dados, "paciente", "pix-aguardando-horario", { pedido: pedido.id });
+      await avisarAguardando(L.dados, cfg, cliente, cliente.aguardando);
+      return json({ ok: true });
+    }
+
     if (req.method === "GET" && (rota === "dias" || rota === "horarios")) await exigirPago();
     if (req.method === "GET" && rota === "dias")
-      return json({ dias: await dias(L.dados, cfg, modalidadeAtiva(cfg, q.get("modalidade")), q.get("mes"), agora) });
+      return json({ dias: await dias(L.dados, cfg, comCalendario(cfg, q.get("modalidade")), q.get("mes"), agora) });
     if (req.method === "GET" && rota === "horarios") {
       const data = q.get("data");
       if (!dataValida(data)) throw new Erro("Data inválida.");
-      const m = modalidadeAtiva(cfg, q.get("modalidade"));
+      const m = comCalendario(cfg, q.get("modalidade"));
       return json({ horarios: horariosLivres(cfg, m, data, await lerDia(L.dados, data), await lerExcecoes(L.dados), agora) });
     }
 
     if (req.method === "POST" && rota === "reservar" && cfg.pix.ativo) {
       const b = await corpo(req);
-      const m = modalidadeAtiva(cfg, b.modalidade);
+      const m = comCalendario(cfg, b.modalidade);
       if (!dataValida(b.data) || difDias(agora.data, b.data) < 0) throw new Erro("Data inválida.");
       let consulta;
       try {
@@ -142,7 +174,7 @@ export default async (req, context) => {
     if (req.method === "POST" && rota === "reservar") {
       const b = await corpo(req);
       if (b.site) return json({ erro: "Envio recusado." }, 400); // campo armadilha para robôs
-      const m = modalidadeAtiva(cfg, b.modalidade);
+      const m = comCalendario(cfg, b.modalidade);
       if (!dataValida(b.data) || difDias(agora.data, b.data) < 0) throw new Erro("Data inválida.");
       if (!b.consentimento) throw new Erro("É preciso aceitar o uso dos dados para o agendamento.");
       const dados = validarDados(b);

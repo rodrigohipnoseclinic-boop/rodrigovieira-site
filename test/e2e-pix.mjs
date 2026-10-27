@@ -40,7 +40,12 @@ ok("sem pagamento, calendário e reserva são recusados pelo servidor");
 // paciente
 const cel = await b.newPage({ viewport: { width: 390, height: 844 } });
 await cel.goto(`${BASE}/agendar/`);
+await cel.getByText("Presencial", { exact: true }).click();
+assert.ok(await cel.locator("#campo-cpf").evaluate((e) => e.classList.contains("oculto")));
+assert.equal((await cel.locator("#enviar").textContent()).trim(), "Enviar cadastro");
+ok("com Pix ligado, presencial continua só com cadastro (sem Pix e sem calendário)");
 await cel.getByText("Online", { exact: true }).click();
+assert.equal((await cel.locator("#enviar").textContent()).trim(), "Gerar Pix");
 assert.equal(await cel.locator("#p2").getAttribute("aria-disabled"), "true");
 await cel.fill("[name=nome]", "Bruno Paciente Pix");
 await cel.fill("[name=cpf]", "529.982.247-25");

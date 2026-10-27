@@ -4,6 +4,14 @@ O pagamento pode funcionar de dois jeitos, e a escolha fica em Configurações �
 - **Pix desligado:** o paciente agenda direto e acerta o pagamento com o Dr. Rodrigo.
 - **Pix ligado:** o paciente informa os dados e a selfie e paga o Pix. Depois que o provedor confirma o pagamento, o calendário é liberado para ele escolher o horário.
 
+## Quem escolhe o horário (por modalidade)
+Em **Horários de atendimento**, cada modalidade tem a opção **"Paciente escolhe o horário no calendário do site"**:
+- **Presencial (padrão: desmarcado):** o paciente não acessa o calendário. Ele envia o cadastro (dados, selfie e preferências de horário) e entra em **Clientes → Aguardando agendamento**. Você combina a data pelo WhatsApp e clica em **Agendar**: o cadastro já vem preenchido.
+- **Online (padrão: marcado):** com o Pix ligado, o paciente paga e acessa o calendário. Se não achar um horário, pode clicar em "prefiro combinar pelo WhatsApp". O pagamento fica reservado e é vinculado automaticamente quando você agendar pelo painel.
+- O servidor também bloqueia o calendário das modalidades sem acesso; não é só uma questão da página.
+- Você recebe um aviso por e-mail e, se configurado, pelo WhatsApp (modelo `cliente_aguardando`) sempre que alguém entra na lista.
+- Em **Clientes → + Novo cliente**, você cadastra quem não conseguiu fazer o cadastro sozinho, com a opção de já colocar na lista de espera.
+
 ## Endereços
 - **Paciente:** `/agendar/`. O paciente escolhe a modalidade, o dia e o horário, preenche os dados e manda uma selfie ou foto.
 - **Painel:** `/painel/`. Só entra quem tem login.
@@ -65,6 +73,9 @@ Para ativar:
    > Novo agendamento: {{1}}, em {{2}} às {{3}} ({{4}}). Telefone: {{5}}.
 
    Opcionais, que usam os mesmos 5 campos da confirmação: `consulta_remarcada` e `consulta_cancelada`.
+
+   **`cliente_aguardando`** (vai para você)
+   > Novo cadastro aguardando horário: {{1}}, telefone {{2}}, modalidade {{3}}. Pagamento: {{4}}.
 6. No painel, em Configurações → WhatsApp, marque **Enviar mensagens**, informe o seu número e confira os nomes dos modelos.
 
 Se uma mensagem falhar, ela aparece em **Registros** com o botão **Reenviar**, igual ao e-mail.
@@ -129,8 +140,8 @@ Só começa depois que o novo sistema estiver validado em uso real. Passos:
 - Netlify Blobs com gravação condicional: o mesmo dia não aceita duas gravações conflitantes.
 
 ## Testes
-- `npm test`: 32 testes de regras (horários, bloqueios, duração, disputa pelo mesmo horário, e-mails, WhatsApp, prontuário, login, LGPD, Pix e chamadas ao Asaas com respostas simuladas).
+- `npm test`: 34 testes de regras (horários, bloqueios, duração, disputa pelo mesmo horário, e-mails, WhatsApp, prontuário, login, LGPD, Pix e chamadas ao Asaas com respostas simuladas).
 - Servidor com `PRONTUARIO_CHAVE` e `node test/e2e-prontuario.mjs`: prontuário e WhatsApp no painel, com 6 cenários aprovados.
-- `node test/servidor-dev.mjs` com `node test/e2e.mjs`: simulação no navegador sem Pix, com 18 cenários aprovados.
-- Servidor com `AGENDA_PIX_SIMULADO=1` e `node test/e2e-pix.mjs`: fluxo Pix completo no navegador, com 13 cenários aprovados.
+- `node test/servidor-dev.mjs` com `node test/e2e.mjs`: simulação no navegador sem Pix, com 21 cenários aprovados (inclui cadastro presencial e lista de espera).
+- Servidor com `AGENDA_PIX_SIMULADO=1` e `node test/e2e-pix.mjs`: fluxo Pix completo no navegador, com 14 cenários aprovados.
 - Antes de usar com pacientes, confirme na pré-visualização do Netlify: um agendamento real, o e-mail chegando e o login no painel.

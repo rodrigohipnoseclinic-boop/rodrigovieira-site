@@ -6,7 +6,7 @@
   const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
   const esc = (s = "") => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const br = (d) => d.split("-").reverse().join("/");
-  const st = { info: null, modalidade: null, mes: null, data: null, inicio: null, foto: null, pix: false, pedido: null, token: null, pago: false };
+  const st = { info: null, modalidade: null, mes: null, data: null, inicio: null, foto: null, pix: false, pedido: null, token: null, pago: false, semHorario: false };
   const cred = () => (st.pix ? `&pedido=${encodeURIComponent(st.pedido)}&token=${encodeURIComponent(st.token)}` : "");
   const reais = (v) => Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const GUARDA = "agenda-pedido";
@@ -35,7 +35,8 @@
     $("#aviso-pag").classList.toggle("oculto", !i.aviso_pagamento);
     $("#modalidades").innerHTML = i.modalidades.map((m) => `
       <label class="opcao"><input type="radio" name="modalidade" value="${m.id}">
-        <strong>${esc(m.nome)}</strong><span class="muted">${esc(m.endereco || (m.id === "online" ? "Por videochamada" : ""))}</span></label>`).join("");
+        <strong>${esc(m.nome)}</strong><span class="muted">${esc(m.endereco || (m.id === "online" ? "Por videochamada" : ""))}</span>
+        ${m.autoagendamento ? "" : `<span class="muted" style="display:block;font-size:.85rem">Horário combinado pelo WhatsApp</span>`}</label>`).join("");
     if (!i.modalidades.length) mostrar($("#erro-geral"), "No momento não há agenda aberta. Fale pelo contato: " + i.contato);
     st.mes = i.hoje.slice(0, 7);
     if (i.pix.ativo) modoPix();
@@ -220,6 +221,7 @@
 
   function escolherHora(data, h) {
     st.data = data; st.inicio = h;
+    modoSemHorario(false);
     document.querySelectorAll(".hora").forEach((b) => b.classList.toggle("sel", b.dataset.h === h && (b.dataset.data || data) === data));
     const mod = st.info.modalidades.find((m) => m.id === st.modalidade);
     if (st.pix) {
@@ -275,6 +277,31 @@
     box.classList.remove("oculto");
   }
 
+  // Cadastro sem escolher horário: o consultório combina pelo WhatsApp.
+  function modoSemHorario(ligar) {
+    st.semHorario = ligar;
+    $("#aguardar-box").classList.toggle("oculto", !(ligar && st.pix));
+    if (st.pix) return;
+    $("#campo-obs").classList.toggle("oculto", !ligar);
+    $("#enviar").textContent = ligar ? "Enviar cadastro" : "Confirmar agendamento";
+    if (ligar) {
+      st.inicio = null;
+      document.querySelectorAll(".hora").forEach((b) => b.classList.remove("sel"));
+      $("#escolha").textContent = "Sem horário escolhido: o consultório vai combinar a data com você pelo WhatsApp.";
+      habilitar("#p3", true);
+      $("#p3").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
+  function sucessoCadastro(tel) {
+    $("#form").classList.add("oculto");
+    $("#sucesso h2").textContent = "Cadastro recebido ✓";
+    $("#sucesso-txt").innerHTML = `<p>O Dr. Rodrigo vai entrar em contato pelo WhatsApp${tel ? ` <strong>${esc(tel)}</strong>` : ""} para combinar o dia e o horário.</p>
+      ${st.pix ? `<p class="muted">Seu pagamento está confirmado e fica reservado para essa consulta.</p>` : `<p class="muted">${esc(st.info.aviso_pagamento)}</p>`}`;
+    $("#sucesso").classList.remove("oculto");
+    $("#sucesso").focus();
+  }
+
   function sucesso(r, email) {
     const c = r.consulta;
     $("#form").classList.add("oculto");
@@ -289,9 +316,32 @@
     $("#sucesso").focus();
   }
 
+  async function enviarCadastro(f) {
+    const erro = (t) => { mostrar($("#erro"), t); $("#erro").scrollIntoView({ block: "center" }); };
+    if (!f.nome.value.trim() || !f.email.value.trim() || !f.telefone.value.trim()) return erro("Preencha nome, e-mail e WhatsApp.");
+    if (!st.foto) return erro("Tire uma selfie ou envie uma foto para concluir.");
+    if (!f.consentimento.checked) return erro("Para continuar, marque a autorização de uso dos dados.");
+    mostrar($("#erro"), "");
+    const btn = $("#enviar");
+    btn.disabled = true; btn.textContent = "Enviando…";
+    try {
+      await api("cadastro", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ modalidade: st.modalidade, nome: f.nome.value, email: f.email.value, telefone: f.telefone.value,
+          foto: st.foto, obs: f.obs.value, consentimento: true, site: f.site.value }),
+      });
+      sucessoCadastro(f.telefone.value);
+    } catch (e) {
+      erro(e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = "Enviar cadastro";
+    }
+  }
+
   async function enviar(ev) {
     ev.preventDefault();
     const f = ev.target;
+    if (semCalendario() || (!st.pix && st.semHorario)) return enviarCadastro(f);
     if (st.pix) return gerarPix(f);
     const erro = (t) => { mostrar($("#erro"), t); $("#erro").scrollIntoView({ block: "center" }); };
     if (!st.inicio) return erro("Escolha o dia e o horário.");
@@ -320,8 +370,32 @@
     }
   }
 
+  // Modalidade sem calendário (ex.: presencial): só cadastro, horário pelo WhatsApp.
+  const semCalendario = () => !st.info.modalidades.find((m) => m.id === st.modalidade)?.autoagendamento;
+  function aplicarModalidade() {
+    const cad = semCalendario();
+    $("#p2").classList.toggle("oculto", cad);
+    if (st.pix && !st.pago) {
+      $("#p-pix").classList.toggle("oculto", cad || !st.pedido);
+      $("#campo-cpf").classList.toggle("oculto", cad);
+    }
+    $("#campo-obs").classList.toggle("oculto", !cad);
+    $("#enviar").textContent = cad ? "Enviar cadastro" : st.pix ? "Gerar Pix" : "Confirmar agendamento";
+    $("#escolha").classList.toggle("oculto", st.pix && !cad);
+    if (cad) {
+      st.semHorario = true; st.inicio = null;
+      $("#escolha").textContent = "O horário do atendimento presencial é combinado pelo WhatsApp: envie seu cadastro e o Dr. Rodrigo entra em contato.";
+      habilitar("#p3", true);
+    } else {
+      st.semHorario = false;
+      if (!st.pix) $("#escolha").textContent = "";
+    }
+    return cad;
+  }
+
   $("#modalidades").addEventListener("change", (e) => {
     st.modalidade = e.target.value; st.data = null; st.inicio = null;
+    if (aplicarModalidade()) return;
     $("#horas").innerHTML = "";
     $("#confirmar-box").classList.add("oculto");
     if (st.pix && !st.pago) { habilitar("#p3", true); return; }
@@ -349,6 +423,25 @@
   $("#foto-arq").addEventListener("change", aoEscolherFoto);
   $("#form").addEventListener("submit", enviar);
   $("#confirmar-horario").addEventListener("click", confirmarHorario);
+  $("#sem-horario").addEventListener("click", () => {
+    $("#confirmar-box").classList.add("oculto");
+    modoSemHorario(true);
+    if (st.pix) $("#aguardar-box").scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+  $("#confirmar-aguardar").addEventListener("click", async () => {
+    const btn = $("#confirmar-aguardar");
+    btn.disabled = true;
+    try {
+      await api("aguardar", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pedido: st.pedido, token: st.token, obs: $("#obs-pix").value }) });
+      esquecer();
+      sucessoCadastro("");
+    } catch (e) {
+      mostrar($("#erro-aguardar"), e.message);
+    } finally {
+      btn.disabled = false;
+    }
+  });
   $("#pix-verificar").addEventListener("click", () => verificar(true));
   $("#pix-copiar").addEventListener("click", async () => {
     try { await navigator.clipboard.writeText($("#pix-codigo").value); } catch { $("#pix-codigo").select(); document.execCommand("copy"); }

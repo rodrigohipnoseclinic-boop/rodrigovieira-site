@@ -40,9 +40,33 @@ export async function salvarCliente(lojas, dados, foto, por) {
   }));
 }
 
+// Liga a consulta ao cliente e o tira da lista "aguardando agendamento".
+// Devolve o que estava pendente (ex.: o Pix já pago) para quem chamou.
 export async function anexarConsulta(loja, clienteId, consulta) {
+  let pendente = null;
   await atualizar(loja, `cliente/${clienteId}`, (c) => {
     if (!(c.consultas || []).includes(consulta.id)) c.consultas = [...(c.consultas || []), consulta.id].slice(-200);
+    pendente = c.aguardando || null;
+    delete c.aguardando;
+    return c;
+  });
+  return pendente;
+}
+
+// Cliente cadastrado (e, se for o caso, com Pix pago) esperando você
+// combinar o horário pelo WhatsApp.
+export async function marcarAguardando(loja, clienteId, { origem, pedido = null, modalidade = null, obs = "" }) {
+  return atualizar(loja, `cliente/${clienteId}`, (c) => {
+    if (!c.id) throw new Erro("Cliente não encontrado.", 404);
+    c.aguardando = { desde: new Date().toISOString(), origem, pedido, modalidade, obs: String(obs || "").trim().slice(0, 500) };
+    return c;
+  });
+}
+
+export async function limparAguardando(loja, clienteId) {
+  await atualizar(loja, `cliente/${clienteId}`, (c) => {
+    if (!c.id) throw new Erro("Cliente não encontrado.", 404);
+    delete c.aguardando;
     return c;
   });
 }

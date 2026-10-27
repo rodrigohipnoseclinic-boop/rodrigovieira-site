@@ -4,7 +4,7 @@ import { lojas, ler, lerConfig, lerDia, lerExcecoes, atualizar, listarChaves, re
 import { Erro, MODALIDADES, normalizarConfig } from "../lib/agenda/config.mjs";
 import { horariosLivres } from "../lib/agenda/disponibilidade.mjs";
 import { reservar, buscar, cancelar, reagendar, consultasEntre, conflitosDoBloqueio, foraDoHorario } from "../lib/agenda/reservas.mjs";
-import { salvarCliente, anexarConsulta, listarClientes, excluirCliente, decodificarFoto } from "../lib/agenda/clientes.mjs";
+import { salvarCliente, anexarConsulta, listarClientes, excluirCliente, decodificarFoto, marcarAguardando, limparAguardando } from "../lib/agenda/clientes.mjs";
 import { notificar, reenviar, listarEmails } from "../lib/agenda/emails.mjs";
 import * as A from "../lib/agenda/auth.mjs";
 import { agoraLocal, dataValida, paraMin } from "../lib/agenda/tempo.mjs";
@@ -12,7 +12,7 @@ import { json, corpo, tratarErro, partes, definirBase, baseUrl } from "../lib/ag
 import { provedor } from "../lib/agenda/pix.mjs";
 import * as PR from "../lib/agenda/prontuario.mjs";
 import { whatsappConfigurado } from "../lib/agenda/whatsapp.mjs";
-import { listarPedidos, atualizarStatus, liberarPedido, estornar, linkRetomar } from "../lib/agenda/pedidos.mjs";
+import { listarPedidos, atualizarStatus, liberarPedido, estornar, linkRetomar, vincularPedido } from "../lib/agenda/pedidos.mjs";
 import { mensagemAvulsa } from "../lib/agenda/emails.mjs";
 
 const exigir = (u, area) => { if (!A.pode(u, area)) throw new Erro("Seu perfil não tem acesso a esta área.", 403); };
@@ -110,12 +110,17 @@ async function rotasProtegidas(L, req, u) {
     if (M === "POST" && !id) {
       const b = await corpo(req);
       const foto = b.foto ? decodificarFoto(b.foto) : null;
-      const cli = await salvarCliente(L, b.cliente || {}, foto, u.email);
+      // Cliente já cadastrado (ex.: aguardando agendamento) ou cadastro novo.
+      const cli = b.cliente_id ? (await ler(L.dados, `cliente/${String(b.cliente_id).replace(/[^a-f0-9]/g, "")}`)).dado
+        : await salvarCliente(L, b.cliente || {}, foto, u.email);
+      if (!cli) throw new Erro("Cliente não encontrado.", 404);
+      const pedidoPago = cli.aguardando?.pedido || null;
       const c = await reservar(L.dados, cfg, {
         modalidade: b.modalidade, data: b.data, inicio: b.inicio, duracao: b.duracao, observacao: b.observacao,
-        origem: "painel", por: u.email, cliente: { id: cli.id, nome: cli.nome, email: cli.email, telefone: cli.telefone },
+        origem: "painel", por: u.email, pedido: pedidoPago, cliente: { id: cli.id, nome: cli.nome, email: cli.email, telefone: cli.telefone },
       });
       await anexarConsulta(L.dados, cli.id, c);
+      if (pedidoPago) await vincularPedido(L.dados, pedidoPago, c);
       await log("consulta-criada", { id: c.id, data: c.data, inicio: c.inicio, cliente: cli.nome });
       const emails = await notificar(L.dados, cfg, c, "confirmacao", { avisarPaciente: b.avisar !== false });
       return json({ consulta: c, emails }, 201);
@@ -168,7 +173,23 @@ async function rotasProtegidas(L, req, u) {
   if (r === "clientes") {
     exigir(u, "clientes");
     if (M === "GET" && !id) return json({ clientes: await listarClientes(L.dados) });
+    if (M === "POST" && !id) {
+      const b = await corpo(req);
+      const cli = await salvarCliente(L, b, b.foto ? decodificarFoto(b.foto) : null, u.email);
+      if (b.aguardando) await marcarAguardando(L.dados, cli.id, { origem: "painel", modalidade: b.modalidade || null, obs: b.obs });
+      await log("cliente-cadastrado", { id: cli.id, nome: cli.nome });
+      return json({ cliente: cli }, 201);
+    }
     const cid = String(id).replace(/[^a-f0-9]/g, "");
+    if (acao === "aguardando") {
+      if (M === "POST") {
+        const b = await corpo(req);
+        await marcarAguardando(L.dados, cid, { origem: "painel", modalidade: b.modalidade || null, obs: b.obs });
+      }
+      else if (M === "DELETE") await limparAguardando(L.dados, cid);
+      await log(M === "POST" ? "cliente-aguardando" : "cliente-saiu-da-espera", { id: cid });
+      return json({ ok: true });
+    }
     if (M === "GET" && acao === "foto") {
       const foto = await L.fotos.get(cid, { type: "arrayBuffer" });
       if (!foto) return new Response("Sem foto", { status: 404 });

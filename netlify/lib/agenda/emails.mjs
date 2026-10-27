@@ -129,6 +129,28 @@ export async function mensagemAvulsa(loja, id, { quem, para, assunto, titulo, li
   return r.modified ? tentar(loja, chave, reg, enviar) : (await ler(loja, chave)).dado;
 }
 
+// Aviso ao administrador: cliente cadastrado aguardando horário.
+export async function avisarAguardando(loja, cfg, cli, info, { enviar = enviarSmtp, enviarWa = enviarWhatsapp } = {}) {
+  const id = `cad-${cli.id}-${Date.now()}`;
+  const mod = cfg.modalidades[info.modalidade]?.nome || "";
+  const pago = info.pedido ? "Pix confirmado" : "a combinar";
+  const out = [await mensagemAvulsa(loja, `${id}-admin`, {
+    quem: "admin", para: cfg.email_admin || process.env.GMAIL_USUARIO || "", evento: "cadastro",
+    assunto: `Aguardando horário: ${cli.nome}`, titulo: "Cliente aguardando horário",
+    linhas: [["Cliente", cli.nome], ["Telefone", cli.telefone], ["E-mail", cli.email], ["Modalidade preferida", mod], ["Pagamento", pago], ["Preferências", info.obs]],
+    rodape: "Combine a data pelo WhatsApp e agende pelo painel em Clientes → Aguardando agendamento.",
+  }, enviar)];
+  const w = cfg.whatsapp, num = numeroWhatsapp(w?.numero_admin);
+  if (w?.ativo && w.modelo_cadastro && num) {
+    const chave = `email/${id}-wa`;
+    const reg = { id: chave.slice(6), consulta: null, evento: "cadastro", canal: "whatsapp", quem: "admin", para: num, modelo: w.modelo_cadastro, idioma: w.idioma,
+      assunto: `WhatsApp (${w.modelo_cadastro})`, parametros: [cli.nome, cli.telefone || "-", mod || "-", pago], status: "pendente", criado: new Date().toISOString() };
+    await loja.setJSON(chave, reg, { onlyIfNew: true });
+    out.push(await tentar(loja, chave, reg, enviarWa));
+  }
+  return out;
+}
+
 export async function reenviar(loja, id, enviar) {
   const chave = `email/${String(id).replace(/[^A-Za-z0-9-]/g, "")}`;
   const { dado } = await ler(loja, chave);

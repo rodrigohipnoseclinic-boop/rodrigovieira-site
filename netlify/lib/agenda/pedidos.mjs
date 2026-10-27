@@ -4,7 +4,7 @@ import crypto from "node:crypto";
 import { atualizar, ler, lerDia, listarChaves, novoId, registrarLog } from "./armazem.mjs";
 import { Erro } from "./config.mjs";
 import { reservar, buscar } from "./reservas.mjs";
-import { salvarCliente } from "./clientes.mjs";
+import { salvarCliente, marcarAguardando } from "./clientes.mjs";
 import { mensagemAvulsa } from "./emails.mjs";
 import { baseUrl } from "./http.mjs";
 import { segredo } from "./auth.mjs";
@@ -200,6 +200,23 @@ async function finalizar(loja, pedidoId, c) {
   });
   await loja.delete(`pedido-aberto/${c.cliente.id}`).catch(() => {});
   return c;
+}
+
+// Consulta marcada pelo painel para quem já pagou: o Pix passa a ser dela.
+export async function vincularPedido(loja, pedidoId, c) {
+  const p = (await ler(loja, `pedido/${limpaId(pedidoId)}`)).dado;
+  if (!p || p.status !== "pago" || p.consulta) return false;
+  await finalizar(loja, p.id, c);
+  return true;
+}
+
+// Paciente pagou e prefere combinar o horário pelo WhatsApp.
+export async function aguardarContato(L, cfg, prov, { pedido: id, token, obs }) {
+  let p = await autenticar(L.dados, id, token);
+  if (p.status === "pendente") p = await atualizarStatus(L.dados, cfg, prov, p.id);
+  if (p.status !== "pago") throw new Erro("O pagamento ainda não foi confirmado.", 402);
+  const cli = await marcarAguardando(L.dados, p.cliente.id, { origem: "pix", pedido: p.id, modalidade: p.modalidade, obs });
+  return { pedido: p, cliente: cli };
 }
 
 // Painel: devolve o crédito ao paciente (ex.: consulta cancelada) para ele

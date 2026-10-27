@@ -220,23 +220,29 @@
     f.modalidade.onchange = carregar; f.data.onchange = carregar; carregar();
   }
 
-  async function novaConsulta() {
+  // pre: cliente já cadastrado (ex.: vindo da lista "Aguardando agendamento").
+  async function novaConsulta(pre = null) {
     const { clientes } = await api("clientes");
-    abrir(`<h2>Nova consulta</h2><form id="fn">
-      ${camposDataHora(Object.keys(st.cfg.modalidades).find((m) => st.cfg.modalidades[m].ativa), st.vista === "dia" ? st.ref : hojeISO())}
+    const mod = pre?.aguardando?.modalidade || Object.keys(st.cfg.modalidades).find((m) => st.cfg.modalidades[m].ativa);
+    const so = pre ? "readonly" : "";
+    abrir(`<h2>Nova consulta</h2><form id="fn"><input type="hidden" name="cliente_id" value="${pre ? pre.id : ""}">
+      ${pre?.aguardando?.pedido ? `<p class="aviso aviso--ok">Pix já pago: o pagamento será vinculado a esta consulta.</p>` : ""}
+      ${pre?.aguardando?.obs ? `<p class="aviso aviso--info">Preferência do paciente: ${esc(pre.aguardando.obs)}</p>` : ""}
+      ${camposDataHora(mod, st.vista === "dia" ? st.ref : hojeISO())}
       <label class="campo"><span>Duração (min)</span><input type="number" name="duracao" min="10" max="480" value="${st.cfg.duracao}"></label>
-      <label class="campo"><span>Paciente</span><input name="nome" list="lista-cli" required autocomplete="off" placeholder="Nome completo"></label>
+      <label class="campo"><span>Paciente</span><input name="nome" list="lista-cli" required autocomplete="off" placeholder="Nome completo" value="${esc(pre?.nome || "")}" ${so}></label>
       <datalist id="lista-cli">${clientes.map((c) => `<option value="${esc(c.nome)}">`).join("")}</datalist>
-      <div class="linha2"><label class="campo"><span>WhatsApp</span><input name="telefone" type="tel" required></label>
-      <label class="campo"><span>E-mail (opcional)</span><input name="email" type="email"></label></div>
+      <div class="linha2"><label class="campo"><span>WhatsApp</span><input name="telefone" type="tel" required value="${esc(pre?.telefone || "")}" ${so}></label>
+      <label class="campo"><span>E-mail (opcional)</span><input name="email" type="email" value="${esc(pre?.email || "")}" ${so}></label></div>
       <label class="campo"><span>Observação interna</span><input name="observacao" maxlength="500"></label>
       <label class="check"><input type="checkbox" name="avisar" checked> Enviar confirmação ao paciente (se tiver e-mail)</label>
       <div id="m" class="aviso oculto" role="alert"></div>
       <div class="acoes"><button class="btn btn--peq">Agendar</button><button type="button" class="btn btn--linha btn--peq" data-fechar>Cancelar</button></div></form>`);
     const f = $("#fn");
     ligarDataHora(f);
-    f.nome.onchange = () => {
+    if (!pre) f.nome.onchange = () => {
       const c = clientes.find((x) => x.nome === f.nome.value);
+      f.cliente_id.value = c ? c.id : "";
       if (c) { f.telefone.value = c.telefone; f.email.value = c.email; }
     };
     f.onsubmit = async (ev) => {
@@ -246,8 +252,8 @@
       if (!inicio) return aviso($("#m"), "Escolha ou digite um horário.");
       try {
         await api("consultas", { metodo: "POST", dados: { modalidade: d.modalidade, data: d.data, inicio, duracao: Number(d.duracao), observacao: d.observacao,
-          avisar: !!d.avisar, cliente: { nome: d.nome, telefone: d.telefone, email: d.email } } });
-        dlg.close(); st.ref = d.data; telaAgenda();
+          avisar: !!d.avisar, cliente_id: d.cliente_id || undefined, cliente: { nome: d.nome, telefone: d.telefone, email: d.email } } });
+        dlg.close(); st.ref = d.data; if (st.tela === "agenda") telaAgenda(); else ir("agenda");
       } catch (x) { aviso($("#m"), x.message); }
     };
   }
@@ -341,6 +347,7 @@
           const x = c.modalidades[m];
           return `<section class="cartao" data-mod="${m}"><h2>${esc(x.nome)}</h2>
           <label class="check"><input type="checkbox" data-campo="ativa" ${x.ativa ? "checked" : ""}> Aceitar agendamentos ${esc(x.nome.toLowerCase())}</label>
+          <label class="check"><input type="checkbox" data-campo="autoagendamento" ${x.autoagendamento ?? m === "online" ? "checked" : ""}> <span>Paciente escolhe o horário no calendário do site<br><span class="muted">Desmarcado: o paciente só envia o cadastro e você combina o horário pelo WhatsApp. Com o Pix ligado, só modalidades com calendário pagam antes.</span></span></label>
           ${[1, 2, 3, 4, 5, 6, 0].map((d) => `<div class="dia-sem"><strong>${SEM[d]}</strong><div>
             ${(x.semana[d] || []).map((p, i) => `<div class="per"><input type="time" step="300" value="${p.inicio}" data-d="${d}" data-i="${i}" data-k="inicio"> até
               <input type="time" step="300" value="${p.fim}" data-d="${d}" data-i="${i}" data-k="fim"><button class="x" data-rem="${d}:${i}" aria-label="Remover período">×</button></div>`).join("") || `<span class="muted">Sem atendimento</span>`}
@@ -356,6 +363,7 @@
       $("#tela").querySelectorAll("[data-mod]").forEach((s) => {
         const x = c.modalidades[s.dataset.mod];
         x.ativa = $("[data-campo=ativa]", s).checked;
+        x.autoagendamento = $("[data-campo=autoagendamento]", s).checked;
         x.endereco = $("[data-campo=endereco]", s).value;
         x.orientacoes = $("[data-campo=orientacoes]", s).value;
         s.querySelectorAll("input[data-k]").forEach((i) => { x.semana[i.dataset.d][i.dataset.i][i.dataset.k] = i.value; });
@@ -439,9 +447,30 @@
     const tabela = (l) => l.length ? `<div class="rol"><table class="tabela"><tr><th>Nome</th><th>WhatsApp</th><th>E-mail</th><th>Foto</th><th>Consultas</th></tr>
       ${l.map((c) => `<tr><td><a href="#" data-cli="${c.id}">${esc(c.nome)}</a></td><td>${esc(c.telefone)}</td><td>${esc(c.email)}</td><td>${c.foto ? "✓" : "—"}</td><td>${(c.consultas || []).length}</td></tr>`).join("")}</table></div>`
       : `<p class="muted">Nenhum cliente encontrado.</p>`;
-    $("#tela").innerHTML = `<h1>Clientes</h1><div class="barra"><input id="busca" class="campo" style="margin:0;max-width:320px;padding:.6em .8em;border:1.5px solid var(--c-linha);border-radius:12px;font:inherit" placeholder="Buscar por nome, e-mail ou telefone"></div><div id="lista">${tabela(lista())}</div>`;
+    const espera = clientes.filter((c) => c.aguardando).sort((a, b) => a.aguardando.desde.localeCompare(b.aguardando.desde));
+    const origem = { site: "pelo site", pix: "pagou via Pix", painel: "pelo painel" };
+    const blocoEspera = espera.length ? `<section class="cartao"><h2>Aguardando agendamento (${espera.length})</h2>
+      <p class="muted">Combine a data pelo WhatsApp e clique em Agendar. O cadastro já está pronto.</p><div class="rol"><table class="tabela">
+      <tr><th>Cliente</th><th>WhatsApp</th><th>Modalidade</th><th>Desde</th><th>Preferências</th><th></th></tr>
+      ${espera.map((c) => {
+        const tel = c.telefone.replace(/\D/g, "");
+        return `<tr><td>${esc(c.nome)}<br><small class="muted">${origem[c.aguardando.origem] || ""}</small>${c.aguardando.pedido ? ` <span class="etq">Pix pago</span>` : ""}</td>
+        <td><a href="https://wa.me/${tel.length <= 11 ? "55" + tel : tel}" target="_blank" rel="noopener">${esc(c.telefone)}</a></td>
+        <td>${c.aguardando.modalidade ? esc(nomeMod(c.aguardando.modalidade)) : "—"}</td><td>${new Date(c.aguardando.desde).toLocaleDateString("pt-BR")}</td>
+        <td><small>${esc(c.aguardando.obs || "")}</small></td>
+        <td style="white-space:nowrap"><button class="btn btn--peq" data-agendar="${c.id}">Agendar</button> <button class="x" data-tirar="${c.id}" title="Tirar da lista" aria-label="Tirar da lista">×</button></td></tr>`;
+      }).join("")}</table></div></section>` : "";
+    $("#tela").innerHTML = `<h1>Clientes</h1>${blocoEspera}<div class="barra"><button class="btn btn--peq" id="novo-cli">+ Novo cliente</button><input id="busca" class="campo" style="margin:0;max-width:320px;padding:.6em .8em;border:1.5px solid var(--c-linha);border-radius:12px;font:inherit" placeholder="Buscar por nome, e-mail ou telefone"></div><div id="lista">${tabela(lista())}</div>`;
     $("#busca").oninput = (e) => { $("#lista").innerHTML = tabela(lista(e.target.value)); };
+    $("#novo-cli").onclick = novoCliente;
     $("#tela").onclick = async (e) => {
+      const ag = e.target.closest("[data-agendar]"), ti = e.target.closest("[data-tirar]");
+      if (ag) return novaConsulta(clientes.find((c) => c.id === ag.dataset.agendar));
+      if (ti) {
+        if (!confirm("Tirar este cliente da lista de espera? O cadastro continua salvo.")) return;
+        await api(`clientes/${ti.dataset.tirar}/aguardando`, { metodo: "DELETE" });
+        return telaClientes();
+      }
       const a = e.target.closest("[data-cli]");
       if (!a) return;
       e.preventDefault();
@@ -450,12 +479,47 @@
         <div><h2>${esc(c.nome)}</h2><p style="margin:0">📞 ${esc(c.telefone)}<br>✉️ ${esc(c.email || "—")}</p>
         <p class="muted" style="font-size:.85rem">Cadastro: ${new Date(c.criado).toLocaleDateString("pt-BR")}${c.consentimento ? ` · consentimento LGPD em ${new Date(c.consentimento).toLocaleDateString("pt-BR")}` : ""}</p></div></div>
         <h3 style="margin-top:12px">Consultas</h3><ul>${consultas.reverse().map((x) => `<li>${br(x.data)} ${x.inicio} · ${esc(nomeMod(x.modalidade))} · ${x.status}</li>`).join("") || "<li class='muted'>nenhuma</li>"}</ul>
-        <div id="m" class="aviso oculto"></div><div class="acoes">${st.eu.papel === "admin" ? `<button class="btn btn--peq" id="pront">Prontuário</button><button class="btn btn--perigo btn--peq" id="excluir">Excluir dados (LGPD)</button>` : ""}<button class="btn btn--linha btn--peq" data-fechar>Fechar</button></div>`);
+        <div id="m" class="aviso oculto"></div><div class="acoes"><button class="btn btn--peq" id="agendar-cli">Agendar</button>${st.eu.papel === "admin" ? `<button class="btn btn--linha btn--peq" id="pront">Prontuário</button><button class="btn btn--perigo btn--peq" id="excluir">Excluir dados (LGPD)</button>` : ""}<button class="btn btn--linha btn--peq" data-fechar>Fechar</button></div>`);
       if ($("#pront")) $("#pront").onclick = () => { dlg.close(); telaProntuario(c.id); };
+      $("#agendar-cli").onclick = () => { dlg.close(); novaConsulta(c); };
       if ($("#excluir")) $("#excluir").onclick = async () => {
         if (!confirm(`Excluir cadastro e foto de ${c.nome}? As consultas ficarão apenas com o nome. Não dá para desfazer.`)) return;
         try { await api(`clientes/${c.id}`, { metodo: "DELETE" }); dlg.close(); telaClientes(); } catch (x) { aviso($("#m"), x.message); }
       };
+    };
+  }
+
+  // Cadastro feito pelo painel (cliente que não conseguiu se cadastrar sozinho).
+  function novoCliente() {
+    let foto = null;
+    abrir(`<h2>Novo cliente</h2><form id="fcli">
+      <label class="campo"><span>Nome completo</span><input name="nome" required></label>
+      <div class="linha2"><label class="campo"><span>WhatsApp</span><input name="telefone" type="tel" required></label>
+      <label class="campo"><span>E-mail (opcional)</span><input name="email" type="email"></label></div>
+      <label class="campo"><span>Foto (opcional)</span><input type="file" accept="image/*" id="cli-foto"></label>
+      <label class="check"><input type="checkbox" name="aguardando" checked> Colocar na lista "Aguardando agendamento"</label>
+      <div class="linha2"><label class="campo"><span>Modalidade preferida</span><select name="modalidade"><option value="">—</option>${Object.keys(st.cfg.modalidades).map((m) => `<option value="${m}">${esc(nomeMod(m))}</option>`).join("")}</select></label>
+      <label class="campo"><span>Preferências / observação</span><input name="obs" maxlength="500"></label></div>
+      <div id="m" class="aviso oculto" role="alert"></div>
+      <div class="acoes"><button class="btn btn--peq">Salvar cadastro</button><button type="button" class="btn btn--linha btn--peq" data-fechar>Cancelar</button></div></form>`);
+    $("#cli-foto").onchange = async (e) => {
+      const arq = e.target.files[0];
+      if (!arq) return;
+      const img = await createImageBitmap(arq, { imageOrientation: "from-image" }).catch(() => null);
+      if (!img) return aviso($("#m"), "Não foi possível abrir esta imagem.");
+      const k = Math.min(1, 900 / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      foto = c.toDataURL("image/jpeg", 0.85);
+    };
+    $("#fcli").onsubmit = async (ev) => {
+      ev.preventDefault();
+      const d = form(ev.target);
+      try {
+        await api("clientes", { metodo: "POST", dados: { nome: d.nome, telefone: d.telefone, email: d.email, foto, aguardando: !!d.aguardando, modalidade: d.modalidade, obs: d.obs } });
+        dlg.close(); telaClientes();
+      } catch (x) { aviso($("#m"), x.message); }
     };
   }
 
