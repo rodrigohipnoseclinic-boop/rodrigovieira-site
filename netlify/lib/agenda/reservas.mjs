@@ -27,9 +27,10 @@ export async function alternativas(loja, cfg, modalidade, data, agora = agoraLoc
 
 // porPaciente = true: só aceita horários oferecidos ao público.
 // No painel, basta não haver conflito com outra consulta.
-export async function reservar(loja, cfg, { modalidade, data, inicio, cliente, origem, por, duracao, observacao = "", pedido = null }, agora = agoraLocal()) {
+export async function reservar(loja, cfg, { modalidade, data, inicio, cliente, origem, por, duracao, observacao = "", pedido = null, sessao = null }, agora = agoraLocal()) {
   validarPedido(cfg, { modalidade, data, inicio });
-  const porPaciente = origem === "paciente";
+  // "sessao": o próprio cliente agenda pelo link de sessão (mesmas regras de horário).
+  const porPaciente = origem === "paciente" || origem === "sessao";
   const dur = porPaciente ? cfg.duracao : Number(duracao) || cfg.duracao;
   const ini = paraMin(inicio), fim = ini + dur;
   if (fim > 1440) throw new Erro("A consulta precisa terminar no mesmo dia.");
@@ -47,7 +48,7 @@ export async function reservar(loja, cfg, { modalidade, data, inicio, cliente, o
     }
     dia.consultas.push({
       id, data, inicio: paraHM(ini), fim: paraHM(fim), duracao: dur, modalidade, status: "confirmada",
-      cliente, origem, pedido, observacao: String(observacao).slice(0, 500), criada: quando,
+      cliente, origem, pedido, sessao, observacao: String(observacao).slice(0, 500), criada: quando,
       historico: [{ quando, por, acao: "criada" }],
     });
     return dia;

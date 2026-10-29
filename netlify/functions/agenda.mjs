@@ -5,7 +5,9 @@ import { Erro, MODALIDADES, autoagenda } from "../lib/agenda/config.mjs";
 import { horariosLivres } from "../lib/agenda/disponibilidade.mjs";
 import { reservar, alternativas } from "../lib/agenda/reservas.mjs";
 import { salvarCliente, decodificarFoto, validarDados, anexarConsulta, marcarAguardando } from "../lib/agenda/clientes.mjs";
-import { notificar, avisarAguardando } from "../lib/agenda/emails.mjs";
+import { notificar, avisarAguardando, avisarDesmarcacao } from "../lib/agenda/emails.mjs";
+import * as S from "../lib/agenda/sessoes.mjs";
+import { buscar } from "../lib/agenda/reservas.mjs";
 import { agoraLocal, dataValida, datasEntre, somaDias, difDias } from "../lib/agenda/tempo.mjs";
 import { json, corpo, tratarErro, partes, definirBase, baseUrl } from "../lib/agenda/http.mjs";
 import { provedor, simularPagamento } from "../lib/agenda/pix.mjs";
@@ -82,7 +84,7 @@ export default async (req, context) => {
     const L = lojas();
     const cfg = await lerConfig(L.dados);
     const agora = agoraLocal();
-    const [rota] = partes(req, "/api/agenda");
+    const [rota, sub] = partes(req, "/api/agenda");
     const q = new URL(req.url).searchParams;
     const prov = () => provedor();
     // Com Pix ativo, o calendário só abre para quem tem um pagamento confirmado.
@@ -120,6 +122,56 @@ export default async (req, context) => {
       let p = await autenticar(L.dados, q.get("pedido"), q.get("token"));
       p = await atualizarStatus(L.dados, cfg, prov(), p.id);
       return json({ pedido: pedidoPublico(p, cfg) });
+    }
+
+    // ----- link de sessão (enviado pelo consultório) -----
+    if (rota === "sessao") {
+      const b = req.method === "POST" ? await corpo(req) : {};
+      let s = await S.autenticarSessao(L.dados, b.s || q.get("s"), b.t || q.get("t"));
+      s = await S.abrirSessao(L.dados, s, agora);
+      const mod = cfg.modalidades[s.modalidade];
+      if (req.method === "GET" && !sub) {
+        const marcadas = await S.sessoesMarcadas(L.dados, s);
+        const est = S.estagio(s);
+        const min = S.dataMinima(s);
+        return json({
+          nome: s.cliente.nome.split(" ")[0], profissional: cfg.profissional, modalidade: mod.nome, duracao: cfg.duracao, valor: s.valor,
+          estagio: est, rotulo: S.ROTULO[est] || "", data_minima: min, hoje: agora.data, ate: min ? somaDias(min, cfg.janela_dias) : null, contato: cfg.contato,
+          marcadas: marcadas.filter((x) => x.consulta.data >= agora.data).map(({ estagio, rotulo, consulta: c }) => ({
+            estagio, rotulo, id: c.id, data: c.data, inicio: c.inicio, fim: c.fim,
+            endereco: s.modalidade === "presencial" ? mod.endereco : "", orientacoes: mod.orientacoes, taxa: S.taxaDesmarcacao(cfg, c, agora),
+          })),
+          prazo_horas: cfg.sessoes.prazo_horas, taxas: { normal: cfg.sessoes.taxa, tardia: cfg.sessoes.taxa_tardia }, chave_pix: cfg.sessoes.chave_pix,
+          desmarcacao: s.desmarcacao?.status === "pendente" ? { taxa: s.desmarcacao.taxa, consulta: s.desmarcacao.consulta, quando: s.desmarcacao.quando } : null,
+        });
+      }
+      if (req.method === "GET" && sub === "dias") {
+        if (!/^\d{4}-\d{2}$/.test(q.get("mes") || "")) throw new Erro("Mês inválido.");
+        return json({ dias: await S.diasSessao(L.dados, cfg, s, q.get("mes"), agora) });
+      }
+      if (req.method === "GET" && sub === "horarios") return json({ horarios: await S.horariosSessao(L.dados, cfg, s, q.get("data"), agora) });
+      if (req.method === "POST" && sub === "reservar") {
+        let c;
+        try {
+          c = await S.reservarSessao(L.dados, cfg, s, b, agora);
+        } catch (e) {
+          if (e.indisponivel) return json({ erro: e.message, indisponivel: true }, 409);
+          throw e;
+        }
+        await anexarConsulta(L.dados, s.cliente.id, c).catch(() => {});
+        await registrarLog(L.dados, "cliente", "sessao-agendada", { sessao: s.id, consulta: c.id, data: c.data, inicio: c.inicio });
+        const emails = await notificar(L.dados, cfg, c, "confirmacao");
+        return json({ ok: true, consulta: { data: c.data, inicio: c.inicio, fim: c.fim }, email_enviado: emails.some((x) => x.quem === "paciente" && x.status === "enviado") }, 201);
+      }
+      if (req.method === "POST" && sub === "desmarcar") {
+        await limitar(L.dados, context?.ip);
+        const pedido = await S.solicitarDesmarcacao(L.dados, cfg, s, b, agora);
+        const c = await buscar(L.dados, pedido.consulta);
+        await registrarLog(L.dados, "cliente", "desmarcacao-pedida", { sessao: s.id, consulta: c.id, taxa: pedido.taxa });
+        await avisarDesmarcacao(L.dados, cfg, s, c, pedido);
+        return json({ ok: true, taxa: pedido.taxa, chave_pix: cfg.sessoes.chave_pix });
+      }
+      return json({ erro: "Não encontrado." }, 404);
     }
 
     // Cadastro sem horário: o consultório combina a data pelo WhatsApp.

@@ -42,8 +42,8 @@ await pc.click("#fn button.btn");
 await pc.locator("dialog").waitFor({ state: "hidden" });
 const regs = await pc.evaluate(async () => (await (await fetch("/api/painel/emails")).json()).emails);
 assert.ok(regs.some((e) => e.canal === "whatsapp" && e.quem === "paciente" && e.para === "5519977776666"));
-assert.ok(regs.some((e) => e.canal === "whatsapp" && e.quem === "admin" && e.para === "5519997498217"));
-ok("agendamento gerou WhatsApp para o paciente e para você (registrados; sem credenciais locais, ficam para reenvio)");
+assert.ok(!regs.some((e) => e.canal === "whatsapp" && e.quem === "admin"), "consulta marcada por você não avisa você mesmo");
+ok("consulta marcada pelo painel gerou WhatsApp só para o paciente (sem credenciais locais, fica para reenvio)");
 
 // prontuário
 await pc.click("[data-tela=clientes]");

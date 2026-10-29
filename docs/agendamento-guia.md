@@ -12,6 +12,24 @@ Em **Horários de atendimento**, cada modalidade tem a opção **"Paciente escol
 - Você recebe um aviso por e-mail e, se configurado, pelo WhatsApp (modelo `cliente_aguardando`) sempre que alguém entra na lista.
 - Em **Clientes → + Novo cliente**, você cadastra quem não conseguiu fazer o cadastro sozinho, com a opção de já colocar na lista de espera.
 
+## Sessões (links pessoais, só o administrador)
+Na aba **Sessões** você gera um link para cada cliente e envia pelo botão **WhatsApp**. Pelo link, o cliente vê apenas o botão **"Agendar sua sessão"**.
+
+O mesmo link tem dois estágios:
+
+| Estágio | Horários liberados a partir de | Exemplo |
+|---|---|---|
+| **1ª sessão** | data de envio do link + **2 dias** | enviado em 28/10 → disponível a partir de 30/10 (28 e 29 bloqueados) |
+| **2ª sessão** | data da 1ª sessão + **22 dias** | 1ª marcada para 30/10 → 2ª a partir de 21/11 |
+
+- Assim que o cliente agenda a 1ª, o link passa sozinho para o estágio da 2ª. Não é preciso esperar a 1ª acontecer.
+- Depois da data mínima, o cliente pode escolher qualquer data mais distante.
+- Os prazos (2 e 22 dias) são editáveis em cada link e têm um padrão em "Regras das sessões".
+- O bloqueio vale só para aquele link: a agenda geral e os outros clientes não são afetados.
+- Se você transferir a 1ª pela agenda, a 2ª passa a contar da nova data. Se cancelar a 1ª (antes de a 2ª ser marcada), o link volta a liberar a 1ª.
+- **Desmarcação:** o cliente não desmarca sozinho. Ele toca em "Preciso desmarcar", escreve o motivo e confirma que está de acordo com a taxa: **R$ 25** com 12 horas ou mais de antecedência, **R$ 50** com menos. Ele vê a sua chave Pix para pagar a taxa, e você recebe o pedido por e-mail e WhatsApp (modelo `pedido_desmarcacao`). A sessão continua marcada até você **Aprovar** (cancela e reabre o estágio) ou **Recusar**. O botão **Taxa paga** registra o pagamento. Os valores e o prazo são editáveis.
+- Consulta marcada **por você** no painel envia WhatsApp **só ao paciente**. Você recebe aviso apenas quando o próprio cliente agenda.
+
 ## Endereços
 - **Paciente:** `/agendar/`. O paciente escolhe a modalidade, o dia e o horário, preenche os dados e manda uma selfie ou foto.
 - **Painel:** `/painel/`. Só entra quem tem login.
@@ -76,6 +94,9 @@ Para ativar:
 
    **`cliente_aguardando`** (vai para você)
    > Novo cadastro aguardando horário: {{1}}, telefone {{2}}, modalidade {{3}}. Pagamento: {{4}}.
+
+   **`pedido_desmarcacao`** (vai para você)
+   > Pedido de desmarcação: {{1}}, sessão de {{2}} às {{3}}. Taxa aceita: {{4}}. Motivo: {{5}}.
 6. No painel, em Configurações → WhatsApp, marque **Enviar mensagens**, informe o seu número e confira os nomes dos modelos.
 
 Se uma mensagem falhar, ela aparece em **Registros** com o botão **Reenviar**, igual ao e-mail.
@@ -104,6 +125,7 @@ Se uma mensagem falhar, ela aparece em **Registros** com o botão **Reenviar**, 
 | Horários de atendimento, duração, intervalo, preços e textos | ✓ | — |
 | Usuários, registro de alterações, backup | ✓ | — |
 | Prontuário (evoluções clínicas) | ✓ | — |
+| Sessões (links, valores, desmarcações) | ✓ | — |
 
 **Regras que o sistema garante:**
 - Nunca há duas consultas sobrepostas na mesma agenda, nem quando duas pessoas confirmam ao mesmo tempo.
@@ -140,7 +162,8 @@ Só começa depois que o novo sistema estiver validado em uso real. Passos:
 - Netlify Blobs com gravação condicional: o mesmo dia não aceita duas gravações conflitantes.
 
 ## Testes
-- `npm test`: 34 testes de regras (horários, bloqueios, duração, disputa pelo mesmo horário, e-mails, WhatsApp, prontuário, login, LGPD, Pix e chamadas ao Asaas com respostas simuladas).
+- `npm test`: 40 testes de regras (horários, bloqueios, duração, disputa pelo mesmo horário, e-mails, WhatsApp, prontuário, login, LGPD, Pix e chamadas ao Asaas com respostas simuladas).
+- `node test/e2e-sessoes.mjs`: links de sessão (1ª e 2ª, desmarcação com taxa), com 8 cenários aprovados.
 - Servidor com `PRONTUARIO_CHAVE` e `node test/e2e-prontuario.mjs`: prontuário e WhatsApp no painel, com 6 cenários aprovados.
 - `node test/servidor-dev.mjs` com `node test/e2e.mjs`: simulação no navegador sem Pix, com 21 cenários aprovados (inclui cadastro presencial e lista de espera).
 - Servidor com `AGENDA_PIX_SIMULADO=1` e `node test/e2e-pix.mjs`: fluxo Pix completo no navegador, com 14 cenários aprovados.

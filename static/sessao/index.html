@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Sua sessão · Dr. Rodrigo Vieira</title>
+<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/agenda.css">
+</head>
+<body>
+<header class="ag-topo"><a href="/">Dr. Rodrigo Vieira</a></header>
+<main class="ag">
+  <h1 id="titulo">Sua sessão</h1>
+  <p class="resumo" id="resumo"></p>
+  <div id="erro-geral" class="aviso aviso--erro oculto" role="alert"></div>
+
+  <section class="cartao oculto" id="marcadas">
+    <h2>Suas sessões marcadas</h2>
+    <div id="lista-marcadas"></div>
+    <div id="desm-pendente" class="aviso aviso--info oculto"></div>
+    <form id="desm" class="oculto" style="margin-top:14px">
+      <p class="aviso aviso--info" id="desm-taxa"></p>
+      <label class="campo"><span>Motivo da desmarcação</span><textarea name="motivo" rows="3" maxlength="1000" required></textarea></label>
+      <label class="check"><input type="checkbox" name="aceite"> <span id="desm-aceite"></span></label>
+      <div id="erro-desm" class="aviso aviso--erro oculto" role="alert"></div>
+      <div class="acoes" style="margin-top:0"><button class="btn btn--perigo btn--peq">Enviar pedido de desmarcação</button>
+        <button type="button" class="btn btn--linha btn--peq" id="desm-cancelar">Voltar</button></div>
+    </form>
+  </section>
+  <section class="cartao oculto" id="agendar">
+    <button type="button" class="btn" id="abrir-cal">Agendar sua sessão</button>
+    <div id="cal-box" class="oculto" style="margin-top:18px">
+      <p class="muted" id="intervalo"></p>
+      <div class="cal-nav">
+        <button type="button" class="btn btn--linha btn--peq" id="mes-ant" aria-label="Mês anterior">‹</button>
+        <strong id="mes-nome" aria-live="polite"></strong>
+        <button type="button" class="btn btn--linha btn--peq" id="mes-prox" aria-label="Próximo mês">›</button>
+      </div>
+      <div class="cal" id="cal"></div>
+      <p class="muted" id="cal-msg" aria-live="polite"></p>
+      <div class="horas" id="horas" role="group" aria-label="Horários disponíveis"></div>
+      <div id="confirmar-box" class="oculto" style="margin-top:16px">
+        <p class="aviso aviso--info" id="escolha"></p>
+        <div id="erro-cal" class="aviso aviso--erro oculto" role="alert"></div>
+        <button type="button" class="btn" id="confirmar">Confirmar sessão</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+<script src="/js/sessao.js" defer></script>
+</body>
+</html>

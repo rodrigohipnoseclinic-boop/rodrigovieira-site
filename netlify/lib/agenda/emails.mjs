@@ -115,7 +115,8 @@ function mensagensWhatsapp(cfg, c, evento, avisarPaciente) {
     out.push({ quem: "paciente", para: numPac, modelo: modeloPac, idioma: w.idioma, assunto: `WhatsApp (${modeloPac})`,
       parametros: [c.cliente.nome.split(" ")[0], cfg.profissional, data, c.inicio, mod] });
   const numAdm = numeroWhatsapp(w.numero_admin);
-  if (evento === "confirmacao" && w.modelo_admin && numAdm)
+  // Consulta marcada por você no painel: não precisa avisar você mesmo.
+  if (evento === "confirmacao" && c.origem !== "painel" && w.modelo_admin && numAdm)
     out.push({ quem: "admin", para: numAdm, modelo: w.modelo_admin, idioma: w.idioma, assunto: `WhatsApp (${w.modelo_admin})`,
       parametros: [c.cliente.nome, data, c.inicio, mod, c.cliente.telefone || "-"] });
   return out;
@@ -140,14 +141,37 @@ export async function avisarAguardando(loja, cfg, cli, info, { enviar = enviarSm
     linhas: [["Cliente", cli.nome], ["Telefone", cli.telefone], ["E-mail", cli.email], ["Modalidade preferida", mod], ["Pagamento", pago], ["Preferências", info.obs]],
     rodape: "Combine a data pelo WhatsApp e agende pelo painel em Clientes → Aguardando agendamento.",
   }, enviar)];
+  const wa = await whatsAdmin(loja, cfg, `${id}-wa`, cfg.whatsapp?.modelo_cadastro, [cli.nome, cli.telefone || "-", mod || "-", pago], "cadastro", null, enviarWa);
+  if (wa) out.push(wa);
+  return out;
+}
+
+// WhatsApp para o administrador com um modelo aprovado (se ligado e configurado).
+async function whatsAdmin(loja, cfg, id, modelo, parametros, evento, consulta, enviarWa) {
   const w = cfg.whatsapp, num = numeroWhatsapp(w?.numero_admin);
-  if (w?.ativo && w.modelo_cadastro && num) {
-    const chave = `email/${id}-wa`;
-    const reg = { id: chave.slice(6), consulta: null, evento: "cadastro", canal: "whatsapp", quem: "admin", para: num, modelo: w.modelo_cadastro, idioma: w.idioma,
-      assunto: `WhatsApp (${w.modelo_cadastro})`, parametros: [cli.nome, cli.telefone || "-", mod || "-", pago], status: "pendente", criado: new Date().toISOString() };
-    await loja.setJSON(chave, reg, { onlyIfNew: true });
-    out.push(await tentar(loja, chave, reg, enviarWa));
-  }
+  if (!w?.ativo || !modelo || !num) return null;
+  const chave = `email/${id}`;
+  const reg = { id, consulta, evento, canal: "whatsapp", quem: "admin", para: num, modelo, idioma: w.idioma,
+    assunto: `WhatsApp (${modelo})`, parametros, status: "pendente", criado: new Date().toISOString() };
+  if (!(await loja.setJSON(chave, reg, { onlyIfNew: true })).modified) return (await ler(loja, chave)).dado;
+  return tentar(loja, chave, reg, enviarWa);
+}
+
+// Aviso ao administrador: cliente pediu para desmarcar uma sessão.
+export async function avisarDesmarcacao(loja, cfg, s, c, pedido, { enviar = enviarSmtp, enviarWa = enviarWhatsapp } = {}) {
+  const id = `desm-${s.id}-${Date.parse(pedido.quando)}`;
+  const data = c.data.split("-").reverse().join("/");
+  const taxa = pedido.taxa.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const out = [await mensagemAvulsa(loja, `${id}-admin`, {
+    quem: "admin", para: cfg.email_admin || process.env.GMAIL_USUARIO || "", evento: "desmarcacao", consulta: c.id,
+    assunto: `Pedido de desmarcação: ${c.cliente.nome}, ${data} ${c.inicio}`, titulo: "Cliente pediu para desmarcar",
+    linhas: [["Cliente", c.cliente.nome], ["Sessão", `${data} às ${c.inicio}`], ["Antecedência", `${pedido.horas_antes} h`], ["Taxa aceita", taxa],
+      ["Motivo", pedido.motivo], ["Telefone", c.cliente.telefone]],
+    rodape: "Aprove ou recuse no painel, em Sessões.",
+  }, enviar)];
+  const wa = await whatsAdmin(loja, cfg, `${id}-wa`, cfg.whatsapp?.modelo_desmarcacao,
+    [c.cliente.nome, data, c.inicio, taxa, pedido.motivo.slice(0, 180)], "desmarcacao", c.id, enviarWa);
+  if (wa) out.push(wa);
   return out;
 }
 

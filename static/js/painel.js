@@ -71,7 +71,7 @@
 
   // ---------- estrutura ----------
   const TELAS = [
-    ["agenda", "Agenda", "agenda"], ["pagamentos", "Pagamentos", "pagamentos"], ["bloqueios", "Bloqueios e extras", "bloqueios"], ["horarios", "Horários de atendimento", "config"],
+    ["agenda", "Agenda", "agenda"], ["pagamentos", "Pagamentos", "pagamentos"], ["sessoes", "Sessões", "admin"], ["bloqueios", "Bloqueios e extras", "bloqueios"], ["horarios", "Horários de atendimento", "config"],
     ["config", "Configurações", "config"], ["clientes", "Clientes", "clientes"], ["registros", "Registros", "emails"], ["conta", "Usuários e conta", "agenda"],
   ];
   async function entrarNoPainel() {
@@ -94,7 +94,7 @@
     $("#tela").onclick = null;
     document.querySelectorAll(".pn-menu [data-tela]").forEach((b) => b.classList.toggle("at", b.dataset.tela === tela));
     $("#tela").innerHTML = `<p class="muted">Carregando…</p>`;
-    ({ agenda: telaAgenda, pagamentos: telaPagamentos, bloqueios: telaBloqueios, horarios: telaHorarios, config: telaConfig, clientes: telaClientes, registros: telaRegistros, conta: telaConta })[tela]()
+    ({ agenda: telaAgenda, pagamentos: telaPagamentos, sessoes: telaSessoes, bloqueios: telaBloqueios, horarios: telaHorarios, config: telaConfig, clientes: telaClientes, registros: telaRegistros, conta: telaConta })[tela]()
       .catch((e) => { $("#tela").innerHTML = `<div class="aviso aviso--erro">${esc(e.message)}</div>`; });
   }
   const nomeMod = (m) => st.cfg.modalidades[m]?.nome || m;
@@ -255,6 +255,90 @@
           avisar: !!d.avisar, cliente_id: d.cliente_id || undefined, cliente: { nome: d.nome, telefone: d.telefone, email: d.email } } });
         dlg.close(); st.ref = d.data; if (st.tela === "agenda") telaAgenda(); else ir("agenda");
       } catch (x) { aviso($("#m"), x.message); }
+    };
+  }
+
+  // ---------- sessões (links pessoais; só administrador) ----------
+  async function telaSessoes() {
+    const [{ sessoes }, { clientes }, rc] = await Promise.all([api("sessoes"), api("clientes"), api("config")]);
+    st.cfg = rc.config;
+    const ss = st.cfg.sessoes;
+    const reais = (v) => Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const wa = (s) => {
+      const tel = s.cliente.telefone.replace(/\D/g, "");
+      const txt = `Olá, ${s.cliente.nome.split(" ")[0]}! Segue o link para agendar sua sessão: ${s.link}`;
+      return `https://wa.me/${tel.length <= 11 ? "55" + tel : tel}?text=${encodeURIComponent(txt)}`;
+    };
+    const pend = sessoes.filter((s) => s.desmarcacao?.status === "pendente");
+    const situacao = (s) => s.revogado ? ["desativado", "etq--erro"]
+      : s.estagio === "primeira" ? [`aguardando 1ª (a partir de ${br(s.data_minima)})`, "etq--azul"]
+      : s.estagio === "segunda" ? [`aguardando 2ª (a partir de ${br(s.data_minima)})`, "etq--azul"] : ["1ª e 2ª agendadas", ""];
+    $("#tela").innerHTML = `<h1>Sessões</h1>
+      ${pend.length ? `<section class="cartao" style="border-color:#9b2c2c"><h2>Pedidos de desmarcação (${pend.length})</h2>${pend.map((s) => `
+        <div style="border-top:1px solid var(--c-linha);padding:10px 0"><strong>${esc(s.cliente.nome)}</strong> · ${s.desmarcacao.estagio === "segunda" ? "2ª" : "1ª"} sessão ${(() => { const m = s.marcadas.find((x) => x.id === s.desmarcacao.consulta); return m ? `${br(m.data)} ${m.inicio}` : ""; })()}
+        · pedido ${new Date(s.desmarcacao.quando).toLocaleString("pt-BR")} (${s.desmarcacao.horas_antes} h antes)<br>
+        Taxa aceita: <strong>${reais(s.desmarcacao.taxa)}</strong> ${s.desmarcacao.taxa_paga ? `<span class="etq">paga</span>` : `<span class="etq etq--erro">não paga</span>`}<br>
+        <span class="muted">Motivo: ${esc(s.desmarcacao.motivo)}</span>
+        <div class="acoes" style="margin-top:8px">${s.desmarcacao.taxa_paga ? "" : `<button class="btn btn--linha btn--peq" data-dec="taxa-paga" data-id="${s.id}">Taxa paga</button>`}
+          <button class="btn btn--perigo btn--peq" data-dec="aprovar" data-id="${s.id}">Aprovar e cancelar a sessão</button>
+          <button class="btn btn--linha btn--peq" data-dec="recusar" data-id="${s.id}">Recusar</button></div></div>`).join("")}</section>` : ""}
+      <form class="cartao" id="fs-novo"><h2>Enviar link de sessão</h2><div class="linha2">
+        <label class="campo"><span>Cliente</span><input name="cliente" list="lista-cli-s" required autocomplete="off" placeholder="Nome do cliente cadastrado"></label>
+        <datalist id="lista-cli-s">${clientes.map((c) => `<option value="${esc(c.nome)}">`).join("")}</datalist>
+        <label class="campo"><span>Modalidade</span><select name="modalidade">${Object.keys(st.cfg.modalidades).map((m) => `<option value="${m}">${esc(nomeMod(m))}</option>`).join("")}</select></label></div>
+        <div class="linha2"><label class="campo"><span>1ª sessão: liberar após (dias do envio)</span><input name="min_dias_primeira" type="number" min="0" max="365" value="${ss.intervalo_primeira_dias}"></label>
+        <label class="campo"><span>2ª sessão: liberar após (dias da 1ª sessão)</span><input name="min_dias_retorno" type="number" min="0" max="365" value="${ss.intervalo_dias}"></label></div>
+        <label class="campo" style="max-width:260px"><span>Valor da sessão (R$)</span><input name="valor" type="number" step="0.01" min="0" value="${ss.valor}"></label>
+        <p class="muted">Exemplo: enviado hoje, a 1ª sessão abre em ${ss.intervalo_primeira_dias} dias. Assim que o cliente agendar a 1ª, o mesmo link libera a 2ª a partir de ${ss.intervalo_dias} dias depois da data da 1ª.</p>
+        <label class="campo"><span>Observação interna</span><input name="observacao" maxlength="300"></label>
+        <div id="m-novo" class="aviso oculto" role="alert"></div><button class="btn btn--peq">Gerar link</button></form>
+      <section class="cartao"><h2>Links enviados</h2>${sessoes.length ? `<div class="rol"><table class="tabela"><tr><th>Cliente</th><th>Prazos</th><th>Valor</th><th>Situação</th><th>Sessões marcadas</th><th></th></tr>
+        ${sessoes.map((s) => `<tr><td>${esc(s.cliente.nome)}<br><small class="muted">enviado ${br(s.enviado_data)}${s.aberto_em ? ` · aberto ${br(s.aberto_em)}` : " · ainda não aberto"}</small></td>
+          <td><small>1ª: +${s.min_dias_primeira} d<br>2ª: +${s.min_dias_retorno} d</small></td><td>${reais(s.valor)}</td>
+          <td><span class="etq ${situacao(s)[1]}">${situacao(s)[0]}</span>${s.desmarcacao?.status === "pendente" ? ` <span class="etq etq--erro">quer desmarcar</span>` : ""}</td>
+          <td>${s.marcadas.length ? s.marcadas.map((m) => `${m.rotulo}: ${br(m.data)} ${m.inicio}`).join("<br>") : "—"}</td>
+          <td style="white-space:nowrap">${s.link ? `<button class="btn btn--linha btn--peq" data-copiar="${esc(s.link)}">Copiar</button>
+            <a class="btn btn--peq" href="${wa(s)}" target="_blank" rel="noopener">WhatsApp</a>
+            <button class="x" data-revogar="${s.id}" title="Desativar link" aria-label="Desativar link">×</button>` : ""}</td></tr>`).join("")}</table></div>` : `<p class="muted">Nenhum link enviado ainda.</p>`}</section>
+      <form class="cartao" id="fs-cfg"><h2>Regras das sessões</h2><div class="linha2">
+        <label class="campo"><span>Padrão 1ª sessão: liberar após (dias do envio)</span><input name="intervalo_primeira_dias" type="number" min="0" max="365" value="${ss.intervalo_primeira_dias}"></label>
+        <label class="campo"><span>Padrão 2ª sessão: liberar após (dias da 1ª sessão)</span><input name="intervalo_dias" type="number" min="0" max="365" value="${ss.intervalo_dias}"></label></div>
+        <div class="linha2"><label class="campo"><span>Valor padrão da sessão (R$)</span><input name="valor" type="number" step="0.01" min="0" value="${ss.valor}"></label>
+        <label class="campo"><span>Chave Pix para as taxas</span><input name="chave_pix" value="${esc(ss.chave_pix)}" placeholder="e-mail, telefone, CPF/CNPJ ou chave aleatória"></label></div>
+        <div class="linha2"><label class="campo"><span>Taxa de desmarcação (R$)</span><input name="taxa" type="number" step="0.01" min="0" value="${ss.taxa}"></label>
+        <label class="campo"><span>Taxa com menos de X horas (R$)</span><input name="taxa_tardia" type="number" step="0.01" min="0" value="${ss.taxa_tardia}"></label></div>
+        <label class="campo" style="max-width:320px"><span>X = prazo em horas antes da sessão</span><input name="prazo_horas" type="number" min="0" max="168" value="${ss.prazo_horas}"></label>
+        <div id="m-cfg" class="aviso oculto" role="alert"></div><button class="btn btn--peq">Salvar regras</button></form>`;
+    $("#fs-novo").onsubmit = async (ev) => {
+      ev.preventDefault();
+      const d = form(ev.target);
+      const cli = clientes.find((c) => c.nome === d.cliente);
+      if (!cli) return aviso($("#m-novo"), "Escolha um cliente da lista (cadastre antes em Clientes, se for novo).");
+      try {
+        const r = await api("sessoes", { metodo: "POST", dados: { cliente_id: cli.id, modalidade: d.modalidade, valor: Number(d.valor), observacao: d.observacao,
+          min_dias_primeira: Number(d.min_dias_primeira), min_dias_retorno: Number(d.min_dias_retorno) } });
+        await telaSessoes();
+        aviso($("#m-novo"), `Link gerado: a 1ª sessão fica disponível a partir de ${br(r.sessao.data_minima)}. Use "WhatsApp" na lista abaixo para enviar.`, "ok");
+      } catch (x) { aviso($("#m-novo"), x.message); }
+    };
+    $("#fs-cfg").onsubmit = async (ev) => {
+      ev.preventDefault();
+      const d = form(ev.target);
+      const sessoesCfg = { ...ss, ...Object.fromEntries(Object.entries(d).map(([k, v]) => [k, k === "chave_pix" ? v : Number(v)])) };
+      try { st.cfg = (await api("config", { metodo: "PUT", dados: { ...st.cfg, sessoes: sessoesCfg } })).config; aviso($("#m-cfg"), "Regras salvas.", "ok"); }
+      catch (x) { aviso($("#m-cfg"), x.message); }
+    };
+    $("#tela").onclick = async (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      if (b.dataset.copiar) { try { await navigator.clipboard.writeText(b.dataset.copiar); b.textContent = "Copiado ✓"; } catch { prompt("Copie o link:", b.dataset.copiar); } }
+      else if (b.dataset.revogar) {
+        if (!confirm("Desativar este link? O cliente não conseguirá mais usá-lo.")) return;
+        await api(`sessoes/${b.dataset.revogar}`, { metodo: "DELETE" }); telaSessoes();
+      } else if (b.dataset.dec) {
+        if (b.dataset.dec === "aprovar" && !confirm("Aprovar a desmarcação? A sessão será cancelada e o cliente poderá escolher outra data pelo mesmo link.")) return;
+        try { await api(`sessoes/${b.dataset.id}/${b.dataset.dec}`, { metodo: "POST" }); telaSessoes(); } catch (x) { alert(x.message); }
+      }
     };
   }
 
@@ -424,6 +508,8 @@
       <label class="campo"><span>Modelo: aviso para você</span><input name="wa_modelo_admin" value="${esc(c.whatsapp.modelo_admin)}"></label></div>
       <div class="linha2"><label class="campo"><span>Modelo: remarcação (opcional)</span><input name="wa_modelo_transferencia" value="${esc(c.whatsapp.modelo_transferencia)}"></label>
       <label class="campo"><span>Modelo: cancelamento (opcional)</span><input name="wa_modelo_cancelamento" value="${esc(c.whatsapp.modelo_cancelamento)}"></label></div>
+      <div class="linha2"><label class="campo"><span>Modelo: aviso de cliente aguardando horário</span><input name="wa_modelo_cadastro" value="${esc(c.whatsapp.modelo_cadastro)}"></label>
+      <label class="campo"><span>Modelo: pedido de desmarcação</span><input name="wa_modelo_desmarcacao" value="${esc(c.whatsapp.modelo_desmarcacao)}"></label></div>
       <p class="muted">Use os nomes exatos dos modelos aprovados no WhatsApp Business. Deixe vazio para não enviar aquele tipo de mensagem.</p>
       <label class="campo"><span>Como pedir alterações (vai no e-mail do paciente)</span><textarea name="orientacoes_alteracao" rows="2">${esc(c.orientacoes_alteracao)}</textarea></label>
       <div id="m" class="aviso oculto" role="alert"></div><button class="btn">Salvar configurações</button></form>`;

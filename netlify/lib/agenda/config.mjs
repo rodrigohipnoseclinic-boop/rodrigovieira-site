@@ -19,7 +19,9 @@ export const PADRAO = {
   // Pix antes do calendário. Desligado: o pagamento é combinado à parte.
   pix: { ativo: false, valor: 0, prazo_dias: 30 },
   // Modelos de mensagem aprovados no WhatsApp Business (nomes exatos).
-  whatsapp: { ativo: false, numero_admin: "", idioma: "pt_BR", modelo_paciente: "consulta_confirmada", modelo_admin: "novo_agendamento", modelo_transferencia: "", modelo_cancelamento: "", modelo_cadastro: "cliente_aguardando" },
+  whatsapp: { ativo: false, numero_admin: "", idioma: "pt_BR", modelo_paciente: "consulta_confirmada", modelo_admin: "novo_agendamento", modelo_transferencia: "", modelo_cancelamento: "", modelo_cadastro: "cliente_aguardando", modelo_desmarcacao: "pedido_desmarcacao" },
+  // Links de sessão (retornos): só abrem horários depois do intervalo.
+  sessoes: { intervalo_primeira_dias: 2, intervalo_dias: 22, valor: 0, taxa: 25, taxa_tardia: 50, prazo_horas: 12, chave_pix: "" },
   orientacoes_alteracao: "Para remarcar ou cancelar, fale pelo WhatsApp (19) 99749-8217 com pelo menos 24 horas de antecedência.",
   modalidades: {
     presencial: { ativa: true, autoagendamento: false, nome: "Presencial", agenda: "principal", endereco: "Amparo - SP", orientacoes: "Chegue com 10 minutos de antecedência.", semana: semanaPadrao() },
@@ -81,10 +83,22 @@ export function normalizarConfig(e) {
     ativo: !!w.ativo, numero_admin: String(w.numero_admin || "").replace(/[^\d+]/g, "").slice(0, 20), idioma: texto(w.idioma, 10) || "pt_BR",
     modelo_paciente: modelo(w.modelo_paciente), modelo_admin: modelo(w.modelo_admin),
     modelo_transferencia: modelo(w.modelo_transferencia), modelo_cancelamento: modelo(w.modelo_cancelamento),
-    modelo_cadastro: modelo(w.modelo_cadastro),
+    modelo_cadastro: modelo(w.modelo_cadastro), modelo_desmarcacao: modelo(w.modelo_desmarcacao),
   };
   if (c.whatsapp.ativo && c.whatsapp.modelo_admin && c.whatsapp.numero_admin.replace(/\D/g, "").length < 10)
     throw new Erro("Informe o seu número de WhatsApp com DDD para receber os avisos.");
+  const ss = { ...PADRAO.sessoes, ...e.sessoes };
+  const reais = (v, nome) => {
+    const n = Math.round(Number(v) * 100) / 100;
+    if (!(n >= 0 && n <= 10000)) throw new Erro(`${nome}: valor inválido.`);
+    return n;
+  };
+  c.sessoes = {
+    intervalo_primeira_dias: inteiro(ss.intervalo_primeira_dias, 0, 365, "Prazo da primeira sessão"),
+    intervalo_dias: inteiro(ss.intervalo_dias, 0, 365, "Intervalo entre sessões"),
+    valor: reais(ss.valor, "Valor da sessão"), taxa: reais(ss.taxa, "Taxa de desmarcação"), taxa_tardia: reais(ss.taxa_tardia, "Taxa de desmarcação tardia"),
+    prazo_horas: inteiro(ss.prazo_horas, 0, 168, "Prazo da taxa menor"), chave_pix: texto(ss.chave_pix, 120),
+  };
   if (!(c.pix.valor >= 0 && c.pix.valor <= 10000)) throw new Erro("Valor da consulta inválido.");
   if (c.pix.ativo && c.pix.valor < 5) throw new Erro("Para ativar o Pix, informe o valor da consulta (mínimo R$ 5,00).");
   if (c.passo && c.passo < 5) throw new Erro("Espaçamento mínimo de 5 minutos.");

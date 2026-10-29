@@ -11,6 +11,7 @@ import { agoraLocal, dataValida, paraMin } from "../lib/agenda/tempo.mjs";
 import { json, corpo, tratarErro, partes, definirBase, baseUrl } from "../lib/agenda/http.mjs";
 import { provedor } from "../lib/agenda/pix.mjs";
 import * as PR from "../lib/agenda/prontuario.mjs";
+import * as S from "../lib/agenda/sessoes.mjs";
 import { whatsappConfigurado } from "../lib/agenda/whatsapp.mjs";
 import { listarPedidos, atualizarStatus, liberarPedido, estornar, linkRetomar, vincularPedido } from "../lib/agenda/pedidos.mjs";
 import { mensagemAvulsa } from "../lib/agenda/emails.mjs";
@@ -128,6 +129,7 @@ async function rotasProtegidas(L, req, u) {
     if (M === "POST" && id && acao === "cancelar") {
       const b = await corpo(req);
       const c = await cancelar(L.dados, id, u.email, b.motivo);
+      await S.sincronizarSessao(L.dados, c);
       await log("consulta-cancelada", { id, data: c.data, inicio: c.inicio, motivo: b.motivo || "" });
       const emails = await notificar(L.dados, cfg, c, "cancelamento", { avisarPaciente: b.avisar !== false });
       return json({ consulta: c, emails });
@@ -135,6 +137,7 @@ async function rotasProtegidas(L, req, u) {
     if (M === "POST" && id && acao === "transferir") {
       const b = await corpo(req);
       const c = await reagendar(L.dados, cfg, id, b, u.email);
+      await S.sincronizarSessao(L.dados, c);
       await log("consulta-transferida", { id, para: `${c.data} ${c.inicio}`, de: c.historico.at(-1).de });
       const emails = await notificar(L.dados, cfg, c, "transferencia", { avisarPaciente: b.avisar !== false });
       return json({ consulta: c, emails });
@@ -246,6 +249,46 @@ async function rotasProtegidas(L, req, u) {
       const e = await reenviar(L.dados, id);
       await log("email-reenviado", { id, status: e.status });
       return json({ email: { ...e, html: undefined, texto: undefined } });
+    }
+  }
+
+  // ----- links de sessão: só administrador -----
+  if (r === "sessoes") {
+    exigir(u, "admin");
+    if (M === "GET") {
+      const ss = await S.listarSessoes(L.dados);
+      const out = [];
+      for (const s of ss) {
+        const { token_hash, token_cifrado, ...resto } = s;
+        const marcadas = await S.sessoesMarcadas(L.dados, s);
+        out.push({ ...resto, estagio: S.estagio(s), data_minima: S.dataMinima(s), link: s.revogado ? null : S.linkSessao(s),
+          marcadas: marcadas.map((m) => ({ rotulo: m.rotulo, data: m.consulta.data, inicio: m.consulta.inicio, id: m.consulta.id })) });
+      }
+      return json({ sessoes: out });
+    }
+    const cfg = await lerConfig(L.dados);
+    if (M === "POST" && !id) {
+      const b = await corpo(req);
+      const cli = (await ler(L.dados, `cliente/${String(b.cliente_id || "").replace(/[^a-f0-9]/g, "")}`)).dado;
+      if (!cli) throw new Erro("Escolha um cliente cadastrado.");
+      const s = await S.criarSessao(L.dados, cfg, { cliente: cli, modalidade: b.modalidade, valor: b.valor, observacao: b.observacao,
+        min_dias_primeira: b.min_dias_primeira, min_dias_retorno: b.min_dias_retorno }, u.email);
+      await log("sessao-criada", { sessao: s.id, cliente: cli.nome, valor: s.valor });
+      return json({ sessao: { id: s.id, valor: s.valor, data_minima: S.dataMinima(s) }, link: S.linkSessao(s) }, 201);
+    }
+    if (M === "POST" && id && ["aprovar", "recusar", "taxa-paga"].includes(acao)) {
+      const s = await S.decidirDesmarcacao(L.dados, id, acao, u.email);
+      await log(`desmarcacao-${acao}`, { sessao: id });
+      if (acao === "aprovar" && s.desmarcacao?.consulta) {
+        const c = await buscar(L.dados, s.desmarcacao.consulta);
+        await notificar(L.dados, cfg, c, "cancelamento");
+      }
+      return json({ ok: true });
+    }
+    if (M === "DELETE" && id) {
+      await S.revogarSessao(L.dados, id);
+      await log("sessao-revogada", { sessao: id });
+      return json({ ok: true });
     }
   }
 

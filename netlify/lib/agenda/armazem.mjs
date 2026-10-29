@@ -34,7 +34,7 @@ export async function atualizar(loja, chave, mudar, vazio = () => ({})) {
 export async function lerConfig(loja) {
   const { dado } = await ler(loja, "config");
   const p = structuredClone(PADRAO);
-  return dado ? { ...p, ...dado, pix: { ...p.pix, ...dado.pix }, whatsapp: { ...p.whatsapp, ...dado.whatsapp } } : p;
+  return dado ? { ...p, ...dado, pix: { ...p.pix, ...dado.pix }, whatsapp: { ...p.whatsapp, ...dado.whatsapp }, sessoes: { ...p.sessoes, ...dado.sessoes } } : p;
 }
 
 export async function lerExcecoes(loja) {

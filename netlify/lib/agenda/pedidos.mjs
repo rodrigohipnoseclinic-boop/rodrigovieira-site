@@ -10,25 +10,25 @@ import { baseUrl } from "./http.mjs";
 import { segredo } from "./auth.mjs";
 import { agoraLocal, somaDias, dataExtenso } from "./tempo.mjs";
 
-const hashToken = (t) => crypto.createHash("sha256").update(String(t)).digest("hex");
+export const hashToken = (t) => crypto.createHash("sha256").update(String(t)).digest("hex");
 
 // O token fica cifrado no pedido para o aviso de pagamento (que pode vir
 // pelo webhook, sem o navegador do paciente) conseguir montar o link.
 const chaveCifra = () => crypto.createHash("sha256").update(`pedido:${segredo()}`).digest();
-function cifrar(txt) {
+export function cifrar(txt) {
   const iv = crypto.randomBytes(12);
   const c = crypto.createCipheriv("aes-256-gcm", chaveCifra(), iv);
   const dados = Buffer.concat([c.update(txt, "utf8"), c.final()]);
   return [iv, c.getAuthTag(), dados].map((b) => b.toString("base64url")).join(".");
 }
-function decifrar(txt) {
+export function decifrar(txt) {
   const [iv, tag, dados] = String(txt).split(".").map((b) => Buffer.from(b, "base64url"));
   const d = crypto.createDecipheriv("aes-256-gcm", chaveCifra(), iv);
   d.setAuthTag(tag);
   return Buffer.concat([d.update(dados), d.final()]).toString("utf8");
 }
 export const tokenDoPedido = (p) => decifrar(p.token_cifrado);
-const novoToken = () => {
+export const novoToken = () => {
   const token = crypto.randomBytes(18).toString("base64url");
   return { token, token_hash: hashToken(token), token_cifrado: cifrar(token) };
 };
