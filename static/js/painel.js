@@ -71,7 +71,7 @@
 
   // ---------- estrutura ----------
   const TELAS = [
-    ["agenda", "Agenda", "agenda"], ["pagamentos", "Pagamentos", "pagamentos"], ["sessoes", "Sessões", "admin"], ["bloqueios", "Bloqueios e extras", "bloqueios"], ["horarios", "Horários de atendimento", "config"],
+    ["agenda", "Agenda", "agenda"], ["pagamentos", "Pagamentos", "pagamentos"], ["sessoes", "Sessões", "admin"], ["bloqueios", "Bloqueios", "admin"], ["horarios", "Horários de atendimento", "config"],
     ["config", "Configurações", "config"], ["clientes", "Clientes", "clientes"], ["registros", "Registros", "emails"], ["conta", "Usuários e conta", "agenda"],
   ];
   async function entrarNoPainel() {
@@ -111,7 +111,7 @@
   const evento = (c) => `<button class="ev ${c.modalidade} ${c.status}" data-id="${c.id}">
     <strong>${c.inicio}–${c.fim}</strong> ${esc(c.cliente.nome)}<br><small>${esc(nomeMod(c.modalidade))}${c.status === "cancelada" ? " · cancelada" : ""}</small></button>`;
   const excDoDia = (excs, d) => excs.filter((e) => e.inicio_data <= d && d <= e.fim_data).map((e) =>
-    `<div class="ev ${e.tipo === "extra" ? "extra" : "bloq"}"><small>${e.tipo === "extra" ? "Extra" : "Bloqueio"} ${e.inicio ? `${e.inicio}–${e.fim}` : "dia todo"}${e.modalidade !== "todas" ? ` · ${esc(nomeMod(e.modalidade))}` : ""}${e.motivo ? ` · ${esc(e.motivo)}` : ""}</small></div>`).join("");
+    `<div class="ev ${e.tipo === "extra" ? "extra" : "bloq"}"><small>${e.tipo === "extra" ? "Extra" : e.motivo ? esc(e.motivo) : "Indisponível"} ${e.inicio ? `${e.inicio}–${e.fim}` : "dia todo"}${e.modalidade !== "todas" ? ` · ${esc(nomeMod(e.modalidade))}` : ""}${e.tipo === "extra" && e.motivo ? ` · ${esc(e.motivo)}` : ""}</small></div>`).join("");
 
   async function telaAgenda() {
     const [de, ate] = periodo();
@@ -183,7 +183,7 @@
         ev.preventDefault();
         const d = form(ev.target);
         try {
-          await api(`consultas/${c.id}/transferir`, { metodo: "POST", dados: { data: d.data, inicio: d.inicio_livre || d.inicio, modalidade: d.modalidade, avisar: !!d.avisar } });
+          await comConfirmacao((extra) => api(`consultas/${c.id}/transferir`, { metodo: "POST", dados: { data: d.data, inicio: d.inicio_livre || d.inicio, modalidade: d.modalidade, avisar: !!d.avisar, ...extra } }));
           dlg.close(); telaAgenda();
         } catch (x) { aviso($("#m"), x.message); }
       };
@@ -200,6 +200,15 @@
         catch (x) { aviso($("#m"), x.message); }
       };
     };
+  }
+
+  // Fora do horário geral: o servidor pergunta; você confirma e o pedido é refeito.
+  async function comConfirmacao(fn) {
+    try { return await fn({}); }
+    catch (x) {
+      if (!x.fora_horario || !confirm(x.message)) throw x;
+      return fn({ confirmar_fora: true });
+    }
   }
 
   // Data + modalidade + horários livres (ou horário digitado livremente).
@@ -229,7 +238,8 @@
       ${pre?.aguardando?.pedido ? `<p class="aviso aviso--ok">Pix já pago: o pagamento será vinculado a esta consulta.</p>` : ""}
       ${pre?.aguardando?.obs ? `<p class="aviso aviso--info">Preferência do paciente: ${esc(pre.aguardando.obs)}</p>` : ""}
       ${camposDataHora(mod, st.vista === "dia" ? st.ref : hojeISO())}
-      <label class="campo"><span>Duração (min)</span><input type="number" name="duracao" min="10" max="480" value="${st.cfg.duracao}"></label>
+      <div class="linha2"><label class="campo"><span>Duração (min)</span><input type="number" name="duracao" min="10" max="480" value="${st.cfg.duracao}"></label>
+      <label class="campo"><span>Tipo</span><select name="tipo"><option value="sessao" ${pre?.consultas?.length ? "selected" : ""}>Sessão</option><option value="avaliacao" ${pre?.consultas?.length ? "" : "selected"}>Avaliação</option></select></label></div>
       <label class="campo"><span>Paciente</span><input name="nome" list="lista-cli" required autocomplete="off" placeholder="Nome completo" value="${esc(pre?.nome || "")}" ${so}></label>
       <datalist id="lista-cli">${clientes.map((c) => `<option value="${esc(c.nome)}">`).join("")}</datalist>
       <div class="linha2"><label class="campo"><span>WhatsApp</span><input name="telefone" type="tel" required value="${esc(pre?.telefone || "")}" ${so}></label>
@@ -250,9 +260,10 @@
       const d = form(f);
       const inicio = d.inicio_livre || d.inicio;
       if (!inicio) return aviso($("#m"), "Escolha ou digite um horário.");
+      const dados = { modalidade: d.modalidade, data: d.data, inicio, duracao: Number(d.duracao), observacao: d.observacao, tipo: d.tipo,
+        avisar: !!d.avisar, cliente_id: d.cliente_id || undefined, cliente: { nome: d.nome, telefone: d.telefone, email: d.email } };
       try {
-        await api("consultas", { metodo: "POST", dados: { modalidade: d.modalidade, data: d.data, inicio, duracao: Number(d.duracao), observacao: d.observacao,
-          avisar: !!d.avisar, cliente_id: d.cliente_id || undefined, cliente: { nome: d.nome, telefone: d.telefone, email: d.email } } });
+        await comConfirmacao((extra) => api("consultas", { metodo: "POST", dados: { ...dados, ...extra } }));
         dlg.close(); st.ref = d.data; if (st.tela === "agenda") telaAgenda(); else ir("agenda");
       } catch (x) { aviso($("#m"), x.message); }
     };
@@ -264,47 +275,50 @@
     st.cfg = rc.config;
     const ss = st.cfg.sessoes;
     const reais = (v) => Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const quando = (iso) => new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
     const wa = (s) => {
       const tel = s.cliente.telefone.replace(/\D/g, "");
-      const txt = `Olá, ${s.cliente.nome.split(" ")[0]}! Segue o link para agendar sua sessão: ${s.link}`;
+      const txt = `Olá, ${s.cliente.nome.split(" ")[0]}! Segue o link para agendar sua sessão (válido até ${quando(s.expira_em)}): ${s.link}`;
       return `https://wa.me/${tel.length <= 11 ? "55" + tel : tel}?text=${encodeURIComponent(txt)}`;
     };
+    const situacao = (s) => s.revogado ? ["desativado", "etq--erro"] : s.usado ? [`agendada ${br(s.usado.data)} ${s.usado.inicio}`, ""]
+      : s.expirado ? ["expirado", "etq--erro"] : [`válido até ${quando(s.expira_em)}`, "etq--azul"];
     const pend = sessoes.filter((s) => s.desmarcacao?.status === "pendente");
-    const situacao = (s) => s.revogado ? ["desativado", "etq--erro"]
-      : s.estagio === "primeira" ? [`aguardando 1ª (a partir de ${br(s.data_minima)})`, "etq--azul"]
-      : s.estagio === "segunda" ? [`aguardando 2ª (a partir de ${br(s.data_minima)})`, "etq--azul"] : ["1ª e 2ª agendadas", ""];
     $("#tela").innerHTML = `<h1>Sessões</h1>
       ${pend.length ? `<section class="cartao" style="border-color:#9b2c2c"><h2>Pedidos de desmarcação (${pend.length})</h2>${pend.map((s) => `
-        <div style="border-top:1px solid var(--c-linha);padding:10px 0"><strong>${esc(s.cliente.nome)}</strong> · ${s.desmarcacao.estagio === "segunda" ? "2ª" : "1ª"} sessão ${(() => { const m = s.marcadas.find((x) => x.id === s.desmarcacao.consulta); return m ? `${br(m.data)} ${m.inicio}` : ""; })()}
-        · pedido ${new Date(s.desmarcacao.quando).toLocaleString("pt-BR")} (${s.desmarcacao.horas_antes} h antes)<br>
+        <div style="border-top:1px solid var(--c-linha);padding:10px 0"><strong>${esc(s.cliente.nome)}</strong> · sessão ${s.usado ? `${br(s.usado.data)} ${s.usado.inicio}` : ""}
+        · pedido ${quando(s.desmarcacao.quando)} (${s.desmarcacao.horas_antes} h antes)<br>
         Taxa aceita: <strong>${reais(s.desmarcacao.taxa)}</strong> ${s.desmarcacao.taxa_paga ? `<span class="etq">paga</span>` : `<span class="etq etq--erro">não paga</span>`}<br>
         <span class="muted">Motivo: ${esc(s.desmarcacao.motivo)}</span>
         <div class="acoes" style="margin-top:8px">${s.desmarcacao.taxa_paga ? "" : `<button class="btn btn--linha btn--peq" data-dec="taxa-paga" data-id="${s.id}">Taxa paga</button>`}
           <button class="btn btn--perigo btn--peq" data-dec="aprovar" data-id="${s.id}">Aprovar e cancelar a sessão</button>
           <button class="btn btn--linha btn--peq" data-dec="recusar" data-id="${s.id}">Recusar</button></div></div>`).join("")}</section>` : ""}
-      <form class="cartao" id="fs-novo"><h2>Enviar link de sessão</h2><div class="linha2">
+      <form class="cartao" id="fs-novo"><h2>Gerar link de sessão</h2>
+        <p class="muted">Cada link é pessoal, vale por ${ss.validade_horas} horas e permite um único agendamento. O sistema calcula a data liberada pelo histórico do cliente:
+        quem nunca teve sessão, a partir de ${ss.intervalo_primeira_dias} dias após o envio; quem já teve, ${ss.intervalo_dias} dias após a última sessão.</p>
+        <div class="linha2">
         <label class="campo"><span>Cliente</span><input name="cliente" list="lista-cli-s" required autocomplete="off" placeholder="Nome do cliente cadastrado"></label>
         <datalist id="lista-cli-s">${clientes.map((c) => `<option value="${esc(c.nome)}">`).join("")}</datalist>
         <label class="campo"><span>Modalidade</span><select name="modalidade">${Object.keys(st.cfg.modalidades).map((m) => `<option value="${m}">${esc(nomeMod(m))}</option>`).join("")}</select></label></div>
+        <div class="linha2"><label class="campo"><span>Valor da sessão (R$)</span><input name="valor" type="number" step="0.01" min="0" value="${ss.valor}"></label>
+        <label class="campo"><span>Validade do link (horas)</span><input name="validade_horas" type="number" min="1" max="720" value="${ss.validade_horas}"></label></div>
         <div class="linha2"><label class="campo"><span>1ª sessão: liberar após (dias do envio)</span><input name="min_dias_primeira" type="number" min="0" max="365" value="${ss.intervalo_primeira_dias}"></label>
-        <label class="campo"><span>2ª sessão: liberar após (dias da 1ª sessão)</span><input name="min_dias_retorno" type="number" min="0" max="365" value="${ss.intervalo_dias}"></label></div>
-        <label class="campo" style="max-width:260px"><span>Valor da sessão (R$)</span><input name="valor" type="number" step="0.01" min="0" value="${ss.valor}"></label>
-        <p class="muted">Exemplo: enviado hoje, a 1ª sessão abre em ${ss.intervalo_primeira_dias} dias. Assim que o cliente agendar a 1ª, o mesmo link libera a 2ª a partir de ${ss.intervalo_dias} dias depois da data da 1ª.</p>
+        <label class="campo"><span>Demais: liberar após (dias da última sessão)</span><input name="min_dias_retorno" type="number" min="0" max="365" value="${ss.intervalo_dias}"></label></div>
         <label class="campo"><span>Observação interna</span><input name="observacao" maxlength="300"></label>
         <div id="m-novo" class="aviso oculto" role="alert"></div><button class="btn btn--peq">Gerar link</button></form>
-      <section class="cartao"><h2>Links enviados</h2>${sessoes.length ? `<div class="rol"><table class="tabela"><tr><th>Cliente</th><th>Prazos</th><th>Valor</th><th>Situação</th><th>Sessões marcadas</th><th></th></tr>
-        ${sessoes.map((s) => `<tr><td>${esc(s.cliente.nome)}<br><small class="muted">enviado ${br(s.enviado_data)}${s.aberto_em ? ` · aberto ${br(s.aberto_em)}` : " · ainda não aberto"}</small></td>
-          <td><small>1ª: +${s.min_dias_primeira} d<br>2ª: +${s.min_dias_retorno} d</small></td><td>${reais(s.valor)}</td>
+      <section class="cartao"><h2>Links gerados</h2>${sessoes.length ? `<div class="rol"><table class="tabela"><tr><th>Cliente</th><th>Liberado a partir de</th><th>Valor</th><th>Situação</th><th></th></tr>
+        ${sessoes.map((s) => `<tr><td>${esc(s.cliente.nome)}<br><small class="muted">gerado ${quando(s.enviado_em)}${s.aberto_em ? ` · aberto ${br(s.aberto_em)}` : " · não aberto"}</small></td>
+          <td>${s.data_minima ? br(s.data_minima) : "—"}</td><td>${reais(s.valor)}</td>
           <td><span class="etq ${situacao(s)[1]}">${situacao(s)[0]}</span>${s.desmarcacao?.status === "pendente" ? ` <span class="etq etq--erro">quer desmarcar</span>` : ""}</td>
-          <td>${s.marcadas.length ? s.marcadas.map((m) => `${m.rotulo}: ${br(m.data)} ${m.inicio}`).join("<br>") : "—"}</td>
           <td style="white-space:nowrap">${s.link ? `<button class="btn btn--linha btn--peq" data-copiar="${esc(s.link)}">Copiar</button>
-            <a class="btn btn--peq" href="${wa(s)}" target="_blank" rel="noopener">WhatsApp</a>
-            <button class="x" data-revogar="${s.id}" title="Desativar link" aria-label="Desativar link">×</button>` : ""}</td></tr>`).join("")}</table></div>` : `<p class="muted">Nenhum link enviado ainda.</p>`}</section>
-      <form class="cartao" id="fs-cfg"><h2>Regras das sessões</h2><div class="linha2">
-        <label class="campo"><span>Padrão 1ª sessão: liberar após (dias do envio)</span><input name="intervalo_primeira_dias" type="number" min="0" max="365" value="${ss.intervalo_primeira_dias}"></label>
-        <label class="campo"><span>Padrão 2ª sessão: liberar após (dias da 1ª sessão)</span><input name="intervalo_dias" type="number" min="0" max="365" value="${ss.intervalo_dias}"></label></div>
-        <div class="linha2"><label class="campo"><span>Valor padrão da sessão (R$)</span><input name="valor" type="number" step="0.01" min="0" value="${ss.valor}"></label>
-        <label class="campo"><span>Chave Pix para as taxas</span><input name="chave_pix" value="${esc(ss.chave_pix)}" placeholder="e-mail, telefone, CPF/CNPJ ou chave aleatória"></label></div>
+            <a class="btn btn--peq" href="${wa(s)}" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+            <button class="x" data-revogar="${s.id}" title="Desativar link" aria-label="Desativar link">×</button>` : ""}</td></tr>`).join("")}</table></div>` : `<p class="muted">Nenhum link gerado ainda.</p>`}</section>
+      <form class="cartao" id="fs-cfg"><h2>Regras padrão</h2><div class="linha2">
+        <label class="campo"><span>Validade do link (horas)</span><input name="validade_horas" type="number" min="1" max="720" value="${ss.validade_horas}"></label>
+        <label class="campo"><span>Valor padrão da sessão (R$)</span><input name="valor" type="number" step="0.01" min="0" value="${ss.valor}"></label></div>
+        <div class="linha2"><label class="campo"><span>1ª sessão: dias após o envio</span><input name="intervalo_primeira_dias" type="number" min="0" max="365" value="${ss.intervalo_primeira_dias}"></label>
+        <label class="campo"><span>Demais: dias após a última sessão</span><input name="intervalo_dias" type="number" min="0" max="365" value="${ss.intervalo_dias}"></label></div>
+        <label class="campo"><span>Chave Pix para as taxas</span><input name="chave_pix" value="${esc(ss.chave_pix)}" placeholder="e-mail, telefone, CPF/CNPJ ou chave aleatória"></label>
         <div class="linha2"><label class="campo"><span>Taxa de desmarcação (R$)</span><input name="taxa" type="number" step="0.01" min="0" value="${ss.taxa}"></label>
         <label class="campo"><span>Taxa com menos de X horas (R$)</span><input name="taxa_tardia" type="number" step="0.01" min="0" value="${ss.taxa_tardia}"></label></div>
         <label class="campo" style="max-width:320px"><span>X = prazo em horas antes da sessão</span><input name="prazo_horas" type="number" min="0" max="168" value="${ss.prazo_horas}"></label>
@@ -316,9 +330,10 @@
       if (!cli) return aviso($("#m-novo"), "Escolha um cliente da lista (cadastre antes em Clientes, se for novo).");
       try {
         const r = await api("sessoes", { metodo: "POST", dados: { cliente_id: cli.id, modalidade: d.modalidade, valor: Number(d.valor), observacao: d.observacao,
-          min_dias_primeira: Number(d.min_dias_primeira), min_dias_retorno: Number(d.min_dias_retorno) } });
+          validade_horas: Number(d.validade_horas), min_dias_primeira: Number(d.min_dias_primeira), min_dias_retorno: Number(d.min_dias_retorno) } });
         await telaSessoes();
-        aviso($("#m-novo"), `Link gerado: a 1ª sessão fica disponível a partir de ${br(r.sessao.data_minima)}. Use "WhatsApp" na lista abaixo para enviar.`, "ok");
+        const base = r.sessao.base === "retorno" ? `última sessão em ${br(r.sessao.ultima)}` : "primeira sessão";
+        aviso($("#m-novo"), `Link gerado (${base}): horários a partir de ${br(r.sessao.data_minima)}; válido até ${quando(r.sessao.expira_em)}. Use "WhatsApp" na lista abaixo para enviar.`, "ok");
       } catch (x) { aviso($("#m-novo"), x.message); }
     };
     $("#fs-cfg").onsubmit = async (ev) => {
@@ -336,7 +351,8 @@
         if (!confirm("Desativar este link? O cliente não conseguirá mais usá-lo.")) return;
         await api(`sessoes/${b.dataset.revogar}`, { metodo: "DELETE" }); telaSessoes();
       } else if (b.dataset.dec) {
-        if (b.dataset.dec === "aprovar" && !confirm("Aprovar a desmarcação? A sessão será cancelada e o cliente poderá escolher outra data pelo mesmo link.")) return;
+        if (b.dataset.dec === "aprovar" && !confirm("Aprovar a desmarcação? A sessão será cancelada. Para remarcar, gere um novo link."))
+          return;
         try { await api(`sessoes/${b.dataset.id}/${b.dataset.dec}`, { metodo: "POST" }); telaSessoes(); } catch (x) { alert(x.message); }
       }
     };
@@ -382,7 +398,7 @@
     const { excecoes } = await api("excecoes");
     const hoje = hojeISO();
     const lista = excecoes.filter((e) => e.fim_data >= hoje).sort((a, b) => (a.inicio_data + (a.inicio || "")).localeCompare(b.inicio_data + (b.inicio || "")));
-    $("#tela").innerHTML = `<h1>Bloqueios e horários extras</h1>
+    $("#tela").innerHTML = `<h1>Bloqueios</h1><p class="muted">Só você vê esta aba e os títulos. Para os pacientes e a assistente, o horário aparece apenas como indisponível.</p>
       <form class="cartao" id="fb"><div class="linha2">
         <label class="campo"><span>Tipo</span><select name="tipo"><option value="bloqueio">Bloquear (indisponível)</option><option value="extra">Abrir horário extra</option></select></label>
         <label class="campo"><span>Vale para</span><select name="modalidade"><option value="todas">Todas as modalidades</option>${Object.keys(st.cfg.modalidades).map((m) => `<option value="${m}">${esc(nomeMod(m))}</option>`).join("")}</select></label></div>
@@ -391,7 +407,7 @@
         <label class="check"><input type="checkbox" name="dia_todo" checked> Dia inteiro</label>
         <div class="linha2" id="hrs" hidden><label class="campo"><span>Das</span><input type="time" name="inicio" step="300"></label>
         <label class="campo"><span>Às</span><input type="time" name="fim" step="300"></label></div>
-        <label class="campo"><span>Motivo (interno)</span><input name="motivo" maxlength="200" placeholder="Férias, congresso, consulta médica…"></label>
+        <label class="campo"><span>Título do bloqueio (motivo)</span><input name="motivo" maxlength="200" placeholder="Férias, congresso, consulta médica…"></label>
         <div id="m" class="aviso oculto" role="alert"></div><button class="btn btn--peq">Salvar</button></form>
       <h2>Próximos</h2>${lista.length ? `<div class="rol"><table class="tabela"><tr><th>Tipo</th><th>Período</th><th>Horário</th><th>Modalidade</th><th>Motivo</th><th></th></tr>
       ${lista.map((e) => `<tr><td>${e.tipo === "extra" ? `<span class="etq">extra</span>` : `<span class="etq etq--erro">bloqueio</span>`}</td>

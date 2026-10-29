@@ -15,7 +15,7 @@ export async function corpo(req, max = 4.5e6) {
 }
 
 export function tratarErro(e) {
-  if (e instanceof Erro) return json({ erro: e.message, ...(e.indisponivel ? { indisponivel: true } : {}), ...(e.conflitos ? { conflitos: e.conflitos } : {}) }, e.status);
+  if (e instanceof Erro) return json({ erro: e.message, ...(e.indisponivel ? { indisponivel: true } : {}), ...(e.conflitos ? { conflitos: e.conflitos } : {}), ...(e.fora_horario ? { fora_horario: true } : {}) }, e.status);
   console.error(e);
   return json({ erro: "Erro inesperado. Tente de novo em instantes." }, 500);
 }

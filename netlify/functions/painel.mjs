@@ -2,7 +2,7 @@
 // primeiro acesso, exige sessão e respeita o perfil do usuário.
 import { lojas, ler, lerConfig, lerDia, lerExcecoes, atualizar, listarChaves, registrarLog, novoId } from "../lib/agenda/armazem.mjs";
 import { Erro, MODALIDADES, normalizarConfig } from "../lib/agenda/config.mjs";
-import { horariosLivres } from "../lib/agenda/disponibilidade.mjs";
+import { horariosLivres, periodosDoDia } from "../lib/agenda/disponibilidade.mjs";
 import { reservar, buscar, cancelar, reagendar, consultasEntre, conflitosDoBloqueio, foraDoHorario } from "../lib/agenda/reservas.mjs";
 import { salvarCliente, anexarConsulta, listarClientes, excluirCliente, decodificarFoto, marcarAguardando, limparAguardando } from "../lib/agenda/clientes.mjs";
 import { notificar, reenviar, listarEmails } from "../lib/agenda/emails.mjs";
@@ -18,6 +18,15 @@ import { mensagemAvulsa } from "../lib/agenda/emails.mjs";
 
 const exigir = (u, area) => { if (!A.pode(u, area)) throw new Erro("Seu perfil não tem acesso a esta área.", 403); };
 
+// Marcação pelo painel fora do horário geral: só com a sua confirmação.
+async function confirmarForaDoHorario(loja, cfg, { modalidade, data, inicio, duracao, confirmar_fora }) {
+  if (confirmar_fora || !MODALIDADES.includes(modalidade) || !dataValida(data)) return;
+  const ini = paraMin(inicio), fim = ini + (Number(duracao) || cfg.duracao);
+  const cabe = periodosDoDia({ ...cfg, modalidades: { ...cfg.modalidades, [modalidade]: { ...cfg.modalidades[modalidade], ativa: true } } },
+    modalidade, data, await lerExcecoes(loja)).some(([i, f]) => i <= ini && fim <= f);
+  if (!cabe) throw new Erro("Este horário está fora do horário geral de atendimento (ou num bloqueio). Deseja agendar mesmo assim?", 409, { fora_horario: true });
+}
+
 function validarExcecao(b) {
   const tipo = b.tipo === "extra" ? "extra" : "bloqueio";
   const inicio_data = b.inicio_data, fim_data = b.fim_data || b.inicio_data;
@@ -29,6 +38,7 @@ function validarExcecao(b) {
   }
   if (tipo === "extra" && diaTodo) throw new Erro("Informe o horário do atendimento extra.");
   const modalidade = ["todas", ...MODALIDADES].includes(b.modalidade) ? b.modalidade : "todas";
+  if (tipo === "bloqueio" && String(b.motivo || "").trim().length < 2) throw new Erro("Dê um título ao bloqueio (o motivo, só você vê).");
   return { id: novoId(8), tipo, inicio_data, fim_data, inicio: diaTodo ? null : b.inicio, fim: diaTodo ? null : b.fim,
     modalidade, motivo: String(b.motivo || "").trim().slice(0, 200) };
 }
@@ -95,7 +105,9 @@ async function rotasProtegidas(L, req, u) {
     exigir(u, "agenda");
     const de = q.get("de"), ate = q.get("ate");
     if (!dataValida(de) || !dataValida(ate) || ate < de) throw new Erro("Período inválido.");
-    return json({ consultas: await consultasEntre(L.dados, de, ate), excecoes: await lerExcecoes(L.dados) });
+    // Bloqueios são só seus: a assistente vê apenas "indisponível", sem o título.
+    const exc = (await lerExcecoes(L.dados)).map((e) => (A.pode(u, "admin") ? e : { ...e, motivo: "" }));
+    return json({ consultas: await consultasEntre(L.dados, de, ate), excecoes: exc });
   }
   if (M === "GET" && r === "livres") {
     exigir(u, "agenda");
@@ -115,10 +127,11 @@ async function rotasProtegidas(L, req, u) {
       const cli = b.cliente_id ? (await ler(L.dados, `cliente/${String(b.cliente_id).replace(/[^a-f0-9]/g, "")}`)).dado
         : await salvarCliente(L, b.cliente || {}, foto, u.email);
       if (!cli) throw new Erro("Cliente não encontrado.", 404);
+      await confirmarForaDoHorario(L.dados, cfg, b);
       const pedidoPago = cli.aguardando?.pedido || null;
       const c = await reservar(L.dados, cfg, {
         modalidade: b.modalidade, data: b.data, inicio: b.inicio, duracao: b.duracao, observacao: b.observacao,
-        origem: "painel", por: u.email, pedido: pedidoPago, cliente: { id: cli.id, nome: cli.nome, email: cli.email, telefone: cli.telefone },
+        origem: "painel", por: u.email, pedido: pedidoPago, tipo: b.tipo, cliente: { id: cli.id, nome: cli.nome, email: cli.email, telefone: cli.telefone },
       });
       await anexarConsulta(L.dados, cli.id, c);
       if (pedidoPago) await vincularPedido(L.dados, pedidoPago, c);
@@ -136,6 +149,8 @@ async function rotasProtegidas(L, req, u) {
     }
     if (M === "POST" && id && acao === "transferir") {
       const b = await corpo(req);
+      const atual = await buscar(L.dados, id);
+      await confirmarForaDoHorario(L.dados, cfg, { ...b, modalidade: b.modalidade || atual.modalidade, duracao: atual.duracao });
       const c = await reagendar(L.dados, cfg, id, b, u.email);
       await S.sincronizarSessao(L.dados, c);
       await log("consulta-transferida", { id, para: `${c.data} ${c.inicio}`, de: c.historico.at(-1).de });
@@ -146,7 +161,7 @@ async function rotasProtegidas(L, req, u) {
 
   // ----- bloqueios e horários extras -----
   if (r === "excecoes") {
-    exigir(u, "bloqueios");
+    exigir(u, "admin");
     if (M === "GET") return json({ excecoes: await lerExcecoes(L.dados) });
     if (M === "POST") {
       const b = await corpo(req);
@@ -267,9 +282,8 @@ async function rotasProtegidas(L, req, u) {
       const out = [];
       for (const s of ss) {
         const { token_hash, token_cifrado, ...resto } = s;
-        const marcadas = await S.sessoesMarcadas(L.dados, s);
-        out.push({ ...resto, estagio: S.estagio(s), data_minima: S.dataMinima(s), link: s.revogado ? null : S.linkSessao(s),
-          marcadas: marcadas.map((m) => ({ rotulo: m.rotulo, data: m.consulta.data, inicio: m.consulta.inicio, id: m.consulta.id })) });
+        const ativo = !s.revogado && !S.expirado(s);
+        out.push({ ...resto, expirado: S.expirado(s), data_minima: s.usado ? null : (await S.dataMinima(L.dados, s)).data, link: ativo ? S.linkSessao(s) : null });
       }
       return json({ sessoes: out });
     }
@@ -279,9 +293,10 @@ async function rotasProtegidas(L, req, u) {
       const cli = (await ler(L.dados, `cliente/${String(b.cliente_id || "").replace(/[^a-f0-9]/g, "")}`)).dado;
       if (!cli) throw new Erro("Escolha um cliente cadastrado.");
       const s = await S.criarSessao(L.dados, cfg, { cliente: cli, modalidade: b.modalidade, valor: b.valor, observacao: b.observacao,
-        min_dias_primeira: b.min_dias_primeira, min_dias_retorno: b.min_dias_retorno }, u.email);
+        min_dias_primeira: b.min_dias_primeira, min_dias_retorno: b.min_dias_retorno, validade_horas: b.validade_horas }, u.email);
       await log("sessao-criada", { sessao: s.id, cliente: cli.nome, valor: s.valor });
-      return json({ sessao: { id: s.id, valor: s.valor, data_minima: S.dataMinima(s) }, link: S.linkSessao(s) }, 201);
+      const dm = await S.dataMinima(L.dados, s);
+      return json({ sessao: { id: s.id, valor: s.valor, expira_em: s.expira_em, data_minima: dm.data, base: dm.base, ultima: dm.ultima }, link: S.linkSessao(s) }, 201);
     }
     if (M === "POST" && id && ["aprovar", "recusar", "taxa-paga"].includes(acao)) {
       const s = await S.decidirDesmarcacao(L.dados, id, acao, u.email);

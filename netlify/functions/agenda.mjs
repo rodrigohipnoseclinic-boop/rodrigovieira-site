@@ -131,18 +131,18 @@ export default async (req, context) => {
       s = await S.abrirSessao(L.dados, s, agora);
       const mod = cfg.modalidades[s.modalidade];
       if (req.method === "GET" && !sub) {
-        const marcadas = await S.sessoesMarcadas(L.dados, s);
-        const est = S.estagio(s);
-        const min = S.dataMinima(s);
+        const c = s.usado ? await buscar(L.dados, s.usado.consulta).catch(() => null) : null;
+        const marcada = c && c.status === "confirmada" && c.data >= agora.data;
+        const dm = s.usado ? null : await S.dataMinima(L.dados, s);
         return json({
           nome: s.cliente.nome.split(" ")[0], profissional: cfg.profissional, modalidade: mod.nome, duracao: cfg.duracao, valor: s.valor,
-          estagio: est, rotulo: S.ROTULO[est] || "", data_minima: min, hoje: agora.data, ate: min ? somaDias(min, cfg.janela_dias) : null, contato: cfg.contato,
-          marcadas: marcadas.filter((x) => x.consulta.data >= agora.data).map(({ estagio, rotulo, consulta: c }) => ({
-            estagio, rotulo, id: c.id, data: c.data, inicio: c.inicio, fim: c.fim,
-            endereco: s.modalidade === "presencial" ? mod.endereco : "", orientacoes: mod.orientacoes, taxa: S.taxaDesmarcacao(cfg, c, agora),
-          })),
+          usado: !!s.usado, expira_em: s.usado ? null : s.expira_em,
+          data_minima: dm?.data || null, ate: dm ? somaDias(dm.data, cfg.janela_dias) : null, hoje: agora.data, contato: cfg.contato,
+          consulta: marcada ? { id: c.id, data: c.data, inicio: c.inicio, fim: c.fim, endereco: s.modalidade === "presencial" ? mod.endereco : "",
+            orientacoes: mod.orientacoes, taxa: S.taxaDesmarcacao(cfg, c, agora) } : null,
+          cancelada: !!(c && c.status !== "confirmada"),
           prazo_horas: cfg.sessoes.prazo_horas, taxas: { normal: cfg.sessoes.taxa, tardia: cfg.sessoes.taxa_tardia }, chave_pix: cfg.sessoes.chave_pix,
-          desmarcacao: s.desmarcacao?.status === "pendente" ? { taxa: s.desmarcacao.taxa, consulta: s.desmarcacao.consulta, quando: s.desmarcacao.quando } : null,
+          desmarcacao: s.desmarcacao?.status === "pendente" ? { taxa: s.desmarcacao.taxa, quando: s.desmarcacao.quando } : null,
         });
       }
       if (req.method === "GET" && sub === "dias") {

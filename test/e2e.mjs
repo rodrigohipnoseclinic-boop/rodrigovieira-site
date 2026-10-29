@@ -76,6 +76,8 @@ ok(`duas reservas simultâneas: ${st.join(" e ")}; quem perdeu recebe ${perdeu.a
 
 // ---------- painel (computador) ----------
 const pc = await b.newPage({ viewport: { width: 1366, height: 860 } });
+let perguntas = 0;
+pc.on("dialog", (d) => { if (/fora do horário/.test(d.message())) perguntas++; d.accept(); });
 await pc.goto(`${BASE}/painel/`);
 await pc.fill("[name=codigo]", "errado");
 await pc.fill("[name=nome]", "Rodrigo");
@@ -145,7 +147,8 @@ ok("painel não deixa sobrepor consultas");
 await pc.fill("#fn [name=inicio_livre]", "07:00");
 await pc.click("#fn button.btn");
 await pc.locator("dialog").waitFor({ state: "hidden" });
-ok("painel criou consulta manual fora do horário padrão (07:00)");
+assert.ok(perguntas >= 1, "o sistema perguntou antes de marcar fora do horário geral");
+ok("fora do horário geral (07:00) o sistema pergunta; com a confirmação, a consulta foi criada");
 
 // cancelar a consulta manual
 await pc.locator(".ev[data-id]", { hasText: "Carlos Manual" }).click();
@@ -160,9 +163,13 @@ await pc.click("[data-tela=bloqueios]");
 await pc.fill("#fb [name=inicio_data]", dia);
 await pc.fill("#fb [name=fim_data]", dia);
 await pc.click("#fb button.btn");
+await pc.locator("#fb #m:not(.oculto)").waitFor();
+assert.match(await pc.locator("#fb #m").textContent(), /título/i);
+await pc.fill("#fb [name=motivo]", "Congresso em SP");
+await pc.click("#fb button.btn");
 await pc.locator("#forcar").waitFor();
 await pc.screenshot({ path: `${CAPT}/5-bloqueio-conflito.png` });
-ok("bloqueio em dia com consulta mostra o aviso de conflito");
+ok("bloqueio exige título; em dia com consulta mostra o aviso de conflito");
 await pc.click("#forcar");
 await pc.locator("table.tabela").waitFor();
 const livresDepois = (await (await fetch(`${BASE}/api/agenda/horarios?modalidade=online&data=${dia}`)).json()).horarios;

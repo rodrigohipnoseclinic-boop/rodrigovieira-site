@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
 <title>Sua sessão · Dr. Rodrigo Vieira</title>
 <link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,17 +20,17 @@
   <p class="resumo" id="resumo"></p>
   <div id="erro-geral" class="aviso aviso--erro oculto" role="alert"></div>
 
-  <section class="cartao oculto" id="marcadas">
-    <h2>Suas sessões marcadas</h2>
-    <div id="lista-marcadas"></div>
+  <section class="cartao oculto" id="marcada">
+    <h2>Sua sessão está marcada ✓</h2>
+    <div id="marcada-txt"></div>
     <div id="desm-pendente" class="aviso aviso--info oculto"></div>
+    <button type="button" class="btn btn--linha btn--peq" id="quero-desmarcar">Preciso desmarcar</button>
     <form id="desm" class="oculto" style="margin-top:14px">
       <p class="aviso aviso--info" id="desm-taxa"></p>
       <label class="campo"><span>Motivo da desmarcação</span><textarea name="motivo" rows="3" maxlength="1000" required></textarea></label>
       <label class="check"><input type="checkbox" name="aceite"> <span id="desm-aceite"></span></label>
       <div id="erro-desm" class="aviso aviso--erro oculto" role="alert"></div>
-      <div class="acoes" style="margin-top:0"><button class="btn btn--perigo btn--peq">Enviar pedido de desmarcação</button>
-        <button type="button" class="btn btn--linha btn--peq" id="desm-cancelar">Voltar</button></div>
+      <button class="btn btn--perigo btn--peq">Enviar pedido de desmarcação</button>
     </form>
   </section>
   <section class="cartao oculto" id="agendar">

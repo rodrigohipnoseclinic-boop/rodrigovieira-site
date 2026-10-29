@@ -10,7 +10,7 @@ const HORAS = 12;
 
 export const PERMISSOES = {
   admin: ["*"],
-  assistente: ["agenda", "consultas", "bloqueios", "clientes", "emails", "pagamentos"],
+  assistente: ["agenda", "consultas", "clientes", "emails", "pagamentos"],
 };
 export const pode = (u, area) => PERMISSOES[u.papel]?.some((p) => p === "*" || p === area);
 

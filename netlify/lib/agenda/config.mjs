@@ -21,7 +21,7 @@ export const PADRAO = {
   // Modelos de mensagem aprovados no WhatsApp Business (nomes exatos).
   whatsapp: { ativo: false, numero_admin: "", idioma: "pt_BR", modelo_paciente: "consulta_confirmada", modelo_admin: "novo_agendamento", modelo_transferencia: "", modelo_cancelamento: "", modelo_cadastro: "cliente_aguardando", modelo_desmarcacao: "pedido_desmarcacao" },
   // Links de sessão (retornos): só abrem horários depois do intervalo.
-  sessoes: { intervalo_primeira_dias: 2, intervalo_dias: 22, valor: 0, taxa: 25, taxa_tardia: 50, prazo_horas: 12, chave_pix: "" },
+  sessoes: { validade_horas: 12, intervalo_primeira_dias: 2, intervalo_dias: 22, valor: 0, taxa: 25, taxa_tardia: 50, prazo_horas: 12, chave_pix: "" },
   orientacoes_alteracao: "Para remarcar ou cancelar, fale pelo WhatsApp (19) 99749-8217 com pelo menos 24 horas de antecedência.",
   modalidades: {
     presencial: { ativa: true, autoagendamento: false, nome: "Presencial", agenda: "principal", endereco: "Amparo - SP", orientacoes: "Chegue com 10 minutos de antecedência.", semana: semanaPadrao() },
@@ -94,6 +94,7 @@ export function normalizarConfig(e) {
     return n;
   };
   c.sessoes = {
+    validade_horas: inteiro(ss.validade_horas, 1, 720, "Validade do link (horas)"),
     intervalo_primeira_dias: inteiro(ss.intervalo_primeira_dias, 0, 365, "Prazo da primeira sessão"),
     intervalo_dias: inteiro(ss.intervalo_dias, 0, 365, "Intervalo entre sessões"),
     valor: reais(ss.valor, "Valor da sessão"), taxa: reais(ss.taxa, "Taxa de desmarcação"), taxa_tardia: reais(ss.taxa_tardia, "Taxa de desmarcação tardia"),
