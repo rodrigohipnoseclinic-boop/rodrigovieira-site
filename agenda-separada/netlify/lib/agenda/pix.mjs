@@ -1,0 +1,113 @@
+// Provedores de Pix. A confirmação nunca vem do navegador: o status é
+// sempre consultado na API do provedor.
+//
+// Variáveis no Netlify:
+//   ASAAS_API_KEY        chave da conta (sandbox ou produção)
+//   ASAAS_AMBIENTE       "sandbox" (padrão) ou "producao"
+//   ASAAS_WEBHOOK_TOKEN  opcional: token do webhook (32+ caracteres). Sem ela, o token
+//                        é derivado de AGENDA_SEGREDO e o painel cadastra o webhook sozinho.
+//   AGENDA_PIX_SIMULADO  "1" só para testes locais (pagamento de mentira)
+import crypto from "node:crypto";
+import { Erro } from "./config.mjs";
+
+const STATUS_ASAAS = {
+  RECEIVED: "pago", CONFIRMED: "pago", RECEIVED_IN_CASH: "pago",
+  PENDING: "pendente", AWAITING_RISK_ANALYSIS: "pendente",
+  OVERDUE: "expirado", REFUNDED: "estornado", REFUND_REQUESTED: "estornado", REFUND_IN_PROGRESS: "estornado",
+  DELETED: "cancelado",
+};
+
+// Token que o Asaas envia no cabeçalho asaas-access-token.
+export function tokenWebhook() {
+  if (process.env.ASAAS_WEBHOOK_TOKEN) return process.env.ASAAS_WEBHOOK_TOKEN;
+  const s = process.env.AGENDA_SEGREDO || "";
+  return s.length >= 24 ? crypto.createHmac("sha256", s).update("asaas-webhook").digest("hex") : "";
+}
+
+const EVENTOS_WEBHOOK = ["PAYMENT_RECEIVED", "PAYMENT_CONFIRMED", "PAYMENT_OVERDUE", "PAYMENT_REFUNDED", "PAYMENT_DELETED"];
+
+export function asaas(fetchFn = fetch) {
+  const chave = process.env.ASAAS_API_KEY;
+  const base = process.env.ASAAS_AMBIENTE === "producao" ? "https://api.asaas.com/v3" : "https://api-sandbox.asaas.com/v3";
+  async function chamar(metodo, caminho, dados) {
+    if (!chave) throw new Erro("Pix ainda não configurado (ASAAS_API_KEY).", 503);
+    const r = await fetchFn(base + caminho, {
+      method: metodo,
+      headers: { access_token: chave, "Content-Type": "application/json", "User-Agent": "agenda-rodrigovieira" },
+      body: dados ? JSON.stringify(dados) : undefined,
+      signal: AbortSignal.timeout(15000),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const msg = j.errors?.map((e) => e.description).join(" ") || `HTTP ${r.status}`;
+      throw new Erro(`Provedor Pix recusou: ${msg}`, r.status >= 500 ? 502 : 400);
+    }
+    return j;
+  }
+  return {
+    nome: "asaas",
+    configurado: !!chave,
+    // cliente.asaas_id: cliente já cadastrado no Asaas (dispensa o CPF).
+    async criarCobranca({ pedidoId, valor, descricao, cliente, vencimento }) {
+      const cli = cliente.asaas_id ? { id: cliente.asaas_id } : await chamar("POST", "/customers", {
+        name: cliente.nome, cpfCnpj: cliente.cpf, email: cliente.email, mobilePhone: cliente.telefone.replace(/\D/g, "").slice(-11),
+        externalReference: pedidoId, notificationDisabled: true,
+      });
+      const pg = await chamar("POST", "/payments", {
+        customer: cli.id, billingType: "PIX", value: valor, dueDate: vencimento, description: descricao, externalReference: pedidoId,
+      });
+      const qr = await chamar("GET", `/payments/${pg.id}/pixQrCode`);
+      return { provedor_id: pg.id, cliente_id: cli.id, qr_imagem: `data:image/png;base64,${qr.encodedImage}`, copia_cola: qr.payload, expira: qr.expirationDate || null };
+    },
+    async consultar(id) {
+      const pg = await chamar("GET", `/payments/${encodeURIComponent(id)}`);
+      return { status: STATUS_ASAAS[pg.status] || "pendente", valor: pg.value, referencia: pg.externalReference, bruto: pg.status };
+    },
+    async estornar(id) {
+      await chamar("POST", `/payments/${encodeURIComponent(id)}/refund`, {});
+    },
+    // O Asaas envia o token configurado no cabeçalho asaas-access-token.
+    // Cadastra (ou atualiza) o webhook desta agenda na conta do Asaas.
+    async registrarWebhook(url, email) {
+      const token = tokenWebhook();
+      if (token.length < 32) throw new Erro("Configure AGENDA_SEGREDO antes de cadastrar o webhook.", 503);
+      const dados = { name: "Agenda Dr. Rodrigo Vieira", url, email, enabled: true, interrupted: false, apiVersion: 3,
+        authToken: token, sendType: "SEQUENTIALLY", events: EVENTOS_WEBHOOK };
+      const lista = await chamar("GET", "/webhooks?limit=100");
+      const existente = (lista.data || []).find((w) => w.url === url);
+      const w = existente ? await chamar("PUT", `/webhooks/${existente.id}`, dados) : await chamar("POST", "/webhooks", dados);
+      return { id: w.id, url: w.url, atualizado: !!existente };
+    },
+    webhookAutentico(req) {
+      const esperado = tokenWebhook();
+      const veio = req.headers.get("asaas-access-token") || "";
+      return esperado.length >= 32 && veio.length === esperado.length && crypto.timingSafeEqual(Buffer.from(veio), Buffer.from(esperado));
+    },
+    idDoWebhook: (b) => b?.payment?.id || null,
+  };
+}
+
+// Pagamentos de mentira para testes locais. "Pagar" chama simularPagamento().
+const simulados = new Map();
+export function simulado() {
+  return {
+    nome: "simulado",
+    configurado: true,
+    async criarCobranca({ pedidoId, valor }) {
+      const id = `sim_${crypto.randomBytes(6).toString("hex")}`;
+      simulados.set(id, { status: "pendente", valor, referencia: pedidoId });
+      return { provedor_id: id, cliente_id: "cus_simulado", qr_imagem: "", copia_cola: `00020126PIX-SIMULADO-${id}`, expira: null };
+    },
+    async consultar(id) {
+      const p = simulados.get(id);
+      if (!p) throw new Erro("Cobrança não encontrada.", 404);
+      return { ...p };
+    },
+    async estornar(id) { simulados.get(id).status = "estornado"; },
+    webhookAutentico: (req) => req.headers.get("x-simulado") === "1",
+    idDoWebhook: (b) => b?.id || null,
+  };
+}
+export const simularPagamento = (id) => { const p = simulados.get(id); if (p) p.status = "pago"; return !!p; };
+
+export const provedor = () => (process.env.AGENDA_PIX_SIMULADO === "1" ? simulado() : asaas());
