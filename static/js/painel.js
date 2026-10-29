@@ -352,7 +352,8 @@
     $("#tela").innerHTML = `<h1>Pagamentos</h1>
       <div class="cartao"><p style="margin:0">Pix ${st.cfg.pix.ativo ? `<span class="etq">ligado</span> · ${reais(st.cfg.pix.valor)}` : `<span class="etq etq--erro">desligado</span>`}
         · Provedor: ${esc(r.provedor)} ${r.configurado ? `(${esc(r.ambiente)})` : `<span class="etq etq--erro">sem chave</span>`}</p>
-        ${st.eu.papel === "admin" ? `<p class="muted" style="margin:.4em 0 0">Endereço do webhook para cadastrar no Asaas: <code>${esc(r.webhook)}</code></p>` : ""}
+        ${st.eu.papel === "admin" && r.configurado && r.provedor === "asaas" ? `<p class="muted" style="margin:.4em 0 0">Webhook: <code>${esc(r.webhook)}</code>
+          <button class="btn btn--linha btn--peq" id="cad-webhook" style="padding:.3em .8em">Cadastrar webhook no Asaas automaticamente</button></p>` : ""}
         <p class="muted" style="margin:.4em 0 0">Recebido (listados): <strong>${reais(recebido)}</strong></p></div>
       ${r.pedidos.length ? `<div class="rol"><table class="tabela"><tr><th>Data</th><th>Paciente</th><th>Valor</th><th>Status</th><th>Consulta</th><th></th></tr>
       ${r.pedidos.map((p) => `<tr><td>${new Date(p.criado).toLocaleString("pt-BR")}</td><td>${esc(p.cliente.nome)}<br><small class="muted">${esc(p.cliente.telefone)}</small></td>
@@ -361,6 +362,12 @@
           ${p.status === "usado" ? `<button class="btn btn--linha btn--peq" data-acao="liberar" data-id="${p.id}" title="Depois de cancelar a consulta, envia ao paciente um link para escolher outro horário">Liberar novo horário</button>` : ""}
           ${st.eu.papel === "admin" && ["pago", "usado", "divergente"].includes(p.status) ? `<button class="btn btn--perigo btn--peq" data-acao="estornar" data-id="${p.id}">Estornar</button>` : ""}</td></tr>`).join("")}</table></div>`
       : `<p class="muted">Nenhum pagamento ainda.</p>`}<div id="m" class="aviso oculto" role="alert"></div>`;
+    if ($("#cad-webhook")) $("#cad-webhook").onclick = async () => {
+      try {
+        const w = (await api("pagamentos/webhook", { metodo: "POST" })).webhook;
+        aviso($("#m"), `Webhook ${w.atualizado ? "atualizado" : "cadastrado"} no Asaas com sucesso.`, "ok");
+      } catch (x) { aviso($("#m"), x.message); }
+    };
     $("#tela").querySelectorAll("[data-acao]").forEach((b) => b.onclick = async () => {
       const a = b.dataset.acao;
       if (a === "estornar" && !confirm("Devolver o valor ao paciente pelo Pix? Não dá para desfazer.")) return;

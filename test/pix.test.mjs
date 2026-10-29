@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { LojaMemoria } from "./loja-memoria.mjs";
 import { PADRAO, normalizarConfig } from "../netlify/lib/agenda/config.mjs";
-import { simulado, simularPagamento, asaas } from "../netlify/lib/agenda/pix.mjs";
+import { simulado, simularPagamento, asaas, tokenWebhook } from "../netlify/lib/agenda/pix.mjs";
 import * as P from "../netlify/lib/agenda/pedidos.mjs";
 import { cancelar, buscar } from "../netlify/lib/agenda/reservas.mjs";
 import { lerDia, ler } from "../netlify/lib/agenda/armazem.mjs";
@@ -150,4 +150,20 @@ test("Asaas: cria cliente, cobrança Pix e QR; status consultado na API", async 
   assert.equal(a.webhookAutentico(req({ "asaas-access-token": "errado" })), false);
   assert.equal(a.webhookAutentico(req()), false);
   assert.equal(a.idDoWebhook({ event: "PAYMENT_RECEIVED", payment: { id: "pay_1" } }), "pay_1");
+
+  // sem ASAAS_WEBHOOK_TOKEN: token derivado de AGENDA_SEGREDO; o painel cadastra o webhook
+  delete process.env.ASAAS_WEBHOOK_TOKEN;
+  const derivado = tokenWebhook();
+  assert.equal(derivado.length, 64);
+  assert.equal(a.webhookAutentico(req({ "asaas-access-token": derivado })), true);
+  respostas["GET /webhooks"] = { data: [] };
+  respostas["POST /webhooks"] = { id: "wh_1", url: "https://x/api/agenda/webhook" };
+  const w = await a.registrarWebhook("https://x/api/agenda/webhook", "adm@x.com");
+  assert.deepEqual(w, { id: "wh_1", url: "https://x/api/agenda/webhook", atualizado: false });
+  const enviado = chamadas.find((c) => c.k === "POST /webhooks").body;
+  assert.equal(enviado.authToken, derivado);
+  assert.ok(enviado.events.includes("PAYMENT_RECEIVED") && enviado.events.includes("PAYMENT_CONFIRMED"));
+  respostas["GET /webhooks"] = { data: [{ id: "wh_1", url: "https://x/api/agenda/webhook" }] };
+  respostas["PUT /webhooks/wh_1"] = { id: "wh_1", url: "https://x/api/agenda/webhook" };
+  assert.equal((await a.registrarWebhook("https://x/api/agenda/webhook", "adm@x.com")).atualizado, true, "não duplica");
 });

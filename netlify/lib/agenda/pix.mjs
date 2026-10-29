@@ -4,7 +4,8 @@
 // Variáveis no Netlify:
 //   ASAAS_API_KEY        chave da conta (sandbox ou produção)
 //   ASAAS_AMBIENTE       "sandbox" (padrão) ou "producao"
-//   ASAAS_WEBHOOK_TOKEN  token configurado no webhook do Asaas
+//   ASAAS_WEBHOOK_TOKEN  opcional: token do webhook (32+ caracteres). Sem ela, o token
+//                        é derivado de AGENDA_SEGREDO e o painel cadastra o webhook sozinho.
 //   AGENDA_PIX_SIMULADO  "1" só para testes locais (pagamento de mentira)
 import crypto from "node:crypto";
 import { Erro } from "./config.mjs";
@@ -15,6 +16,15 @@ const STATUS_ASAAS = {
   OVERDUE: "expirado", REFUNDED: "estornado", REFUND_REQUESTED: "estornado", REFUND_IN_PROGRESS: "estornado",
   DELETED: "cancelado",
 };
+
+// Token que o Asaas envia no cabeçalho asaas-access-token.
+export function tokenWebhook() {
+  if (process.env.ASAAS_WEBHOOK_TOKEN) return process.env.ASAAS_WEBHOOK_TOKEN;
+  const s = process.env.AGENDA_SEGREDO || "";
+  return s.length >= 24 ? crypto.createHmac("sha256", s).update("asaas-webhook").digest("hex") : "";
+}
+
+const EVENTOS_WEBHOOK = ["PAYMENT_RECEIVED", "PAYMENT_CONFIRMED", "PAYMENT_OVERDUE", "PAYMENT_REFUNDED", "PAYMENT_DELETED"];
 
 export function asaas(fetchFn = fetch) {
   const chave = process.env.ASAAS_API_KEY;
@@ -56,8 +66,19 @@ export function asaas(fetchFn = fetch) {
       await chamar("POST", `/payments/${encodeURIComponent(id)}/refund`, {});
     },
     // O Asaas envia o token configurado no cabeçalho asaas-access-token.
+    // Cadastra (ou atualiza) o webhook desta agenda na conta do Asaas.
+    async registrarWebhook(url, email) {
+      const token = tokenWebhook();
+      if (token.length < 32) throw new Erro("Configure AGENDA_SEGREDO antes de cadastrar o webhook.", 503);
+      const dados = { name: "Agenda Dr. Rodrigo Vieira", url, email, enabled: true, interrupted: false, apiVersion: 3,
+        authToken: token, sendType: "SEQUENTIALLY", events: EVENTOS_WEBHOOK };
+      const lista = await chamar("GET", "/webhooks?limit=100");
+      const existente = (lista.data || []).find((w) => w.url === url);
+      const w = existente ? await chamar("PUT", `/webhooks/${existente.id}`, dados) : await chamar("POST", "/webhooks", dados);
+      return { id: w.id, url: w.url, atualizado: !!existente };
+    },
     webhookAutentico(req) {
-      const esperado = process.env.ASAAS_WEBHOOK_TOKEN || "";
+      const esperado = tokenWebhook();
       const veio = req.headers.get("asaas-access-token") || "";
       return esperado.length >= 32 && veio.length === esperado.length && crypto.timingSafeEqual(Buffer.from(veio), Buffer.from(esperado));
     },

@@ -43,21 +43,11 @@ O mesmo link tem dois estágios:
 Os e-mails usam o Gmail que o site já tem configurado (`GMAIL_USUARIO` e `GMAIL_SENHA_APP`).
 
 ## Pix (Asaas): como ativar
-1. Crie uma conta no Asaas. Comece pelo **sandbox** (ambiente de testes), que não movimenta dinheiro.
-2. Crie estas variáveis no Netlify:
-
-   | Variável | Valor |
-   |---|---|
-   | `ASAAS_API_KEY` | Chave de API do Asaas (do sandbox, durante os testes) |
-   | `ASAAS_AMBIENTE` | `sandbox`. Mude para `producao` só no lançamento |
-   | `ASAAS_WEBHOOK_TOKEN` | Uma frase secreta de 32 a 255 caracteres, sem espaços (exigência do Asaas) |
-
-3. No Asaas, abra **Integrações → Webhooks** e cadastre:
-   - **URL:** a que aparece no painel, em Pagamentos (`…/api/agenda/webhook`).
-   - **Token de autenticação:** o mesmo valor de `ASAAS_WEBHOOK_TOKEN`.
-   - **Eventos:** os de cobrança.
-4. No painel, abra Configurações, informe o valor da consulta e marque **Exigir Pix**.
-5. No sandbox, faça um agendamento e confirme o pagamento pelo painel do Asaas. O calendário deve abrir sozinho.
+1. Crie uma conta de testes em **sandbox.asaas.com** e gere a chave em **Integrações → Chave de API** (começa com `$aact_hmlg_`).
+2. No Netlify, crie as variáveis `ASAAS_API_KEY` (a chave) e `ASAAS_AMBIENTE` (`sandbox`; troque para `producao` só no lançamento).
+3. No painel, em **Pagamentos**, clique em **Cadastrar webhook no Asaas automaticamente**. O sistema cria o aviso de pagamento na sua conta, com um token seguro derivado de `AGENDA_SEGREDO`. Não há mais nada para copiar. Se preferir definir o token, crie `ASAAS_WEBHOOK_TOKEN` (32 a 255 caracteres).
+4. Em **Configurações**, informe o valor da consulta e marque **Exigir Pix**.
+5. Faça um agendamento online e, no sandbox, confirme o recebimento da cobrança. O calendário deve abrir sozinho.
 
 **Garantias:**
 - O pagamento só é aceito depois que o servidor consulta o próprio Asaas. Nem o webhook nem a página de retorno bastam.

@@ -233,6 +233,13 @@ async function rotasProtegidas(L, req, u) {
       });
       return json({ ok: true, email: e.status });
     }
+    if (M === "POST" && id === "webhook") {
+      exigir(u, "admin");
+      if (!prov.registrarWebhook) throw new Erro("O provedor atual não precisa de webhook.");
+      const w = await prov.registrarWebhook(`${baseUrl()}/api/agenda/webhook`, cfg.email_admin || process.env.GMAIL_USUARIO || "");
+      await log("asaas-webhook", { url: w.url, atualizado: w.atualizado });
+      return json({ webhook: w });
+    }
     if (M === "POST" && id && acao === "estornar") {
       exigir(u, "admin");
       const p = await estornar(L.dados, prov, id);
