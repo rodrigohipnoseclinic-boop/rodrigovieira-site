@@ -50,7 +50,7 @@ Os e-mails usam o Gmail que o site já tem configurado (`GMAIL_USUARIO` e `GMAIL
    |---|---|
    | `ASAAS_API_KEY` | Chave de API do Asaas (do sandbox, durante os testes) |
    | `ASAAS_AMBIENTE` | `sandbox`. Mude para `producao` só no lançamento |
-   | `ASAAS_WEBHOOK_TOKEN` | Uma frase secreta com pelo menos 16 caracteres |
+   | `ASAAS_WEBHOOK_TOKEN` | Uma frase secreta de 32 a 255 caracteres, sem espaços (exigência do Asaas) |
 
 3. No Asaas, abra **Integrações → Webhooks** e cadastre:
    - **URL:** a que aparece no painel, em Pagamentos (`…/api/agenda/webhook`).

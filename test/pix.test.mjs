@@ -145,8 +145,8 @@ test("Asaas: cria cliente, cobrança Pix e QR; status consultado na API", async 
   assert.equal(chamadas[1].body.externalReference, "ped1");
   assert.deepEqual(await a.consultar("pay_1"), { status: "pago", valor: 250, referencia: "ped1", bruto: "RECEIVED" });
 
-  process.env.ASAAS_WEBHOOK_TOKEN = "token-do-webhook-123";
-  assert.equal(a.webhookAutentico(req({ "asaas-access-token": "token-do-webhook-123" })), true);
+  process.env.ASAAS_WEBHOOK_TOKEN = "token-do-webhook-com-32-caracteres-ou-mais";
+  assert.equal(a.webhookAutentico(req({ "asaas-access-token": "token-do-webhook-com-32-caracteres-ou-mais" })), true);
   assert.equal(a.webhookAutentico(req({ "asaas-access-token": "errado" })), false);
   assert.equal(a.webhookAutentico(req()), false);
   assert.equal(a.idDoWebhook({ event: "PAYMENT_RECEIVED", payment: { id: "pay_1" } }), "pay_1");

@@ -59,7 +59,7 @@ export function asaas(fetchFn = fetch) {
     webhookAutentico(req) {
       const esperado = process.env.ASAAS_WEBHOOK_TOKEN || "";
       const veio = req.headers.get("asaas-access-token") || "";
-      return esperado.length >= 16 && veio.length === esperado.length && crypto.timingSafeEqual(Buffer.from(veio), Buffer.from(esperado));
+      return esperado.length >= 32 && veio.length === esperado.length && crypto.timingSafeEqual(Buffer.from(veio), Buffer.from(esperado));
     },
     idDoWebhook: (b) => b?.payment?.id || null,
   };
