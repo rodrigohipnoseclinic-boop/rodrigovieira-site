@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" font-family="DejaVu Sans, Verdana, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#6F8FA3"/></marker>
+  </defs>
+  <rect width="1200" height="630" fill="#F4F7FA"/>
+  <text x="600" y="68" font-size="38" font-weight="bold" fill="#1F3A4F" text-anchor="middle">O ciclo do consumo compulsivo</text>
+  <rect x="460" y="120" width="280" height="80" rx="40" fill="#3D677F"/>
+  <text x="600" y="168" font-size="23" font-weight="bold" fill="#fff" text-anchor="middle">Estímulo e excitação</text>
+  <rect x="760" y="310" width="300" height="80" rx="40" fill="#D08B3E"/>
+  <text x="910" y="358" font-size="23" font-weight="bold" fill="#fff" text-anchor="middle">Prazer momentâneo</text>
+  <rect x="440" y="500" width="320" height="80" rx="40" fill="#A53D36"/>
+  <text x="600" y="548" font-size="23" font-weight="bold" fill="#fff" text-anchor="middle">Culpa e vergonha</text>
+  <rect x="140" y="310" width="300" height="80" rx="40" fill="#5B4A7A"/>
+  <text x="290" y="358" font-size="23" font-weight="bold" fill="#fff" text-anchor="middle">"Foi a última vez"</text>
+  <path d="M720 204 Q 860 230 900 304" fill="none" stroke="#6F8FA3" stroke-width="6" stroke-dasharray="14 10" marker-end="url(#a)"/>
+  <path d="M900 396 Q 860 480 766 520" fill="none" stroke="#6F8FA3" stroke-width="6" stroke-dasharray="14 10" marker-end="url(#a)"/>
+  <path d="M434 520 Q 320 480 296 396" fill="none" stroke="#6F8FA3" stroke-width="6" stroke-dasharray="14 10" marker-end="url(#a)"/>
+  <path d="M300 304 Q 340 230 470 204" fill="none" stroke="#6F8FA3" stroke-width="6" stroke-dasharray="14 10" marker-end="url(#a)"/>
+  <text x="600" y="346" font-size="22" fill="#1F3A4F" text-anchor="middle">a promessa não desliga</text>
+  <text x="600" y="378" font-size="22" fill="#1F3A4F" text-anchor="middle">o atalho que o cérebro aprendeu</text>
+</svg>
