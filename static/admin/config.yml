@@ -209,6 +209,7 @@ collections:
           - { name: linktree, label: Link dos cursos, widget: string }
           - { name: cidade, label: Cidade, widget: string }
           - { name: regiao, label: Região atendida, widget: string }
+          - { name: formulario_chave, label: "Chave do formulário de inscrição (Web3Forms)", widget: string, required: false, hint: "Chave recebida por e-mail em web3forms.com. Sem ela, a página Inscreva-se mostra um botão de WhatsApp." }
           - name: autor
             label: Caixa do autor (nos posts)
             widget: object

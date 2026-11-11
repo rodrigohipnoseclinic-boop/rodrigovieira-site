@@ -7,9 +7,5 @@
   "scripts": {
     "build": "node build.mjs",
     "dev": "node build.mjs && npx --yes serve dist"
-  },
-  "dependencies": {
-    "@netlify/blobs": "11.1.6",
-    "nodemailer": "10.2.1"
   }
 }

@@ -1,0 +1,9 @@
+{
+  // Site estático: a Cloudflare publica a pasta dist, gerada por "node build.mjs"
+  "name": "rodrigovieira-site",
+  "compatibility_date": "2026-11-11",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  }
+}
