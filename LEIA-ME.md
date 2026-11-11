@@ -42,7 +42,7 @@ Para gerar o site no computador: `node build.mjs` (o resultado fica em `dist/`).
 
 ## Hospedagem, visitas e inscritos
 
-- **Hospedagem:** Cloudflare Pages (gratuito). Comando de build: `node build.mjs`; pasta publicada: `dist`.
+- **Hospedagem:** Cloudflare Workers (gratuito). Build: `node build.mjs`; deploy: `npx wrangler deploy` (configuração em `wrangler.jsonc`, pasta publicada: `dist`).
 - **Visitas:** painel da Cloudflare → Web Analytics.
 - **Inscritos:** o formulário usa o Web3Forms (grátis, 250 por mês). Cada inscrição chega por e-mail.
   A chave do formulário fica em **Página inicial e configurações → Contato, autor e cores**.
