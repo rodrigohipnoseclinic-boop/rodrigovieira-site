@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" font-family="DejaVu Sans, Verdana, Arial, sans-serif">
+  <rect width="1200" height="630" fill="#FAF7F2"/>
+  <line x1="600" y1="40" x2="600" y2="470" stroke="#E9DFCF" stroke-width="3"/>
+  <text x="70" y="80" font-size="22" letter-spacing="3" fill="#8A7A66">COM A AGENDA CHEIA</text>
+  <text x="660" y="80" font-size="22" letter-spacing="3" fill="#4E8B78">QUANDO A ROTINA PARA</text>
+  <g opacity=".35">
+    <circle cx="170" cy="260" r="54" fill="#B8873A"/>
+    <circle cx="320" cy="300" r="62" fill="#C0705A"/>
+    <circle cx="460" cy="250" r="50" fill="#5B7D93"/>
+  </g>
+  <g fill="#213A4F">
+    <rect x="70" y="130" width="500" height="52" rx="12"/>
+    <rect x="70" y="196" width="500" height="52" rx="12" opacity=".9"/>
+    <rect x="70" y="262" width="500" height="52" rx="12" opacity=".8"/>
+    <rect x="70" y="328" width="500" height="52" rx="12" opacity=".7"/>
+    <rect x="70" y="394" width="500" height="52" rx="12" opacity=".6"/>
+  </g>
+  <g font-size="22" fill="#FAF7F2">
+    <text x="94" y="163">reunião</text>
+    <text x="94" y="229">prazo</text>
+    <text x="94" y="295">contas</text>
+    <text x="94" y="361">família</text>
+    <text x="94" y="427">mais uma coisa urgente</text>
+  </g>
+  <circle cx="730" cy="270" r="62" fill="#B8873A"/>
+  <circle cx="880" cy="310" r="62" fill="#C0705A"/>
+  <circle cx="1020" cy="260" r="50" fill="#5B7D93"/>
+  <g font-size="22" font-weight="bold" fill="#FAF7F2" text-anchor="middle">
+    <text x="730" y="277">cansaço</text>
+    <text x="880" y="317">mágoa</text>
+    <text x="1020" y="267">medo</text>
+  </g>
+  <text x="860" y="408" font-size="22" fill="#213A4F" text-anchor="middle" opacity=".8">o silêncio dá espaço</text>
+  <text x="860" y="438" font-size="22" fill="#213A4F" text-anchor="middle" opacity=".8">para o que ficou guardado</text>
+  <line x1="70" y1="500" x2="1130" y2="500" stroke="#E9DFCF" stroke-width="3"/>
+  <text x="70" y="560" font-size="28" fill="#213A4F">O que não foi sentido não desaparece. Espera espaço.</text>
+</svg>

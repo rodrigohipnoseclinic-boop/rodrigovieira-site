@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" font-family="DejaVu Sans, Verdana, Arial, sans-serif">
+  <defs>
+    <marker id="seta" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#8A7A66"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="630" fill="#FAF7F2"/>
+  <text x="70" y="90" font-size="22" letter-spacing="3" fill="#8A7A66">A CONTA QUE MUITOS HOMENS FAZEM SEM PERCEBER</text>
+  <g>
+    <rect x="70" y="190" width="230" height="170" rx="18" fill="#EDF1EC" stroke="#9DB8AE" stroke-width="3"/>
+    <rect x="340" y="190" width="230" height="170" rx="18" fill="#EDF1EC" stroke="#9DB8AE" stroke-width="3"/>
+    <rect x="610" y="190" width="230" height="170" rx="18" fill="#EDF1EC" stroke="#9DB8AE" stroke-width="3"/>
+    <rect x="880" y="190" width="250" height="170" rx="18" fill="#B8873A"/>
+  </g>
+  <g font-size="24" font-weight="bold" fill="#213A4F" text-anchor="middle">
+    <text x="185" y="260">Meu valor</text>
+    <text x="185" y="294">está no que</text>
+    <text x="185" y="328">eu entrego</text>
+    <text x="455" y="260">Descansar é</text>
+    <text x="455" y="294">entregar</text>
+    <text x="455" y="328">menos</text>
+    <text x="725" y="260">Entregar</text>
+    <text x="725" y="294">menos é</text>
+    <text x="725" y="328">valer menos</text>
+  </g>
+  <text x="1005" y="296" font-size="44" font-weight="bold" fill="#FAF7F2" text-anchor="middle">culpa</text>
+  <g stroke="#8A7A66" stroke-width="4" marker-end="url(#seta)">
+    <line x1="304" y1="275" x2="334" y2="275"/>
+    <line x1="574" y1="275" x2="604" y2="275"/>
+    <line x1="844" y1="275" x2="874" y2="275"/>
+  </g>
+  <line x1="70" y1="440" x2="1130" y2="440" stroke="#E9DFCF" stroke-width="3"/>
+  <text x="70" y="500" font-size="30" fill="#213A4F">A culpa no sofá é o resultado dessa conta.</text>
+  <text x="70" y="548" font-size="30" fill="#4E8B78" font-weight="bold">Não é preguiça sendo punida.</text>
+</svg>

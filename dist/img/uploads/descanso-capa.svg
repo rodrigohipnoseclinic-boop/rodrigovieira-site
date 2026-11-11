@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" font-family="DejaVu Sans, Verdana, Arial, sans-serif">
+  <defs>
+    <linearGradient id="tarde" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9DB8AE"/>
+      <stop offset="1" stop-color="#F0D9B5"/>
+    </linearGradient>
+    <linearGradient id="luz" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FAF7F2" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#FAF7F2" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="#213A4F"/>
+  <rect y="540" width="1200" height="90" fill="#1B2E3F"/>
+  <polygon points="780,520 1110,520 1150,630 740,630" fill="url(#luz)"/>
+  <rect x="760" y="60" width="340" height="400" rx="6" fill="url(#tarde)" stroke="#FAF7F2" stroke-width="10"/>
+  <circle cx="930" cy="340" r="70" fill="#C99E74" opacity=".9"/>
+  <path d="M760 390 C 830 365 900 400 970 380 S 1060 385 1100 375 L1100 460 L760 460 Z" fill="#7FA597" opacity=".55"/>
+  <line x1="930" y1="60" x2="930" y2="460" stroke="#FAF7F2" stroke-width="8"/>
+  <line x1="760" y1="260" x2="1100" y2="260" stroke="#FAF7F2" stroke-width="8"/>
+  <rect x="700" y="470" width="400" height="30" rx="10" fill="#2D4E66"/>
+  <rect x="690" y="420" width="70" height="110" rx="22" fill="#2D4E66"/>
+  <rect x="1060" y="420" width="70" height="110" rx="22" fill="#2D4E66"/>
+  <rect x="740" y="440" width="320" height="90" rx="16" fill="#3A6580"/>
+  <g stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <line x1="860" y1="470" x2="870" y2="395" stroke="#86B5A8" stroke-width="56"/>
+    <line x1="860" y1="478" x2="950" y2="458" stroke="#1B2E3F" stroke-width="34"/>
+    <line x1="950" y1="458" x2="962" y2="512" stroke="#1B2E3F" stroke-width="30"/>
+    <line x1="872" y1="400" x2="930" y2="440" stroke="#E8B990" stroke-width="16"/>
+  </g>
+  <circle cx="882" cy="350" r="31" fill="#3E2B22"/>
+  <circle cx="891" cy="356" r="26" fill="#E8B990"/>
+  <path d="M898 364 q7 3 12 0" stroke="#7A5A44" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <g>
+    <rect x="1010" y="500" width="110" height="14" rx="4" fill="#8A6A4B"/>
+    <rect x="1020" y="470" width="62" height="30" rx="3" fill="#FAF7F2"/>
+    <line x1="1028" y1="480" x2="1074" y2="480" stroke="#9DB8AE" stroke-width="3"/>
+    <line x1="1028" y1="490" x2="1066" y2="490" stroke="#9DB8AE" stroke-width="3"/>
+    <line x1="1024" y1="476" x2="1078" y2="494" stroke="#B8873A" stroke-width="3"/>
+  </g>
+  <text x="70" y="130" font-size="46" font-weight="bold" fill="#EAF0F5">Por que o homem</text>
+  <text x="70" y="192" font-size="46" font-weight="bold" fill="#EAF0F5">que dá conta de tudo</text>
+  <text x="70" y="254" font-size="46" font-weight="bold" fill="#EAF0F5">se sente culpado</text>
+  <text x="70" y="316" font-size="46" font-weight="bold" fill="#EAF0F5">quando descansa</text>
+  <text x="70" y="376" font-size="26" fill="#9DB8AE">e o que fica guardado na correria</text>
+</svg>
