@@ -40,10 +40,10 @@ No painel, abra **Página inicial e configurações**:
 
 Para gerar o site no computador: `node build.mjs` (o resultado fica em `dist/`). Não precisa instalar nada além do Node.
 
-## Visitas e inscritos
+## Hospedagem, visitas e inscritos
 
-- **Visitas:** abra `rodrigovieiraterapeuta.com.br/visitas/` (não aparece no menu).
-- **Inscritos:** painel do Netlify → **Forms → inscricao** (dá para baixar em planilha).
-- **E-mail automático:** a cada hora o site verifica se há post novo e envia aos inscritos pelo Gmail.
-  Precisa de duas variáveis no Netlify (*Site configuration → Environment variables*):
-  `GMAIL_USUARIO` (o Gmail que envia) e `GMAIL_SENHA_APP` (senha de app criada em myaccount.google.com/apppasswords).
+- **Hospedagem:** Cloudflare Pages (gratuito). Comando de build: `node build.mjs`; pasta publicada: `dist`.
+- **Visitas:** painel da Cloudflare → Web Analytics.
+- **Inscritos:** o formulário usa o Web3Forms (grátis, 250 por mês). Cada inscrição chega por e-mail.
+  A chave do formulário fica em **Página inicial e configurações → Contato, autor e cores**.
+  Enquanto estiver vazia, a página Inscreva-se mostra um botão de WhatsApp.
