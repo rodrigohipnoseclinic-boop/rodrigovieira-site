@@ -279,7 +279,296 @@ const JOGOS = {
     }
   }
 };
-const ORDEM = ["versiculo", "quiz", "pares", "intruso", "calculo", "sequencia", "ordem", "palavras"];
+/* ---------- gerador de grade (roda de letras e cruzadinha) ---------- */
+const celulasDe = w => Array.from({ length: w.w.length }, (_, k) => [w.r + (w.h ? 0 : k), w.c + (w.h ? k : 0)]);
+function montarGrade(palavras, todas) {
+  let melhor = null;
+  for (let t = 0; t < 200; t++) {
+    const lista = shuffle(palavras).sort((a, b) => b.length - a.length);
+    const cel = new Map(), col = [], K = (r, c) => r + "," + c;
+    const poe = (w, r, c, h) => {
+      for (let k = 0; k < w.length; k++) {
+        const key = K(r + (h ? 0 : k), c + (h ? k : 0)), x = cel.get(key) || { ch: w[k], h: false, v: false };
+        if (h) x.h = true; else x.v = true; cel.set(key, x);
+      }
+      col.push({ w, r, c, h });
+    };
+    const cabe = (w, r, c, h) => {
+      const dr = h ? 0 : 1, dc = h ? 1 : 0;
+      if (cel.has(K(r - dr, c - dc)) || cel.has(K(r + dr * w.length, c + dc * w.length))) return false;
+      let cruz = 0;
+      for (let k = 0; k < w.length; k++) {
+        const rr = r + dr * k, cc = c + dc * k, x = cel.get(K(rr, cc));
+        if (x) { if (x.ch !== w[k] || (h ? x.h : x.v)) return false; cruz++; }
+        else if (cel.has(K(rr + dc, cc + dr)) || cel.has(K(rr - dc, cc - dr))) return false;
+      }
+      return cruz > 0;
+    };
+    poe(lista[0], 0, 0, true);
+    for (const w of lista.slice(1)) {
+      const cand = [];
+      for (const [k, x] of cel) {
+        const [r0, c0] = k.split(",").map(Number);
+        for (let i = 0; i < w.length; i++) if (w[i] === x.ch) for (const h of [true, false]) {
+          if (h ? x.h : x.v) continue;
+          const r = h ? r0 : r0 - i, c = h ? c0 - i : c0;
+          if (cabe(w, r, c, h)) cand.push([r, c, h]);
+        }
+      }
+      if (cand.length) { const [r, c, h] = pick(cand); poe(w, r, c, h); }
+    }
+    const rs = col.flatMap(w => celulasDe({ ...w, w: w.w }).map(p => p[0])), cs = col.flatMap(w => celulasDe(w).map(p => p[1]));
+    const area = (Math.max(...rs) - Math.min(...rs) + 1) * (Math.max(...cs) - Math.min(...cs) + 1);
+    const nota = col.length * 1000 - area;
+    if (!melhor || nota > melhor.nota) melhor = { nota, col, r0: Math.min(...rs), c0: Math.min(...cs), r1: Math.max(...rs), c1: Math.max(...cs) };
+    if (col.length === palavras.length && t > 40) break;
+    if (todas && col.length === palavras.length && area <= palavras.join("").length * 1.6) break;
+  }
+  const m = melhor;
+  return { words: m.col.map(w => ({ w: w.w, h: w.h, r: w.r - m.r0, c: w.c - m.c0 })), rows: m.r1 - m.r0 + 1, cols: m.c1 - m.c0 + 1 };
+}
+
+const caminhoLinha = (a, b) => {
+  const dr = Math.sign(b[0] - a[0]), dc = Math.sign(b[1] - a[1]), n = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]));
+  return Array.from({ length: n + 1 }, (_, i) => [a[0] + dr * i, a[1] + dc * i]);
+};
+
+function gerarCaca(palavras, n, dirs) {
+  const ord = [...palavras].sort((a, b) => b.length - a.length);
+  for (let t = 0; t < 100; t++) {
+    const g = Array.from({ length: n }, () => Array(n).fill(null));
+    let ok = true;
+    for (const w of ord) {
+      let pos = false;
+      for (let k = 0; k < 300 && !pos; k++) {
+        const [dr, dc] = pick(dirs), r = rnd(n), c = rnd(n), r2 = r + dr * (w.length - 1), c2 = c + dc * (w.length - 1);
+        if (r2 < 0 || r2 >= n || c2 < 0 || c2 >= n) continue;
+        let cabe = true;
+        for (let i = 0; i < w.length; i++) { const x = g[r + dr * i][c + dc * i]; if (x && x !== w[i]) { cabe = false; break; } }
+        if (cabe) { for (let i = 0; i < w.length; i++) g[r + dr * i][c + dc * i] = w[i]; pos = true; }
+      }
+      if (!pos) { ok = false; break; }
+    }
+    if (ok) {
+      const abc = "AEIOSRNDMTLCUPVGBFHJQXZ";
+      return g.map(l => l.map(x => x || abc[rnd(abc.length)]));
+    }
+  }
+  return null;
+}
+
+Object.assign(JOGOS, {
+  roda: {
+    nome: "Roda de Letras", cat: "Linguagem", ico: "🎡", desc: "Ligue as letras e preencha a grade.",
+    iniciar({ stage, progresso, terminar }) {
+      const P = pick(window.PUZZLES.roda), grade = montarGrade(P.palavras, true), palavras = grade.words.map(x => x.w);
+      const cont = {};
+      palavras.forEach(w => { const c = {}; [...w].forEach(l => c[l] = (c[l] || 0) + 1); for (const l in c) cont[l] = Math.max(cont[l] || 0, c[l]); });
+      let letras = shuffle(Object.entries(cont).flatMap(([l, n]) => Array(n).fill(l)));
+      const achadas = new Set(), reveladas = new Set(), usada = new Map();
+      grade.words.forEach(w => celulasDe(w).forEach(([r, c], k) => usada.set(r + "," + c, w.w[k])));
+      let erros = 0, dicas = 0, caminho = [], ativo = false, fim = false;
+      const mostra = (r, c) => reveladas.has(r + "," + c) || grade.words.some(w => achadas.has(w.w) && celulasDe(w).some(([a, b]) => a === r && b === c));
+      stage.innerHTML = `<div class="xgrid" id="xg" style="--cols:${grade.cols};grid-template-columns:repeat(${grade.cols},1fr)"></div>
+        <div class="atual" id="atual">&nbsp;</div>
+        <div class="roda" id="roda"><button class="mistura" id="mistura" aria-label="Embaralhar letras">🔀</button></div>
+        <div class="linha"><button class="btn claro" id="dica">💡 Dica</button></div>`;
+      const roda = $("#roda", stage), R = 88;
+      const pintarGrade = () => {
+        let h = "";
+        for (let r = 0; r < grade.rows; r++) for (let c = 0; c < grade.cols; c++) {
+          const k = r + "," + c;
+          h += usada.has(k) ? `<div class="xc ${mostra(r, c) ? "on" : ""}">${mostra(r, c) ? usada.get(k) : ""}</div>` : '<div class="xc vazio"></div>';
+        }
+        $("#xg", stage).innerHTML = h; progresso(achadas.size, palavras.length);
+      };
+      const pintarRoda = () => {
+        roda.querySelectorAll(".rl").forEach(e => e.remove());
+        letras.forEach((l, i) => {
+          const ang = -Math.PI / 2 + i * 2 * Math.PI / letras.length, b = document.createElement("div");
+          b.className = "rl" + (caminho.includes(i) ? " sel" : ""); b.dataset.i = i; b.textContent = l;
+          b.style.left = (125 + R * Math.cos(ang) - 26) + "px"; b.style.top = (125 + R * Math.sin(ang) - 26) + "px";
+          roda.appendChild(b);
+        });
+        $("#atual", stage).innerHTML = caminho.length ? caminho.map(i => letras[i]).join("") : "&nbsp;";
+      };
+      const checar = () => {
+        grade.words.forEach(w => { if (!achadas.has(w.w) && celulasDe(w).every(([r, c]) => mostra(r, c))) achadas.add(w.w); });
+        pintarGrade();
+        if (!fim && achadas.size === palavras.length) { fim = true; later(() => terminar(Math.max(30, 100 - dicas * 12 - Math.min(erros, 10) * 2), P.v), 900); }
+      };
+      const letraEm = e => { const el = document.elementFromPoint(e.clientX, e.clientY); return el && el.closest ? el.closest(".rl") : null; };
+      roda.onpointerdown = e => { const l = letraEm(e); if (!l || fim) return; ativo = true; try { roda.setPointerCapture(e.pointerId); } catch (x) {} caminho = [+l.dataset.i]; bip(440 + 40 * caminho.length, .06); pintarRoda(); };
+      roda.onpointermove = e => {
+        if (!ativo) return; const l = letraEm(e); if (!l) return; const i = +l.dataset.i;
+        if (caminho[caminho.length - 2] === i) caminho.pop(); else if (!caminho.includes(i)) { caminho.push(i); bip(440 + 40 * caminho.length, .06); } else return;
+        pintarRoda();
+      };
+      roda.onpointerup = () => {
+        if (!ativo) return; ativo = false;
+        const p = caminho.map(i => letras[i]).join("");
+        if (palavras.includes(p) && !achadas.has(p)) { achadas.add(p); bip(780, .2); }
+        else if (p.length >= 3 && !achadas.has(p)) { erros++; bip(170, .2); $("#atual", stage).classList.add("erro"); later(() => $("#atual", stage).classList.remove("erro"), 400); }
+        caminho = []; pintarRoda(); checar();
+      };
+      roda.onpointercancel = () => { ativo = false; caminho = []; pintarRoda(); };
+      $("#mistura", stage).onclick = () => { letras = shuffle(letras); caminho = []; pintarRoda(); };
+      $("#dica", stage).onclick = () => {
+        const w = pick(grade.words.filter(x => !achadas.has(x.w)));
+        if (!w) return; const livres = celulasDe(w).filter(([r, c]) => !mostra(r, c));
+        if (!livres.length) return; const [r, c] = livres[0]; reveladas.add(r + "," + c); dicas++; checar();
+      };
+      pintarGrade(); pintarRoda();
+    }
+  },
+
+  caca: {
+    nome: "Caça-Palavras", cat: "Atenção", ico: "🔍", desc: "Deslize o dedo sobre as palavras escondidas.",
+    iniciar({ stage, progresso, terminar, nivel }) {
+      const P = pick(window.PUZZLES.caca), n = [8, 9, 10][nivel - 1], palavras = sample(P.palavras, nivel === 1 ? 4 : 5);
+      const dirs = [[0, 1], [1, 0]]; if (nivel >= 2) dirs.push([1, 1]); if (nivel >= 3) dirs.push([0, -1], [-1, 0], [-1, -1]);
+      const g = gerarCaca(palavras, n, dirs);
+      const achadas = new Set(); let ini = null, fim = null, erros = 0, dicas = 0, acabou = false;
+      stage.innerHTML = `<div class="enun" style="margin-bottom:10px"><small>Tema</small>${esc(P.tema)}</div>
+        <div class="caca" id="cg" style="grid-template-columns:repeat(${n},1fr)">${g.map((l, r) => l.map((x, c) => `<div class="cc" data-r="${r}" data-c="${c}">${x}</div>`).join("")).join("")}</div>
+        <div class="chips2" id="lista">${palavras.map(w => `<span data-w="${w}">${w}</span>`).join("")}</div>
+        <div class="linha" style="margin-top:12px"><button class="btn claro" id="dica">💡 Dica</button></div>`;
+      progresso(0, palavras.length);
+      const cg = $("#cg", stage), cel = (r, c) => cg.children[r * n + c];
+      const el = e => { const x = document.elementFromPoint(e.clientX, e.clientY); return x && x.closest ? x.closest(".cc") : null; };
+      const marcar = () => {
+        cg.querySelectorAll(".sel").forEach(x => x.classList.remove("sel"));
+        if (ini) caminhoLinha(ini, fim).forEach(([r, c]) => cel(r, c).classList.add("sel"));
+      };
+      cg.onpointerdown = e => { const x = el(e); if (!x || acabou) return; try { cg.setPointerCapture(e.pointerId); } catch (z) {} ini = [+x.dataset.r, +x.dataset.c]; fim = ini; bip(500, .05); marcar(); };
+      cg.onpointermove = e => {
+        if (!ini) return; const x = el(e); if (!x) return;
+        const r = +x.dataset.r, c = +x.dataset.c, dr = r - ini[0], dc = c - ini[1];
+        if (dr === 0 || dc === 0 || Math.abs(dr) === Math.abs(dc)) { fim = [r, c]; marcar(); }
+      };
+      cg.onpointerup = () => {
+        if (!ini) return;
+        const cam = caminhoLinha(ini, fim), s = cam.map(([r, c]) => g[r][c]).join(""), rev = [...s].reverse().join("");
+        const w = palavras.find(p => !achadas.has(p) && (p === s || p === rev));
+        if (w) {
+          achadas.add(w); bip(780, .2); cam.forEach(([r, c]) => cel(r, c).classList.add("ach"));
+          $(`[data-w="${w}"]`, stage).classList.add("feita"); progresso(achadas.size, palavras.length);
+          if (achadas.size === palavras.length && !acabou) { acabou = true; later(() => terminar(Math.max(30, 100 - Math.min(erros, 14) * 5 - dicas * 8), P.v), 900); }
+        } else if (cam.length > 1) { erros++; bip(170, .15); }
+        ini = null; marcar();
+      };
+      cg.onpointercancel = () => { ini = null; marcar(); };
+      $("#dica", stage).onclick = () => {
+        const w = pick(palavras.filter(p => !achadas.has(p))); if (!w) return;
+        const letra = w[0]; dicas++;
+        const alvo = [...cg.children].filter(x => x.textContent === letra && !x.classList.contains("ach"));
+        const marca = alvo.slice(0, 40); marca.forEach(x => x.classList.add("dica")); later(() => marca.forEach(x => x.classList.remove("dica")), 1400);
+        $(`[data-w="${w}"]`, stage).classList.add("pista"); later(() => { const q = $(`[data-w="${w}"]`, stage); if (q) q.classList.remove("pista"); }, 1400);
+      };
+    }
+  },
+
+  cruzadinha: {
+    nome: "Cruzadinha Bíblica", cat: "Conhecimento", ico: "🧩", desc: "Resolva as dicas e cruze as respostas.",
+    iniciar({ stage, progresso, terminar }) {
+      const P = pick(window.PUZZLES.cruz), dicasDe = Object.fromEntries(P.palavras);
+      const grade = montarGrade(P.palavras.map(x => x[0]), true), ws = grade.words;
+      const resp = new Map(), num = new Map(), user = new Map();
+      ws.forEach(w => celulasDe(w).forEach(([r, c], k) => resp.set(r + "," + c, w.w[k])));
+      [...ws].sort((a, b) => a.r - b.r || a.c - b.c).forEach(w => { const k = w.r + "," + w.c; if (!num.has(k)) num.set(k, num.size + 1); });
+      ws.forEach(w => w.n = num.get(w.r + "," + w.c));
+      let ativo = { wi: 0, k: 0, cel: null }, erradas = new Set(), erros = 0, dicas = 0, fim = false;
+      const cobre = (w, r, c) => celulasDe(w).some(([a, b]) => a === r && b === c);
+      const chave = (r, c) => r + "," + c;
+      const ordem = ws.map((w, i) => i).sort((a, b) => ws[a].n - ws[b].n);
+      stage.innerHTML = `<div id="cx"></div><div class="pista-atual" id="pista"></div><div id="kb" class="kb"></div>
+        <div class="linha" style="margin:10px 0 4px"><button class="btn claro" id="ver">✔ Verificar</button><button class="btn claro" id="dica">💡 Dica</button></div>
+        <div id="dicas" class="dicas"></div>`;
+      const pintar = () => {
+        const w = ws[ativo.wi], cw = celulasDe(w).map(([r, c]) => chave(r, c));
+        let h = "";
+        for (let r = 0; r < grade.rows; r++) for (let c = 0; c < grade.cols; c++) {
+          const k = chave(r, c);
+          if (!resp.has(k)) { h += '<div class="cx vazio"></div>'; continue; }
+          h += `<button class="cx ${cw.includes(k) ? "pal" : ""} ${ativo.cel === k ? "ativa" : ""} ${erradas.has(k) ? "errada" : ""}" data-r="${r}" data-c="${c}">${num.has(k) ? `<i>${num.get(k)}</i>` : ""}${user.get(k) || ""}</button>`;
+        }
+        $("#cx", stage).innerHTML = `<div class="cxg" style="--cols:${grade.cols};grid-template-columns:repeat(${grade.cols},1fr)">${h}</div>`;
+        $("#pista", stage).innerHTML = `<b>${w.n} ${w.h ? "Horizontal" : "Vertical"}</b> · ${esc(dicasDe[w.w])} <span>(${w.w.length} letras)</span>`;
+        $("#dicas", stage).innerHTML = ["Horizontais", "Verticais"].map((t, d) => `<div><b>${t}</b>${ordem.filter(i => ws[i].h === (d === 0)).map(i => `<button data-w="${i}" class="${i === ativo.wi ? "on" : ""}">${ws[i].n}. ${esc(dicasDe[ws[i].w])}</button>`).join("")}</div>`).join("");
+        stage.querySelectorAll(".cx[data-r]").forEach(b => b.onclick = () => tocar(+b.dataset.r, +b.dataset.c));
+        stage.querySelectorAll("#dicas button").forEach(b => b.onclick = () => { ativo = { wi: +b.dataset.w, k: 0, cel: null }; ativo.k = primeiroVazio(ws[ativo.wi]); defineCel(); pintar(); });
+        progresso([...resp].filter(([k, v]) => user.get(k) === v).length, resp.size);
+      };
+      const primeiroVazio = w => { const i = celulasDe(w).findIndex(([r, c]) => !user.get(chave(r, c))); return i < 0 ? 0 : i; };
+      const defineCel = () => { const [r, c] = celulasDe(ws[ativo.wi])[ativo.k]; ativo.cel = chave(r, c); };
+      const tocar = (r, c) => {
+        const k = chave(r, c), cand = ws.map((w, i) => i).filter(i => cobre(ws[i], r, c));
+        let esc2 = cand.includes(ativo.wi) ? ativo.wi : cand[0];
+        if (ativo.cel === k && cand.length > 1) esc2 = cand.find(i => i !== ativo.wi);
+        ativo.wi = esc2; ativo.k = celulasDe(ws[esc2]).findIndex(([a, b]) => a === r && b === c); ativo.cel = k; pintar();
+      };
+      const verificarFim = () => {
+        if (fim || ![...resp].every(([k, v]) => user.get(k) === v)) return;
+        fim = true; bip(800, .3); later(() => terminar(Math.max(30, 100 - erros * 8 - dicas * 10), P.v), 900);
+      };
+      const digitar = l => {
+        if (fim) return; erradas = new Set();
+        user.set(ativo.cel, l); const w = ws[ativo.wi];
+        if (ativo.k < w.w.length - 1) ativo.k++;
+        defineCel(); bip(480, .05); pintar(); verificarFim();
+      };
+      const apagar = () => {
+        if (fim) return; erradas = new Set();
+        if (user.get(ativo.cel)) user.delete(ativo.cel); else if (ativo.k > 0) { ativo.k--; defineCel(); user.delete(ativo.cel); }
+        pintar();
+      };
+      $("#kb", stage).innerHTML = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM⌫"].map(l => `<div>${[...l].map(x => `<button data-k="${x}">${x}</button>`).join("")}</div>`).join("");
+      stage.querySelectorAll("#kb button").forEach(b => b.onclick = () => b.dataset.k === "⌫" ? apagar() : digitar(b.dataset.k));
+      $("#ver", stage).onclick = () => {
+        erradas = new Set([...user].filter(([k, v]) => resp.get(k) !== v).map(([k]) => k));
+        if (erradas.size) { erros++; bip(170, .25); } pintar();
+        if (!erradas.size) { const m = $("#pista", stage); m.innerHTML = "<b>Até aqui, tudo certo!</b>"; }
+      };
+      $("#dica", stage).onclick = () => { if (fim) return; user.set(ativo.cel, resp.get(ativo.cel)); dicas++; erradas = new Set(); pintar(); verificarFim(); };
+      ativo.k = 0; defineCel(); pintar();
+    }
+  },
+
+  verso: {
+    nome: "Versículo Embaralhado", cat: "Memória", ico: "📜", desc: "Recoloque as partes do versículo em ordem.",
+    iniciar({ stage, progresso, terminar, nivel }) {
+      const limite = [14, 22, 34][nivel - 1];
+      const todos = D.versiculos.map(v => ({ ref: v.ref, t: textoVersiculo(v) }));
+      const ok = todos.filter(v => v.t.split(/\s+/).length <= limite), v = pick(ok.length ? ok : todos);
+      const ps = v.t.split(/\s+/), alvo = [6, 8, 10][nivel - 1], tam = Math.ceil(ps.length / alvo), partes = [];
+      for (let i = 0; i < ps.length; i += tam) partes.push(ps.slice(i, i + tam).join(" "));
+      let ordem; do { ordem = shuffle(partes.map((_, i) => i)); } while (partes.length > 1 && ordem.every((x, i) => partes[x] === partes[i]));
+      let colocadas = [], erros = 0, erradas = new Set(), fim = false;
+      stage.innerHTML = `<div class="enun"><small>${esc(v.ref)}</small>Toque nas partes na ordem certa do versículo.</div>
+        <div class="area" id="area"></div><div class="banco" id="banco"></div>
+        <div class="linha" style="margin-top:14px"><button class="btn claro" id="limpa">↺ Recomeçar</button><button class="btn" id="ver">Verificar</button></div><div id="fb"></div>`;
+      const pintar = () => {
+        $("#area", stage).innerHTML = colocadas.length ? colocadas.map((i, k) => `<button class="parte ${erradas.has(k) ? "errada" : ""}" data-k="${k}">${esc(partes[i])}</button>`).join(" ") : '<span class="pequeno">Seu versículo aparece aqui…</span>';
+        $("#banco", stage).innerHTML = ordem.filter(i => !colocadas.includes(i)).map(i => `<button class="parte" data-i="${i}">${esc(partes[i])}</button>`).join(" ");
+        stage.querySelectorAll("#banco .parte").forEach(b => b.onclick = () => { if (fim) return; erradas = new Set(); colocadas.push(+b.dataset.i); bip(480, .06); pintar(); if (colocadas.length === partes.length) verificar(); });
+        stage.querySelectorAll("#area .parte").forEach(b => b.onclick = () => { if (fim) return; erradas = new Set(); colocadas.splice(+b.dataset.k, 1); pintar(); });
+        progresso(colocadas.length, partes.length);
+      };
+      const verificar = () => {
+        if (fim) return;
+        if (colocadas.length < partes.length) { $("#fb", stage).innerHTML = '<div class="feedback erro">Coloque todas as partes antes de verificar.</div>'; return; }
+        erradas = new Set(colocadas.map((i, k) => partes[i] === partes[k] ? -1 : k).filter(k => k >= 0));
+        if (!erradas.size) { fim = true; bip(800, .3); pintar(); $("#fb", stage).innerHTML = `<div class="feedback ok"><i>${esc(v.t)}</i> — ${esc(v.ref)}</div>`; later(() => terminar(Math.max(30, 100 - erros * 12), v), 1800); }
+        else { erros++; bip(170, .25); $("#fb", stage).innerHTML = '<div class="feedback erro">Algumas partes estão fora de lugar. Toque nelas para tirar.</div>'; pintar(); }
+      };
+      $("#limpa", stage).onclick = () => { if (fim) return; colocadas = []; erradas = new Set(); $("#fb", stage).innerHTML = ""; pintar(); };
+      $("#ver", stage).onclick = verificar;
+      pintar();
+    }
+  }
+});
+
+const ORDEM = ["roda", "caca", "cruzadinha", "verso", "versiculo", "quiz", "pares", "intruso", "calculo", "sequencia", "ordem", "palavras"];
 
 /* ---------- treino diário, sequência e progresso ---------- */
 const treinoDoDia = ds => { const d = diaIdx(ds), n = ORDEM.length; return [ORDEM[d % n], ORDEM[(d + 3) % n], ORDEM[(d + 5) % n]]; };
@@ -369,17 +658,17 @@ function jogar(id, treino = false) {
     <div class="barra"><i id="barra"></i></div><div class="stage" id="stage"></div>`;
   $("#sai").onclick = () => { fila = null; ir("home"); };
   const progresso = (i, total) => { $("#prog").textContent = total > 1 ? `${Math.min(i + 1, total)}/${total}` : ""; $("#barra").style.width = (i / total * 100) + "%"; };
-  g.iniciar({ stage: $("#stage"), progresso, nivel, terminar: s => resultado(id, s, treino) });
+  g.iniciar({ stage: $("#stage"), progresso, nivel, terminar: (s, vv) => resultado(id, s, treino, vv) });
 }
 
-function resultado(id, score, treino) {
+function resultado(id, score, treino, extra) {
   limpar();
   store.hist.push({ g: id, s: score, d: dataStr(), t: Date.now() });
   if (store.hist.length > 400) store.hist = store.hist.slice(-400);
   salvar();
   const est = score >= 85 ? 3 : score >= 60 ? 2 : score >= 30 ? 1 : 0;
   const msgs = ["Continue treinando, cada partida fortalece a mente.", "Bom começo! Mais uma partida e você melhora.", "Muito bom! Sua mente está ficando mais afiada.", "Excelente! Sabedoria e atenção em dia."];
-  const v = pick(D.versiculos);
+  const v = extra || pick(D.versiculos);
   const proximo = fila && fila.length ? fila.shift() : null;
   const fim = treino && !proximo;
   view.innerHTML = `<div class="resultado">
