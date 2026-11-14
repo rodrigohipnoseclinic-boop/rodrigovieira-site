@@ -357,22 +357,73 @@ function gerarCaca(palavras, n, dirs) {
   return null;
 }
 
+/* ---------- jornada da Roda de Letras: fases infinitas, moedas e cartões ---------- */
+const VOC = window.VOCAB || [];
+const cabeEm = (w, letras) => { const c = [...letras]; return [...w].every(l => { const i = c.indexOf(l); if (i < 0) return false; c.splice(i, 1); return true; }); };
+let basesCache = null;
+const basesRoda = () => basesCache || (basesCache = VOC.filter(w => w.length >= 4)
+  .map(b => ({ b, ws: VOC.filter(w => cabeEm(w, b)) })).filter(x => x.ws.length >= 4));
+const fixarNum = (n, a, b) => Math.max(a, Math.min(b, n));
+function faseRoda(n) {
+  const manual = window.PUZZLES.roda;
+  if (n <= manual.length) return manual[n - 1].palavras;
+  const m = n - manual.length, L = fixarNum(4 + Math.floor((m - 1) / 6), 4, 7);
+  let cand = basesRoda().filter(x => L >= 6 ? x.b.length >= 5 : x.b.length === L);
+  if (!cand.length) cand = basesRoda();
+  const base = cand[(m * 7 + 3) % cand.length], T = fixarNum(3 + Math.floor(m / 4), 3, 9);
+  return [base.b, ...sample(base.ws.filter(w => w !== base.b), T - 1)];
+}
+const CARTAS = D.versiculos.map(v => ({ ref: v.ref, t: v.t.replace("___", v.r) }));
+const cartaDaFase = n => n % 3 === 0 ? CARTAS[(n / 3 - 1) % CARTAS.length] : null;
+const moedas = () => store.moedas == null ? 30 : store.moedas;
+const faseAtual = () => store.roda || 1;
+
+/* cartão de versículo como imagem, para compartilhar */
+function cartaoPNG(v) {
+  return new Promise(res => {
+    const W = 1080, H = 1350, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    const g = cv.getContext("2d"), grad = g.createLinearGradient(0, 0, W, H);
+    grad.addColorStop(0, "#1c2a4a"); grad.addColorStop(1, "#2a3d66"); g.fillStyle = grad; g.fillRect(0, 0, W, H);
+    g.strokeStyle = "#c9a24b"; g.lineWidth = 6; g.strokeRect(50, 50, W - 100, H - 100);
+    g.textAlign = "center"; g.fillStyle = "#e8c76a"; g.font = "700 64px Georgia,serif"; g.fillText("✦", W / 2, 190);
+    g.fillStyle = "#f6efe0"; g.font = "italic 54px Georgia,serif";
+    const pal = ("“" + v.t + "”").split(" "), linhas = []; let at = "";
+    pal.forEach(w => { const t = at ? at + " " + w : w; if (g.measureText(t).width > W - 260) { linhas.push(at); at = w; } else at = t; });
+    linhas.push(at);
+    const lh = 82, y0 = (H - linhas.length * lh) / 2 + 20;
+    linhas.forEach((l, i) => g.fillText(l, W / 2, y0 + i * lh));
+    g.fillStyle = "#e8c76a"; g.font = "700 46px Georgia,serif"; g.fillText(v.ref, W / 2, y0 + linhas.length * lh + 50);
+    g.fillStyle = "#aab6d3"; g.font = "32px system-ui,sans-serif"; g.fillText("Mente Renovada", W / 2, H - 110);
+    cv.toBlob(res, "image/png");
+  });
+}
+async function compartilharCartao(v) {
+  const blob = await cartaoPNG(v), file = new File([blob], "versiculo.png", { type: "image/png" });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: v.ref, text: `${v.t} — ${v.ref}` }); return; }
+  } catch (e) { if (e && e.name === "AbortError") return; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "versiculo.png"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
 Object.assign(JOGOS, {
   roda: {
     nome: "Roda de Letras", cat: "Linguagem", ico: "🎡", desc: "Ligue as letras e preencha a grade.",
     iniciar({ stage, progresso, terminar }) {
-      const P = pick(window.PUZZLES.roda), grade = montarGrade(P.palavras, true), palavras = grade.words.map(x => x.w);
+      const fase = faseAtual(), grade = montarGrade(faseRoda(fase), true), palavras = grade.words.map(x => x.w);
       const cont = {};
       palavras.forEach(w => { const c = {}; [...w].forEach(l => c[l] = (c[l] || 0) + 1); for (const l in c) cont[l] = Math.max(cont[l] || 0, c[l]); });
       let letras = shuffle(Object.entries(cont).flatMap(([l, n]) => Array(n).fill(l)));
       const achadas = new Set(), reveladas = new Set(), usada = new Map();
       grade.words.forEach(w => celulasDe(w).forEach(([r, c], k) => usada.set(r + "," + c, w.w[k])));
       let erros = 0, dicas = 0, caminho = [], ativo = false, fim = false;
+      const letrasTodas = Object.entries(cont).map(([l, n]) => l.repeat(n)).join("");
+      const bonusValidos = VOC.filter(w => !palavras.includes(w) && cabeEm(w, letrasTodas)), bonusAchados = new Set();
       const mostra = (r, c) => reveladas.has(r + "," + c) || grade.words.some(w => achadas.has(w.w) && celulasDe(w).some(([a, b]) => a === r && b === c));
-      stage.innerHTML = `<div class="xgrid" id="xg" style="--cols:${grade.cols};grid-template-columns:repeat(${grade.cols},1fr)"></div>
+      stage.innerHTML = `<div class="faixa"><b>Fase ${fase}</b><span id="bn">Bônus: 0</span><span id="moe">🪙 ${moedas()}</span></div>
+        <div class="xgrid" id="xg" style="--cols:${grade.cols};grid-template-columns:repeat(${grade.cols},1fr)"></div>
         <div class="atual" id="atual">&nbsp;</div>
         <div class="roda" id="roda"><button class="mistura" id="mistura" aria-label="Embaralhar letras">🔀</button></div>
-        <div class="linha"><button class="btn claro" id="dica">💡 Dica</button></div>`;
+        <div class="linha"><button class="btn claro" id="dica">💡 Dica (5 🪙)</button></div>`;
       const roda = $("#roda", stage), R = 88;
       const pintarGrade = () => {
         let h = "";
@@ -395,7 +446,15 @@ Object.assign(JOGOS, {
       const checar = () => {
         grade.words.forEach(w => { if (!achadas.has(w.w) && celulasDe(w).every(([r, c]) => mostra(r, c))) achadas.add(w.w); });
         pintarGrade();
-        if (!fim && achadas.size === palavras.length) { fim = true; later(() => terminar(Math.max(30, 100 - dicas * 12 - Math.min(erros, 10) * 2), P.v), 900); }
+        if (!fim && achadas.size === palavras.length) {
+          fim = true; bip(800, .3);
+          const ganho = 10 + bonusAchados.size, carta = cartaDaFase(fase);
+          const nova = !!carta && !(store.cartas || []).includes(carta.ref);
+          store.roda = fase + 1; store.moedas = moedas() + ganho;
+          if (nova) store.cartas = [...(store.cartas || []), carta.ref];
+          salvar();
+          later(() => terminar(Math.max(30, 100 - dicas * 12 - Math.min(erros, 10) * 2), carta || undefined, { fase, ganho, nova }), 900);
+        }
       };
       const letraEm = e => { const el = document.elementFromPoint(e.clientX, e.clientY); return el && el.closest ? el.closest(".rl") : null; };
       roda.onpointerdown = e => { const l = letraEm(e); if (!l || fim) return; ativo = true; try { roda.setPointerCapture(e.pointerId); } catch (x) {} caminho = [+l.dataset.i]; bip(440 + 40 * caminho.length, .06); pintarRoda(); };
@@ -408,15 +467,22 @@ Object.assign(JOGOS, {
         if (!ativo) return; ativo = false;
         const p = caminho.map(i => letras[i]).join("");
         if (palavras.includes(p) && !achadas.has(p)) { achadas.add(p); bip(780, .2); }
-        else if (p.length >= 3 && !achadas.has(p)) { erros++; bip(170, .2); $("#atual", stage).classList.add("erro"); later(() => $("#atual", stage).classList.remove("erro"), 400); }
+        else if (bonusValidos.includes(p) && !bonusAchados.has(p)) {
+          bonusAchados.add(p); bip(900, .2); $("#bn", stage).textContent = "Bônus: " + bonusAchados.size;
+          $("#atual", stage).classList.add("bonus"); later(() => $("#atual", stage).classList.remove("bonus"), 500);
+        }
+        else if (p.length >= 3 && !bonusAchados.has(p) && !achadas.has(p)) { erros++; bip(170, .2); $("#atual", stage).classList.add("erro"); later(() => $("#atual", stage).classList.remove("erro"), 400); }
         caminho = []; pintarRoda(); checar();
       };
       roda.onpointercancel = () => { ativo = false; caminho = []; pintarRoda(); };
       $("#mistura", stage).onclick = () => { letras = shuffle(letras); caminho = []; pintarRoda(); };
       $("#dica", stage).onclick = () => {
+        if (fim) return;
+        if (moedas() < 5) { $("#atual", stage).textContent = "Faltam moedas"; later(pintarRoda, 1200); return; }
         const w = pick(grade.words.filter(x => !achadas.has(x.w)));
         if (!w) return; const livres = celulasDe(w).filter(([r, c]) => !mostra(r, c));
-        if (!livres.length) return; const [r, c] = livres[0]; reveladas.add(r + "," + c); dicas++; checar();
+        if (!livres.length) return; const [r, c] = livres[0]; reveladas.add(r + "," + c); dicas++;
+        store.moedas = moedas() - 5; salvar(); $("#moe", stage).textContent = "🪙 " + moedas(); checar();
       };
       pintarGrade(); pintarRoda();
     }
@@ -613,12 +679,14 @@ function telaHome() {
       <div class="chips"><span class="chip">🔥 <b>${seq}</b> ${seq === 1 ? "dia" : "dias"} seguidos</span><span class="chip">✅ <b>${n}/3</b> hoje</span></div></div>
     <div class="sobe">
       <div class="card"><div class="rot">Versículo do dia</div><div class="versiculo">“${esc(textoVersiculo(v))}”<cite>${esc(v.ref)}</cite></div></div>
+      <div class="card"><div class="rot">Jornada · Roda de Letras</div><div class="jornada"><div><h2>Fase ${faseAtual()}</h2><p class="pequeno" style="margin:2px 0 0">🪙 ${moedas()} moedas · 🖼️ ${(store.cartas || []).length} cartões</p></div><button class="btn ouro" id="jornada" style="width:auto;padding:12px 18px">Continuar</button></div></div>
       <div class="card treino"><div class="rot">Treino de hoje</div><h2>3 jogos para a sua mente</h2>
         <p class="pequeno" style="margin:2px 0 12px">Complete os três para manter a sequência.</p>
         <div class="lista">${lista.map(g => linhaJogo(g, "", feitos.has(g))).join("")}</div>
         <div class="espaco"></div><button class="btn ouro" id="comecar">${n === 3 ? "Treino concluído! Jogar de novo" : n ? "Continuar treino" : "Começar treino"}</button></div>
     </div>`;
   ligarJogos(view);
+  $("#jornada").onclick = () => jogar("roda");
   $("#comecar").onclick = () => {
     const pendentes = lista.filter(g => !feitos.has(g));
     fila = (pendentes.length ? pendentes : lista).slice(); jogar(fila.shift(), true);
@@ -645,9 +713,13 @@ function telaProgresso() {
         ${CATS.map(c => { const m = mediaCat(c); return `<div class="cat"><div class="t"><span>${c}</span><span>${m === null ? "ainda não jogou" : m + "%"}</span></div><div class="trilho"><i style="width:${m || 0}%"></i></div></div>`; }).join("")}</div>
       <div class="card"><div class="rot">Últimas partidas</div>
         ${ult.length ? `<div class="hist">${ult.map(h => `<div><span>${JOGOS[h.g].ico} ${JOGOS[h.g].nome}</span><b>${h.s}%</b></div>`).join("")}</div>` : '<p class="pequeno">Jogue o primeiro jogo para ver o seu histórico aqui.</p>'}</div>
+      <div class="card"><div class="rot">Meus versículos (${(store.cartas || []).length}/${CARTAS.length})</div>
+        ${(store.cartas || []).length ? `<div class="hist">${(store.cartas || []).map(r => CARTAS.find(c => c.ref === r)).filter(Boolean).map((c, i) => `<div style="display:block"><i style="font-family:Georgia,serif">“${esc(c.t)}”</i><br><b>${esc(c.ref)}</b> <button class="link" data-cartao="${i}">compartilhar</button></div>`).join("")}</div>` : '<p class="pequeno">Conclua a fase 3 da Roda de Letras para ganhar o primeiro cartão. Um novo a cada 3 fases!</p>'}</div>
       <button class="link" id="zerar">Apagar meu progresso</button>
       <p class="pequeno" style="margin-top:14px">Versículos na tradução Almeida Revista e Corrigida. O progresso fica salvo apenas neste aparelho.</p>
     </div>`;
+  const col = (store.cartas || []).map(r => CARTAS.find(c => c.ref === r)).filter(Boolean);
+  view.querySelectorAll("[data-cartao]").forEach(b => b.onclick = () => compartilharCartao(col[+b.dataset.cartao]));
   $("#zerar").onclick = () => { if (confirm("Apagar todo o seu progresso neste aparelho?")) { store = { hist: [] }; salvar(); telaProgresso(); } };
 }
 
@@ -658,10 +730,10 @@ function jogar(id, treino = false) {
     <div class="barra"><i id="barra"></i></div><div class="stage" id="stage"></div>`;
   $("#sai").onclick = () => { fila = null; ir("home"); };
   const progresso = (i, total) => { $("#prog").textContent = total > 1 ? `${Math.min(i + 1, total)}/${total}` : ""; $("#barra").style.width = (i / total * 100) + "%"; };
-  g.iniciar({ stage: $("#stage"), progresso, nivel, terminar: (s, vv) => resultado(id, s, treino, vv) });
+  g.iniciar({ stage: $("#stage"), progresso, nivel, terminar: (s, vv, info) => resultado(id, s, treino, vv, info) });
 }
 
-function resultado(id, score, treino, extra) {
+function resultado(id, score, treino, extra, info) {
   limpar();
   store.hist.push({ g: id, s: score, d: dataStr(), t: Date.now() });
   if (store.hist.length > 400) store.hist = store.hist.slice(-400);
@@ -674,13 +746,15 @@ function resultado(id, score, treino, extra) {
   view.innerHTML = `<div class="resultado">
     <div class="estrelas">${[0, 1, 2].map(i => `<span class="${i < est ? "" : "apagada"}">⭐</span>`).join("")}</div>
     <div class="pontos">${score}<small>%</small></div>
-    <p>${fim ? "Treino de hoje concluído! 🎉 " : ""}${msgs[est]}</p>
+    <p>${info ? `<b>Fase ${info.fase} concluída!</b> +${info.ganho} 🪙<br>${info.nova ? "✨ Novo cartão de versículo na sua coleção!<br>" : ""}` : ""}${fim ? "Treino de hoje concluído! 🎉 " : ""}${msgs[est]}</p>
     <div class="versiculo">“${esc(textoVersiculo(v))}”<cite>${esc(v.ref)}</cite></div>
+    ${info && extra ? '<button class="btn" id="cartao">🖼️ Compartilhar cartão do versículo</button>' : ""}
     ${proximo ? `<button class="btn ouro" id="prox">Próximo jogo: ${JOGOS[proximo].nome}</button>` : ""}
-    <button class="btn ${proximo ? "claro" : "ouro"}" id="again">Jogar de novo</button>
+    <button class="btn ${proximo ? "claro" : "ouro"}" id="again">${info ? "Próxima fase" : "Jogar de novo"}</button>
     <button class="btn claro" id="inicio">Voltar ao início</button>
     ${navigator.share ? '<button class="link" id="share">Compartilhar resultado</button>' : ""}</div>`;
   if (proximo) $("#prox").onclick = () => jogar(proximo, true);
+  const ct = $("#cartao"); if (ct) ct.onclick = () => compartilharCartao(extra);
   $("#again").onclick = () => { fila = null; jogar(id); };
   $("#inicio").onclick = () => { fila = null; ir("home"); };
   const sh = $("#share"); if (sh) sh.onclick = () => navigator.share({ title: "Mente Renovada", text: `Fiz ${score}% em “${JOGOS[id].nome}” no Mente Renovada! ${"⭐".repeat(est)}`, url: location.href.split("#")[0] }).catch(() => {});
