@@ -18,7 +18,7 @@ const addDias = (ds, n) => { const [y, m, d] = ds.split("-").map(Number); return
 /* limpeza de timers ao sair de uma tela */
 let limpezas = [];
 const aoSair = fn => limpezas.push(fn);
-const limpar = () => { limpezas.forEach(f => { try { f(); } catch (e) {} }); limpezas = []; };
+const limpar = () => { limpezas.forEach(f => { try { f(); } catch (e) {} }); limpezas = []; calarNarracao(); };
 const later = (fn, ms) => { const t = setTimeout(fn, ms); aoSair(() => clearTimeout(t)); return t; };
 
 /* ---------- armazenamento ---------- */
@@ -78,8 +78,22 @@ function somFim(est, subiu) {
   for (let i = 0; i < n; i++) bip(S.root * 2 * Math.pow(2, notas[i] / 12), .22, i * .1, 1, true);
   if (subiu) [0, 4, 7, 12, 16, 19].forEach((m, i) => bip(523.25 * Math.pow(2, m / 12), .35, .7 + i * .09, 1.1, true));
 }
+/* ---------- narração (voz do aparelho, em português) ---------- */
+let vozPt = null;
+function escolherVoz() {
+  try {
+    const vs = speechSynthesis.getVoices();
+    vozPt = vs.find(v => /^pt[-_]BR/i.test(v.lang) && /google|luciana|francisca|microsoft/i.test(v.name)) || vs.find(v => /^pt[-_]BR/i.test(v.lang)) || vs.find(v => /^pt/i.test(v.lang)) || null;
+  } catch (e) {}
+}
+if ("speechSynthesis" in window) { escolherVoz(); speechSynthesis.onvoiceschanged = escolherVoz; }
+function narrar(texto) {
+  if (!somLigado() || !("speechSynthesis" in window)) return;
+  try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(texto); u.lang = "pt-BR"; if (vozPt) u.voice = vozPt; u.rate = .95; speechSynthesis.speak(u); } catch (e) {}
+}
+function calarNarracao() { try { if ("speechSynthesis" in window) speechSynthesis.cancel(); } catch (e) {} }
 function iconeSom() { return somLigado() ? "🔊" : "🔇"; }
-function alternarSom() { store.mudo = !store.mudo; salvar(); document.querySelectorAll("[data-som]").forEach(b => { b.textContent = iconeSom() + (b.dataset.som === "chip" ? " Som" : ""); b.setAttribute("aria-label", somLigado() ? "Desligar som" : "Ligar som"); }); if (somLigado()) bip(523, .15); }
+function alternarSom() { store.mudo = !store.mudo; salvar(); document.querySelectorAll("[data-som]").forEach(b => { b.textContent = iconeSom() + (b.dataset.som === "chip" ? " Som" : ""); b.setAttribute("aria-label", somLigado() ? "Desligar som" : "Ligar som"); }); if (somLigado()) bip(523, .15); else calarNarracao(); }
 
 /* ---------- jogos ---------- */
 const CATS = ["Memória", "Atenção", "Linguagem", "Raciocínio", "Conhecimento"];
@@ -725,15 +739,9 @@ const guiaInstalar = () => ehiOS()
 function marcarNav(go) { document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.go === go)); }
 function ir(tela) {
   limpar(); appEl.classList.remove("em-jogo");
-  ({ home: telaHome, games: telaJogos, progress: telaProgresso }[tela] || telaHome)();
+  ({ home: telaHome, progress: telaProgresso }[tela] || telaHome)();
   marcarNav(tela); window.scrollTo(0, 0);
 }
-
-function linhaJogo(id, extra = "", feito = false) {
-  const g = JOGOS[id];
-  return `<button class="jogo" data-play="${id}"><span class="ico">${g.ico}</span><span><span class="tag">${g.cat}</span><b>${g.nome}</b><small>${extra || g.desc}</small></span>${feito ? '<span class="ok">✅</span>' : ""}</button>`;
-}
-function ligarJogos(raiz) { raiz.querySelectorAll("[data-play]").forEach(b => b.onclick = () => jogar(b.dataset.play)); }
 
 function telaHome() {
   const hoje = dataStr(), n = Math.min(3, fasesNoDia(hoje)), seq = sequenciaDias(), v = versiculoDoDia(), prox = JOGOS[proximoJogo()];
@@ -764,12 +772,6 @@ function telaHome() {
     $("#agora-nao").onclick = () => { store.ocultaInstalar = true; salvar(); telaHome(); };
   }
   $("#jornada").onclick = () => jogar(proximoJogo(), true);
-}
-
-function telaJogos() {
-  view.innerHTML = `<div class="topo" style="padding-bottom:24px"><small>Pratique à vontade</small><h1>Treino livre</h1><p>Escolha qualquer jogo. Aqui não vale para a jornada.</p></div>
-    <div class="pad"><div class="lista">${ORDEM.map(g => linhaJogo(g, `${JOGOS[g].desc} · Nível ${nivelXP()}`)).join("")}</div></div>`;
-  ligarJogos(view);
 }
 
 function telaProgresso() {
@@ -809,6 +811,16 @@ function jogar(id, jornada = false) {
   g.iniciar({ stage: $("#stage"), progresso, nivel, jornada, terminar: (s, vv, gi) => resultado(id, s, jornada, vv, gi) });
 }
 
+let cenaAtual = null;
+function cenaHTML(especial) {
+  const C = window.CENAS; if (!C) return "";
+  let c = C.especial;
+  if (!especial) { let i; do { i = rnd(C.lista.length); } while (C.lista.length > 1 && i === store.cena); store.cena = i; c = C.lista[i]; }
+  cenaAtual = c;
+  return `<figure class="cena"><svg viewBox="0 0 300 150" role="img" aria-label="${esc(c.t)}">${c.svg}</svg><figcaption><b>${esc(c.t)}</b> · ${esc(c.ref)}</figcaption>
+    <p class="narr">${esc(c.n)}</p><button class="link" id="ouvir">🔊 Ouvir de novo</button></figure>`;
+}
+
 function resultado(id, score, jornada, extra, gi) {
   limpar();
   const info = jornada ? concluirFase(id, score, gi && gi.bonus) : null;
@@ -821,6 +833,7 @@ function resultado(id, score, jornada, extra, gi) {
   const prox = info ? JOGOS[proximoJogo()] : null;
   somFim(est, !!(info && info.subiu));
   view.innerHTML = `<div class="resultado">
+    ${info ? cenaHTML(info.subiu) : ""}
     <div class="estrelas">${[0, 1, 2].map(i => `<span class="${i < est ? "" : "apagada"}">⭐</span>`).join("")}</div>
     <div class="pontos">${score}<small>%</small></div>
     <p>${info ? `<b>Fase ${info.fase} concluída!</b> +${info.xpGanho} XP · +${info.ganho} 🪙<br>${info.subiu ? `🎉 <b>Você subiu para o nível ${info.nivel}!</b> Os desafios ficam mais difíceis.<br>` : ""}${info.nova ? "✨ Novo cartão de versículo na sua coleção!<br>" : ""}` : ""}${msgs[est]}</p>
@@ -831,6 +844,7 @@ function resultado(id, score, jornada, extra, gi) {
     <button class="btn claro" id="inicio">Voltar ao início</button>
     ${navigator.share ? '<button class="link" id="share">Compartilhar resultado</button>' : ""}</div>`;
   const ct = $("#cartao"); if (ct) ct.onclick = () => compartilharCartao(v);
+  if (info && cenaAtual) { const c = cenaAtual; later(() => narrar(c.n), 1500); $("#ouvir").onclick = () => narrar(c.n); }
   if (info) $("#prox").onclick = () => jogar(proximoJogo(), true); else $("#again").onclick = () => jogar(id);
   $("#inicio").onclick = () => ir("home");
   const sh = $("#share"); if (sh) sh.onclick = () => navigator.share({ title: "Mente Renovada", text: `Fiz ${score}% em “${JOGOS[id].nome}” no Mente Renovada! ${"⭐".repeat(est)}`, url: location.href.split("#")[0] }).catch(() => {});

@@ -218,3 +218,65 @@ h1,h2,h3{font-family:var(--serif);margin:0;line-height:1.2}
 /* som */
 .chip[data-som]{color:inherit;cursor:pointer}
 .gbar .prog{margin-right:4px}
+
+/* cenas bíblicas ao vencer */
+.cena{margin:0 auto 14px;max-width:340px}
+.cena svg{display:block;width:100%;height:auto;border-radius:16px;border:2px solid var(--ouro);background:#16203d}
+.cena figcaption{margin-top:8px;font-size:14px;color:var(--suave);animation:surge .8s 1.2s both}
+.cena figcaption b{font-family:var(--serif);color:var(--azul);font-size:16px}
+@keyframes surge{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.cena svg *{transform-box:fill-box}
+.a-mar-e{transform:translateX(60px);animation:marE 2.4s ease-out .3s forwards}
+.a-mar-d{transform:translateX(-60px);animation:marD 2.4s ease-out .3s forwards}
+@keyframes marE{to{transform:translateX(0)}}@keyframes marD{to{transform:translateX(0)}}
+.a-povo{opacity:0;transform:translateX(90px);animation:povo 3.4s linear 1.8s forwards}
+@keyframes povo{0%{opacity:1;transform:translateX(90px)}100%{opacity:1;transform:translateX(330px)}}
+.a-estrela-pos{transform:translate(150px,38px);animation:estrelaPos 2.4s ease-out}
+@keyframes estrelaPos{from{transform:translate(30px,10px) scale(.3);opacity:0}to{transform:translate(150px,38px) scale(1);opacity:1}}
+.a-estrela{transform-origin:center;animation:pulso 1.4s ease-in-out 2.4s infinite alternate}
+@keyframes pulso{from{transform:scale(.9) rotate(-4deg)}to{transform:scale(1.15) rotate(4deg)}}
+.a-arco{stroke-dasharray:1;stroke-dashoffset:1;animation:arco 1.2s ease-out forwards}
+@keyframes arco{to{stroke-dashoffset:0}}
+.a-voa{animation:voa 4.5s ease-in-out 1s both}
+@keyframes voa{from{transform:translate(-30px,40px)}50%{transform:translate(140px,14px)}to{transform:translate(340px,36px)}}
+.a-asa{transform-origin:100% 100%;animation:asa .5s ease-in-out infinite alternate}
+@keyframes asa{from{transform:rotate(-14deg)}to{transform:rotate(16deg)}}
+.a-brilho{animation:brilho 1.2s ease-in-out infinite alternate}
+@keyframes brilho{from{opacity:.15;transform:scale(.9)}to{opacity:.4;transform:scale(1.08)}}
+.a-chama{transform-origin:50% 100%;animation:chama .55s ease-in-out infinite alternate}
+@keyframes chama{from{transform:scaleY(.82) skewX(-4deg)}to{transform:scaleY(1.12) skewX(4deg)}}
+.a-barco{transform-origin:150px 112px;transform-box:view-box;animation:barco 4.6s ease-out forwards}
+@keyframes barco{0%{transform:rotate(-16deg) translateY(4px)}20%{transform:rotate(14deg)}40%{transform:rotate(-9deg)}60%{transform:rotate(5deg)}80%{transform:rotate(-2deg)}100%{transform:rotate(0)}}
+.a-nuvens{animation:nuvens 4.6s ease-in forwards}
+@keyframes nuvens{0%,35%{opacity:1}100%{opacity:0;transform:translateY(-30px)}}
+.a-ceu-fim{opacity:0;animation:ceu 4.6s ease-in forwards}
+@keyframes ceu{0%,40%{opacity:0}100%{opacity:1}}
+.a-onda{animation:onda 2.2s ease-in-out infinite alternate}
+@keyframes onda{from{transform:translateX(-10px)}to{transform:translateX(10px)}}
+.a-pao{opacity:0;transform:scale(.2);animation:pao .5s ease-out forwards}
+@keyframes pao{to{opacity:1;transform:scale(1)}}
+.a-raios{transform-origin:150px 0;transform-box:view-box;animation:raios 6s ease-in-out infinite alternate}
+@keyframes raios{from{transform:rotate(-6deg);opacity:.3}to{transform:rotate(6deg);opacity:.6}}
+.a-desce{animation:desce 2.6s cubic-bezier(.3,.7,.3,1) both}
+@keyframes desce{from{transform:translateY(-30px)}to{transform:translateY(78px)}}
+.a-onda-anel{transform-origin:center;opacity:0;animation:anel 2.4s ease-out 1.6s infinite}
+@keyframes anel{0%{opacity:.9;transform:scale(.3)}100%{opacity:0;transform:scale(1.5)}}
+.a-anjo-sobe,.a-anjo-desce{opacity:0;animation:sobe 3.6s ease-in-out infinite}
+.a-anjo-desce{animation-name:desceAnjo}
+@keyframes sobe{0%{opacity:0;transform:translate(0,0)}15%{opacity:1}85%{opacity:1}100%{opacity:0;transform:translate(68px,-120px)}}
+@keyframes desceAnjo{0%{opacity:0;transform:translate(68px,-120px)}15%{opacity:1}85%{opacity:1}100%{opacity:0;transform:translate(0,0)}}
+.a-bloco{transform-origin:center;animation:bloco 1.1s ease-in forwards}
+@keyframes bloco{0%{transform:none}100%{transform:translateY(30px) rotate(22deg);opacity:.9}}
+.a-bloco:nth-child(odd){animation-name:bloco2}
+@keyframes bloco2{0%{transform:none}100%{transform:translateY(30px) rotate(-18deg);opacity:.9}}
+.a-poeira{opacity:0;transform-origin:center;animation:poeira 1.6s ease-out forwards}
+@keyframes poeira{0%{opacity:.7;transform:scale(.3)}100%{opacity:0;transform:scale(2.2) translateY(-14px)}}
+.a-aurora{animation:aurora 3s ease-in forwards;opacity:0}
+@keyframes aurora{to{opacity:1}}
+.a-luz{opacity:0;animation:luz 1.6s ease-out .9s forwards}
+@keyframes luz{0%{opacity:0;transform:scale(.4)}100%{opacity:.85;transform:scale(1.15)}}
+.a-pedra{animation:pedra 1.8s ease-in-out .3s forwards}
+@keyframes pedra{to{transform:translateX(-78px) rotate(-200deg)}}
+
+.cena .narr{margin:6px 0 0;font-size:14px;line-height:1.5;color:var(--texto);font-style:italic;animation:surge .8s 1.6s both}
+.cena .link{margin-top:2px}
