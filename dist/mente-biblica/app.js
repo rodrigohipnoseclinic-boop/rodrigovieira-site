@@ -21,6 +21,29 @@ const aoSair = fn => limpezas.push(fn);
 const limpar = () => { limpezas.forEach(f => { try { f(); } catch (e) {} }); limpezas = []; calarNarracao(); };
 const later = (fn, ms) => { const t = setTimeout(fn, ms); aoSair(() => clearTimeout(t)); return t; };
 
+/* ---------- modo dono: só o dono vê os botões de convidar ---------- */
+const JOGO_URL = "https://rodrigovieiraterapeuta.com.br/mente-biblica/";
+const TEXTO_CONVITE = "Olá! Conheça o Mente Renovada, um treino mental com a Palavra de Deus: jogos, versículos e cenas de mangá. Experimente:";
+const ehDono = () => { try { return localStorage.getItem("rv-dono") === "1"; } catch (e) { return false; } };
+const aviso = t => { const d = document.createElement("div"); d.className = "toast"; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2400); };
+
+/* ---------- contagem anônima (só somas: abriu, jogou, instalou, fases, cenas) ---------- */
+// "de" é o nome que o dono colocou no link do convite (?de=maria). Não envia nome, IP nem identificador do aparelho.
+const slug = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24);
+let deConvite = "";
+try {
+  const p = new URLSearchParams(location.search).get("de");
+  if (p) { localStorage.setItem("mb-de", slug(p)); history.replaceState(null, "", location.pathname + location.hash); }
+  deConvite = localStorage.getItem("mb-de") || "";
+} catch (e) {}
+const contar = (evento, uma) => {
+  try {
+    if (!/^https?:$/.test(location.protocol) || /^(localhost|127\.)/.test(location.hostname) || ehDono()) return;
+    if (uma) { const k = "mb-" + evento; if (uma === "dia") { const d = new Date().toDateString(); if (localStorage.getItem(k) === d) return; localStorage.setItem(k, d); } else { if (localStorage.getItem(k)) return; localStorage.setItem(k, "1"); } }
+    fetch("/api/jogo", { method: "POST", body: JSON.stringify({ e: evento, de: deConvite }), keepalive: true, headers: { "Content-Type": "application/json" } }).catch(() => {});
+  } catch (e) {}
+};
+
 /* ---------- armazenamento ---------- */
 const KEY = "mente_renovada_v1";
 let store = { hist: [] };
@@ -775,7 +798,7 @@ let promptInstalar = null;
 const jaInstalado = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
 const ehiOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); promptInstalar = e; if ($("#instalar")) telaHome(); });
-window.addEventListener("appinstalled", () => { promptInstalar = null; store.instalado = true; salvar(); if ($("#instalar")) telaHome(); });
+window.addEventListener("appinstalled", () => { contar("instalou", "sempre"); promptInstalar = null; store.instalado = true; salvar(); if ($("#instalar")) telaHome(); });
 const guiaInstalar = () => ehiOS()
   ? `<ol><li>Abra este endereço no <b>Safari</b>.</li><li>Toque em <b>Compartilhar</b> (o quadrado com a seta para cima).</li><li>Role e toque em <b>Adicionar à Tela de Início</b>.</li><li>Toque em <b>Adicionar</b>. O ícone aparece junto dos seus apps.</li></ol>`
   : `<ol><li>Abra este endereço no <b>Chrome</b>.</li><li>Toque no menu <b>⋮</b> (três pontinhos, no canto).</li><li>Toque em <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.</li><li>Confirme. O ícone aparece junto dos seus apps e abre em tela cheia.</li></ol>`;
@@ -806,9 +829,20 @@ function telaHome() {
         <button class="btn ouro" id="btn-instalar">Instalar app</button>
         <div id="guia" class="guia" hidden>${guiaInstalar()}</div>
         <button class="link" id="agora-nao">Agora não</button></div>`}
+      ${ehDono() ? `<div class="card"><div class="rot">Só para você</div><h2>Convidar amigos</h2><p class="pequeno" style="margin:2px 0 12px">Estes botões só aparecem no seu aparelho. Quem receber o link joga normalmente, sem eles.</p>
+        <input class="campo" id="convite-nome" placeholder="Nome de quem vai receber (opcional)" aria-label="Nome de quem vai receber" autocomplete="off" style="margin-bottom:10px">
+        <div class="linha"><a class="btn ouro" id="convite-wa" target="_blank" rel="noopener" href="#">WhatsApp</a><a class="btn claro" id="convite-email" href="#">E-mail</a></div>
+        <p class="pequeno" style="margin:10px 0 0">Com um nome, o link leva uma marca (por exemplo <i>?de=maria</i>) e o seu painel de visitas mostra quantos abriram, jogaram e instalaram por convite. Quem recebe não vê a marca depois de abrir.</p></div>` : ""}
       <div class="card"><div class="rot">Versículo do dia</div><div class="versiculo">“${esc(textoVersiculo(v))}”<cite>${esc(v.ref)}</cite></div></div>
     </div>`;
   view.querySelector("[data-som]").onclick = alternarSom;
+  const cn = $("#convite-nome");
+  if (cn) {
+    const montar = () => { const s = slug(cn.value), url = JOGO_URL + (s ? "?de=" + s : ""), wa = $("#convite-wa"), em = $("#convite-email");
+      wa.href = "https://wa.me/?text=" + encodeURIComponent(TEXTO_CONVITE + " " + url);
+      em.href = "mailto:?subject=" + encodeURIComponent("Convite: Mente Renovada") + "&body=" + encodeURIComponent(TEXTO_CONVITE + "\n\n" + url); };
+    cn.oninput = montar; montar();
+  }
   const bi = $("#btn-instalar");
   if (bi) {
     bi.onclick = async () => {
@@ -843,8 +877,10 @@ function telaProgresso() {
         <p class="pequeno" style="margin:0 0 8px">Não ouve nada? Toque no botão. No iPhone, desligue a chave de silêncio ao lado e suba o volume.</p>
         <button class="btn claro" id="testar-som" type="button">🔊 Testar som e voz</button><p class="pequeno" id="diag" style="margin-top:8px"></p></div>
       ${jaInstalado() ? "" : `<div class="card"><div class="rot">Instalar no celular</div><div class="guia">${guiaInstalar()}</div></div>`}
+      ${ehDono() ? '<button class="link" id="sair-dono" type="button">Sair do modo dono</button>' : `<button class="link" id="entrar-dono" type="button" style="opacity:.55">Área do dono</button>
+        <form id="form-dono" hidden style="margin:8px 0 14px"><input class="campo" id="senha-dono" type="password" autocomplete="current-password" placeholder="Senha do painel de visitas" aria-label="Senha do painel de visitas"><button class="btn" type="submit" style="margin-top:8px">Entrar</button><p class="pequeno" id="msg-dono" style="margin-top:6px"></p></form>`}
       <button class="link" id="zerar">Apagar meu progresso</button>
-      <p class="pequeno" style="margin-top:14px">Versículos na tradução Almeida Revista e Corrigida. O progresso fica salvo apenas neste aparelho.</p>
+      <p class="pequeno" style="margin-top:14px">Versículos na tradução Almeida Revista e Corrigida. O progresso fica salvo apenas neste aparelho. Para melhorar o jogo, contamos de forma anônima quantas pessoas abrem, jogam e instalam o app. Não guardamos seu nome, telefone nem localização.</p>
     </div>`;
   const col = (store.cartas || []).map(r => CARTAS.find(c => c.ref === r)).filter(Boolean);
   view.querySelectorAll("[data-cartao]").forEach(b => b.onclick = () => compartilharCartao(col[+b.dataset.cartao]));
@@ -855,6 +891,21 @@ function telaProgresso() {
     let nv = 0; try { nv = speechSynthesis.getVoices().length; } catch (e) {}
     $("#diag").textContent = `Som: ligado · Áudio: ${ac ? ac.state : "não iniciado"} · Vozes no aparelho: ${nv}${vozPt ? " (português: " + vozPt.name + ")" : " (nenhuma em português: só haverá legenda)"}`;
   };
+  const en = $("#entrar-dono");
+  if (en) {
+    en.onclick = () => { const f = $("#form-dono"); f.hidden = !f.hidden; if (!f.hidden) $("#senha-dono").focus(); };
+    $("#form-dono").onsubmit = async e => {
+      e.preventDefault(); const msg = $("#msg-dono"), senha = $("#senha-dono").value; msg.textContent = "Verificando…";
+      try {
+        const aberto = await fetch("/api/visitas", { credentials: "omit", cache: "no-store" });
+        if (aberto.ok) { msg.textContent = "O painel está sem senha no servidor, então não dá para liberar o modo dono."; return; }
+        const r = await fetch("/api/visitas", { credentials: "omit", cache: "no-store", headers: { Authorization: "Basic " + btoa(unescape(encodeURIComponent("dono:" + senha))) } });
+        if (r.ok) { try { localStorage.setItem("rv-dono", "1"); } catch (x) {} aviso("Modo dono ativado"); telaProgresso(); }
+        else msg.textContent = r.status === 401 ? "Senha incorreta." : "Não foi possível verificar agora.";
+      } catch (x) { msg.textContent = "Sem conexão para verificar. Tente de novo."; }
+    };
+  }
+  const sd = $("#sair-dono"); if (sd) sd.onclick = () => { try { localStorage.removeItem("rv-dono"); } catch (e) {} aviso("Modo dono desligado"); telaProgresso(); };
   $("#zerar").onclick = () => { if (confirm("Apagar todo o seu progresso neste aparelho?")) { store = { hist: [] }; salvar(); telaProgresso(); } };
 }
 
@@ -904,6 +955,7 @@ function tocarManga(m) {
 function resultado(id, score, jornada, extra, gi) {
   limpar();
   const info = jornada ? concluirFase(id, score, gi && gi.bonus) : null;
+  if (info) { contar("jogou", "sempre"); contar("fase"); if (info.cena != null) contar("cena"); if (info.subiu) contar("nivel"); }
   store.hist.push({ g: id, s: score, d: dataStr(), t: Date.now(), j: jornada ? 1 : 0 });
   if (store.hist.length > 400) store.hist = store.hist.slice(-400);
   salvar();
@@ -922,7 +974,7 @@ function resultado(id, score, jornada, extra, gi) {
     ${info && info.carta ? '<button class="btn" id="cartao">🖼️ Compartilhar cartão do versículo</button>' : ""}
     ${info ? `<button class="btn ouro" id="prox">Próxima fase: ${prox.ico} ${prox.nome}</button>` : '<button class="btn ouro" id="again">Jogar de novo</button>'}
     <button class="btn claro" id="inicio">Voltar ao início</button>
-    ${navigator.share ? '<button class="link" id="share">Compartilhar resultado</button>' : ""}</div>`;
+    ${ehDono() && navigator.share ? '<button class="link" id="share">Compartilhar resultado</button>' : ""}</div>`;
   const ct = $("#cartao"); if (ct) ct.onclick = () => compartilharCartao(v);
   if (info && info.cena != null) { const c = window.MANGA.lista[info.cena]; $("#assistir").textContent = "🎬 Assistir de novo: " + c.t; $("#assistir").onclick = () => tocarManga(c); later(() => tocarManga(c), 1700); }
   if (info) $("#prox").onclick = () => jogar(proximoJogo(), true); else $("#again").onclick = () => jogar(id);
@@ -933,6 +985,8 @@ function resultado(id, score, jornada, extra, gi) {
 
 document.querySelectorAll("#nav button").forEach(b => b.onclick = () => ir(b.dataset.go));
 ir("home");
+contar("abriu", "dia");
+if (jaInstalado()) contar("instalou", "sempre");
 { const qm = new URLSearchParams(location.search).get("manga"); // ?manga=0 a 9 toca uma cena direto (para pré-visualizar)
   if (qm !== null && window.MANGA) { const c = window.MANGA.lista[+qm]; if (c) tocarManga(c); } }
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});

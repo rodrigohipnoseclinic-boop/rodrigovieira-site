@@ -586,6 +586,10 @@ function paginaVisitas() {
   <ol class="visitas-pag" id="v-ori"></ol>
   <h2>Páginas mais vistas <small>(últimos 30 dias)</small></h2>
   <ol class="visitas-pag" id="v-pag"></ol>
+  <h2>Jogo Mente Renovada <small>(contagem anônima: abriu, jogou, instalou)</small></h2>
+  <div class="visitas-num" id="j-num"><p class="centro">Carregando…</p></div>
+  <h2>Por convite <small>(últimos 30 dias · o nome vem do link ?de=nome que você gera no jogo)</small></h2>
+  <ol class="visitas-pag" id="j-de"></ol>
 </section>
 <script>
 try { localStorage.setItem("rv-dono", "1"); } catch (e) {} // quem abre o painel é o dono: este navegador deixa de ser contado
@@ -652,6 +656,19 @@ fetch("/api/visitas").then(function (r) { return r.json(); }).then(function (d) 
     return '<li><a href="' + esc(k) + '">' + nome(k) + '</a><b>' + pag[k] + ' <small>visualizações' + (cli[k] ? ' · ' + cli[k] + ' cliques' : '') + '</small></b></li>';
   }).join("") : "<li>Ainda sem visitas registradas.</li>";
 }).catch(function () { document.getElementById("v-num").innerHTML = '<p class="centro">Não foi possível carregar os números agora.</p>'; });
+(function () {
+  fetch("/api/jogo").then(function (r) { return r.json(); }).then(function (rows) {
+    function ini(n) { return new Date(Date.now() - (n - 1) * 864e5).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }); }
+    function soma(n, ev) { var i = ini(n), t = 0; rows.forEach(function (x) { if (x.evento === ev && x.dia >= i) t += x.n; }); return t; }
+    document.getElementById("j-num").innerHTML = [["Hoje", 1], ["7 dias", 7], ["30 dias", 30]].map(function (b) {
+      return '<div><span>' + b[0] + '</span><strong>' + soma(b[1], "abriu") + '</strong><small>abriram · ' + soma(b[1], "jogou") + ' jogaram pela 1ª vez · ' + soma(b[1], "instalou") + ' instalaram</small><small>' + soma(b[1], "fase") + ' fases concluídas · ' + soma(b[1], "cena") + ' cenas desbloqueadas</small></div>';
+    }).join("");
+    var i30 = ini(30), por = {};
+    rows.forEach(function (x) { if (x.dia >= i30) { var o = por[x.de] || (por[x.de] = { abriu: 0, jogou: 0, instalou: 0, fase: 0 }); if (o[x.evento] != null) o[x.evento] += x.n; } });
+    var ks = Object.keys(por).sort(function (a, b) { return por[b].abriu - por[a].abriu; });
+    document.getElementById("j-de").innerHTML = ks.length ? ks.map(function (k) { var o = por[k]; return '<li><span>' + esc(k) + '</span><b>' + o.abriu + ' <small>abriram · ' + o.jogou + ' jogaram · ' + o.instalou + ' instalaram · ' + o.fase + ' fases</small></b></li>'; }).join("") : "<li>Ainda sem dados do jogo.</li>";
+  }).catch(function () { document.getElementById("j-num").innerHTML = '<p class="centro">Não foi possível carregar os números do jogo.</p>'; });
+})();
 </script>`,
   });
 }
