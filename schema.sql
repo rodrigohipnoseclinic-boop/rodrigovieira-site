@@ -9,6 +9,12 @@ CREATE TABLE IF NOT EXISTS paginas (
   vis INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (dia, pagina)
 );
+CREATE TABLE IF NOT EXISTS cliques (
+  dia TEXT NOT NULL,
+  pagina TEXT NOT NULL,
+  cli INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (dia, pagina)
+);
 CREATE TABLE IF NOT EXISTS origens (
   dia TEXT NOT NULL,
   origem TEXT NOT NULL,

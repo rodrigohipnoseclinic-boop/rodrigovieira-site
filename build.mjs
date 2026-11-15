@@ -574,6 +574,9 @@ function paginaVisitas() {
   <div class="visitas-num" id="v-num"><p class="centro">Carregando…</p></div>
   <h2>Pessoas por dia <small>(últimos 30 dias)</small></h2>
   <div class="visitas-graf" id="v-graf"></div>
+  <h2>Cliques no WhatsApp <small>(últimos 30 dias)</small></h2>
+  <div class="visitas-num" id="v-cli-num"></div>
+  <ol class="visitas-pag" id="v-cli"></ol>
   <h2>De onde vêm as pessoas <small>(últimos 30 dias)</small></h2>
   <ol class="visitas-pag" id="v-ori"></ol>
   <h2>Páginas mais vistas <small>(últimos 30 dias)</small></h2>
@@ -592,6 +595,16 @@ fetch("/api/visitas").then(function (r) { return r.json(); }).then(function (d) 
     var dt = x.dia.split("-").reverse().slice(0, 2).join("/");
     return '<div title="' + dt + ': ' + x.pes + ' pessoas"><i style="height:' + (x.pes / max * 100) + '%"></i><span>' + dt + '</span></div>';
   }).join("");
+  function somaCli(n) { return d.slice(-n).reduce(function (t, x) { var s = 0; for (var k in (x.cli || {})) s += x.cli[k]; return t + s; }, 0); }
+  document.getElementById("v-cli-num").innerHTML = [["Hoje", 1], ["7 dias", 7], ["30 dias", 30]].map(function (b) {
+    return '<div><span>' + b[0] + '</span><strong>' + somaCli(b[1]) + '</strong><small>cliques</small></div>';
+  }).join("");
+  var cli = {};
+  ult.forEach(function (x) { for (var k in (x.cli || {})) cli[k] = (cli[k] || 0) + x.cli[k]; });
+  var lc = Object.keys(cli).sort(function (a, b) { return cli[b] - cli[a]; }).slice(0, 10);
+  document.getElementById("v-cli").innerHTML = lc.length ? lc.map(function (k) {
+    return '<li><span>' + (k === "/" ? "Página inicial" : k.replace(/</g, "&lt;")) + '</span><b>' + cli[k] + '</b></li>';
+  }).join("") : "<li>Ainda sem cliques registrados.</li>";
   var ori = {};
   ult.forEach(function (x) { for (var k in (x.ori || {})) ori[k] = (ori[k] || 0) + x.ori[k]; });
   var lo = Object.keys(ori).sort(function (a, b) { return ori[b] - ori[a]; }).slice(0, 10);

@@ -88,4 +88,12 @@
   try { utm = new URLSearchParams(location.search).get("utm_source") || ""; } catch (e) {}
   var corpo = JSON.stringify({ p: location.pathname, nova: nova, r: ref, u: utm });
   try { fetch("/api/visitas", { method: "POST", body: corpo, keepalive: true, headers: { "Content-Type": "application/json" } }); } catch (e) {}
+
+  // Cliques nos botões do WhatsApp (conta de qual página saiu o clique)
+  document.addEventListener("click", function (ev) {
+    var a = ev.target.closest && ev.target.closest('a[href*="wa.me"], a[href*="api.whatsapp.com"]');
+    if (!a) return;
+    var c = JSON.stringify({ p: location.pathname, clique: "whatsapp" });
+    try { fetch("/api/visitas", { method: "POST", body: c, keepalive: true, headers: { "Content-Type": "application/json" } }); } catch (e) {}
+  });
 })();
