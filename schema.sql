@@ -27,3 +27,10 @@ CREATE TABLE IF NOT EXISTS origens (
   pes INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (dia, origem)
 );
+CREATE TABLE IF NOT EXISTS jogo (
+  dia TEXT NOT NULL,
+  de TEXT NOT NULL,
+  evento TEXT NOT NULL,
+  n INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (dia, de, evento)
+);

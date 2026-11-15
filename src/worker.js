@@ -1,6 +1,8 @@
 // Worker do site: serve os arquivos estáticos (dist) e o contador de visitas.
 // POST /api/visitas  { p: "/caminho/", nova: true, r: "site.de.origem", u: "utm_source" }  -> soma uma visita
 // GET  /api/visitas  (com senha)                                                          -> últimos 90 dias
+// POST /api/jogo  { e: "abriu|jogou|instalou|fase|cena|nivel", de: "convite" }            -> soma um evento do jogo (anônimo)
+// GET  /api/jogo  (com senha)                                                             -> eventos dos últimos 90 dias
 // /visitas/ e /admin/ (com senha)                                                         -> painel de visitas e editor do blog
 const FUSO = "America/Sao_Paulo";
 const hoje = (d = new Date()) => d.toLocaleDateString("en-CA", { timeZone: FUSO }); // AAAA-MM-DD
@@ -88,6 +90,37 @@ async function registrar(req, env) {
   return new Response(null, { status: 204 });
 }
 
+// ---------- jogo Mente Renovada: contagem anônima de abriu / jogou / instalou, por convite ----------
+// Não guarda IP, nome nem aparelho: só somas por dia. "de" é o nome que o dono colocou no link do convite (?de=maria).
+const EVENTOS_JOGO = new Set(["abriu", "jogou", "instalou", "fase", "cena", "nivel"]);
+let tabelaJogo = false;
+async function garantirTabelaJogo(env) {
+  if (tabelaJogo) return;
+  await env.visitas.prepare(
+    "CREATE TABLE IF NOT EXISTS jogo (dia TEXT NOT NULL, de TEXT NOT NULL, evento TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (dia, de, evento))",
+  ).run();
+  tabelaJogo = true;
+}
+async function registrarJogo(req, env) {
+  if (ROBO.test(req.headers.get("user-agent") || "")) return new Response(null, { status: 204 });
+  let corpo = {};
+  try { corpo = JSON.parse((await req.text()).slice(0, 500)); } catch {}
+  const evento = String(corpo.e || "");
+  if (!EVENTOS_JOGO.has(evento)) return new Response(null, { status: 400 });
+  const de = String(corpo.de || "").toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 24) || "direto";
+  await garantirTabelaJogo(env);
+  await env.visitas.prepare(
+    "INSERT INTO jogo (dia, de, evento, n) VALUES (?1, ?2, ?3, 1) ON CONFLICT(dia, de, evento) DO UPDATE SET n = n + 1",
+  ).bind(hoje(), de, evento).run();
+  return new Response(null, { status: 204 });
+}
+async function listarJogo(env) {
+  await garantirTabelaJogo(env);
+  const inicio = hoje(new Date(Date.now() - 89 * 864e5));
+  const r = await env.visitas.prepare("SELECT dia, de, evento, n FROM jogo WHERE dia >= ?1").bind(inicio).all();
+  return Response.json(r.results, { headers: { "Cache-Control": "private, no-store" } });
+}
+
 async function listar(env) {
   const dias = [];
   for (let i = 89; i >= 0; i--) dias.push(hoje(new Date(Date.now() - i * 864e5)));
@@ -118,6 +151,11 @@ export default {
     if (url.pathname === "/api/visitas") {
       if (req.method === "POST") return registrar(req, env);
       if (req.method === "GET") return (await autorizado(req, env)) ? listar(env) : pedirSenha();
+      return new Response(null, { status: 405 });
+    }
+    if (url.pathname === "/api/jogo") {
+      if (req.method === "POST") return registrarJogo(req, env);
+      if (req.method === "GET") return (await autorizado(req, env)) ? listarJogo(env) : pedirSenha();
       return new Response(null, { status: 405 });
     }
     const protegido = /^\/(visitas|admin)(\/|$)/.test(url.pathname); // painel de visitas e editor do blog
