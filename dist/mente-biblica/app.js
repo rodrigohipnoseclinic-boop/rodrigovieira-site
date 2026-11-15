@@ -27,19 +27,59 @@ let store = { hist: [] };
 try { store = Object.assign(store, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) {}
 const salvar = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} };
 
-/* ---------- som ---------- */
-let ac;
-function bip(freq, dur = 0.18) {
+/* ---------- som: cada tipo de desafio tem a sua assinatura sonora ---------- */
+// root: nota base (Hz) · esc: semitons permitidos · tipo: timbre · dec: duração da nota · motivo: vinheta de abertura
+const SONS = {
+  roda:       { root: 261.63, esc: [0, 2, 4, 7, 9],     tipo: "triangle", vol: .30, dec: 1.6, motivo: [0, 4, 7, 12, 16] },   // harpa
+  caca:       { root: 293.66, esc: [0, 2, 3, 7, 9],     tipo: "square",   vol: .10, dec: .7,  motivo: [0, 3, 7, 3, 12] },    // sonar
+  cruzadinha: { root: 220.00, esc: [0, 3, 5, 7, 10],    tipo: "triangle", vol: .32, dec: .6,  motivo: [0, 7, 3, 10, 12] },   // marimba
+  verso:      { root: 174.61, esc: [0, 2, 4, 6, 7, 9],  tipo: "sine",     vol: .30, dec: 2.2, atk: .06, motivo: [0, 7, 11, 14] }, // órgão
+  versiculo:  { root: 196.00, esc: [0, 2, 4, 7, 9],     tipo: "sine",     vol: .30, dec: 1.4, motivo: [0, 2, 4, 7, 9, 12] }, // lira
+  quiz:       { root: 329.63, esc: [0, 2, 4, 5, 7, 9, 11], tipo: "sine",  vol: .28, dec: 2.0, motivo: [12, 7, 12, 16] },     // sino
+  pares:      { root: 523.25, esc: [0, 2, 4, 7, 9],     tipo: "square",   vol: .09, dec: .35, motivo: [0, 12, 4, 16] },     // tambor de madeira
+  intruso:    { root: 146.83, esc: [0, 2, 3, 5, 7, 8, 10], tipo: "sawtooth", vol: .08, dec: .9, motivo: [0, 1, 0, 6] },     // mistério
+  calculo:    { root: 261.63, esc: [0, 4, 7, 12],       tipo: "square",   vol: .09, dec: .4,  motivo: [0, 4, 7, 12, 7, 12] }, // 8 bits
+  sequencia:  { root: 392.00, esc: [0, 2, 7, 12], fixo: true, tipo: "sine", vol: .30, dec: 1.2, motivo: [0, 2, 7, 12] },      // cristal
+  ordem:      { root: 233.08, esc: [0, 2, 4, 5, 7, 9, 11], tipo: "triangle", vol: .30, dec: 1.0, motivo: [0, 2, 4, 5, 7] }, // escada
+  palavras:   { root: 164.81, esc: [0, 3, 5, 7, 10],    tipo: "triangle", vol: .30, dec: 1.2, motivo: [0, 5, 3, 7, 12] }    // flauta
+};
+let ac, somAtual = "roda";
+const somLigado = () => !store.mudo;
+const quant = f => {
+  const S = SONS[somAtual] || SONS.roda; if (S.fixo) return f;
+  const n = 12 * Math.log2(f / S.root); let melhor = 0, dist = 1e9;
+  for (let o = Math.floor(n / 12) - 1; o <= Math.floor(n / 12) + 1; o++) for (const x of S.esc) { const m = o * 12 + x, d = Math.abs(m - n); if (d < dist) { dist = d; melhor = m; } }
+  return S.root * Math.pow(2, melhor / 12);
+};
+function bip(freq, dur = 0.18, atraso = 0, forca = 1, musical = false) {
+  if (!somLigado()) return;
   try {
     ac = ac || new (window.AudioContext || window.webkitAudioContext)();
-    const o = ac.createOscillator(), g = ac.createGain();
-    o.frequency.value = freq; o.type = "sine"; o.connect(g); g.connect(ac.destination);
-    g.gain.setValueAtTime(0.0001, ac.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.25, ac.currentTime + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
-    o.start(); o.stop(ac.currentTime + dur + 0.02);
+    if (ac.state === "suspended") ac.resume();
+    const S = SONS[somAtual] || SONS.roda, erro = !musical && freq < 200, f = erro ? freq : musical ? freq : quant(freq), t0 = ac.currentTime + atraso;
+    const fim = t0 + dur * (erro ? 1 : S.dec) + .06, o = ac.createOscillator(), g = ac.createGain();
+    o.type = erro ? "sawtooth" : S.tipo; o.frequency.setValueAtTime(f, t0);
+    if (erro) o.frequency.exponentialRampToValueAtTime(f * .7, t0 + dur);
+    g.gain.setValueAtTime(.0001, t0);
+    g.gain.exponentialRampToValueAtTime((erro ? .1 : S.vol) * forca, t0 + (S.atk || .015));
+    g.gain.exponentialRampToValueAtTime(.0001, fim);
+    o.connect(g); g.connect(ac.destination); o.start(t0); o.stop(fim + .02);
   } catch (e) {}
 }
+// vinheta de abertura de cada desafio
+function somAbertura(id) {
+  const S = SONS[id]; if (!S) return;
+  S.motivo.forEach((m, i) => bip(S.root * Math.pow(2, m / 12), .16, i * .11, .8, true));
+}
+// fim de fase: arpejo na escala do desafio; subir de nível ganha um floreio
+function somFim(est, subiu) {
+  const S = SONS[somAtual] || SONS.roda, notas = [...S.esc, ...S.esc.map(x => x + 12), ...S.esc.map(x => x + 24)];
+  const n = [2, 3, 5, 7][est];
+  for (let i = 0; i < n; i++) bip(S.root * 2 * Math.pow(2, notas[i] / 12), .22, i * .1, 1, true);
+  if (subiu) [0, 4, 7, 12, 16, 19].forEach((m, i) => bip(523.25 * Math.pow(2, m / 12), .35, .7 + i * .09, 1.1, true));
+}
+function iconeSom() { return somLigado() ? "🔊" : "🔇"; }
+function alternarSom() { store.mudo = !store.mudo; salvar(); document.querySelectorAll("[data-som]").forEach(b => { b.textContent = iconeSom() + (b.dataset.som === "chip" ? " Som" : ""); b.setAttribute("aria-label", somLigado() ? "Desligar som" : "Ligar som"); }); if (somLigado()) bip(523, .15); }
 
 /* ---------- jogos ---------- */
 const CATS = ["Memória", "Atenção", "Linguagem", "Raciocínio", "Conhecimento"];
@@ -700,7 +740,7 @@ function telaHome() {
   const hora = new Date().getHours(), saud = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
   view.innerHTML = `
     <div class="topo"><small>Treino mental bíblico</small><h1>${saud}! 🙏</h1><p>${esc(D.dicas[diaIdx() % D.dicas.length])}</p>
-      <div class="chips"><span class="chip">🔥 <b>${seq}</b> ${seq === 1 ? "dia" : "dias"} seguidos</span><span class="chip">✅ <b>${n}/3</b> fases hoje</span></div></div>
+      <div class="chips"><span class="chip">🔥 <b>${seq}</b> ${seq === 1 ? "dia" : "dias"} seguidos</span><span class="chip">✅ <b>${n}/3</b> fases hoje</span><button class="chip" data-som="chip" aria-label="Som">${iconeSom()} Som</button></div></div>
     <div class="sobe">
       <div class="card"><div class="rot">Sua jornada</div>
         <div class="jornada"><div><h2>Fase ${store.fase || 1} · Nível ${nivelXP()}</h2><p class="pequeno" style="margin:2px 0 0">🪙 ${moedas()} moedas · 🖼️ ${(store.cartas || []).length} cartões</p></div></div>
@@ -714,6 +754,7 @@ function telaHome() {
         <button class="link" id="agora-nao">Agora não</button></div>`}
       <div class="card"><div class="rot">Versículo do dia</div><div class="versiculo">“${esc(textoVersiculo(v))}”<cite>${esc(v.ref)}</cite></div></div>
     </div>`;
+  view.querySelector("[data-som]").onclick = alternarSom;
   const bi = $("#btn-instalar");
   if (bi) {
     bi.onclick = async () => {
@@ -759,9 +800,11 @@ function telaProgresso() {
 function jogar(id, jornada = false) {
   limpar(); appEl.classList.add("em-jogo"); window.scrollTo(0, 0);
   const g = JOGOS[id], nivel = nivelXP();
-  view.innerHTML = `<div class="gbar"><button class="x" id="sai" aria-label="Sair">✕</button><h2>${g.ico} ${g.nome}</h2><span class="prog" id="prog"></span></div>
+  view.innerHTML = `<div class="gbar"><button class="x" id="sai" aria-label="Sair">✕</button><h2>${g.ico} ${g.nome}</h2><span class="prog" id="prog"></span><button class="x" data-som="x" aria-label="Som">${iconeSom()}</button></div>
     <div class="barra"><i id="barra"></i></div><div class="stage" id="stage"></div>`;
   $("#sai").onclick = () => ir("home");
+  view.querySelector("[data-som]").onclick = alternarSom;
+  somAtual = id; somAbertura(id);
   const progresso = (i, total) => { $("#prog").textContent = total > 1 ? `${Math.min(i + 1, total)}/${total}` : ""; $("#barra").style.width = (i / total * 100) + "%"; };
   g.iniciar({ stage: $("#stage"), progresso, nivel, jornada, terminar: (s, vv, gi) => resultado(id, s, jornada, vv, gi) });
 }
@@ -776,6 +819,7 @@ function resultado(id, score, jornada, extra, gi) {
   const msgs = ["Continue treinando, cada partida fortalece a mente.", "Bom começo! Mais uma partida e você melhora.", "Muito bom! Sua mente está ficando mais afiada.", "Excelente! Sabedoria e atenção em dia."];
   const v = (info && info.carta) || extra || pick(D.versiculos);
   const prox = info ? JOGOS[proximoJogo()] : null;
+  somFim(est, !!(info && info.subiu));
   view.innerHTML = `<div class="resultado">
     <div class="estrelas">${[0, 1, 2].map(i => `<span class="${i < est ? "" : "apagada"}">⭐</span>`).join("")}</div>
     <div class="pontos">${score}<small>%</small></div>

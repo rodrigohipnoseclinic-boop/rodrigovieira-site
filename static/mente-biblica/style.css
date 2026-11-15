@@ -214,3 +214,7 @@ h1,h2,h3{font-family:var(--serif);margin:0;line-height:1.2}
 .proxima b{font-family:var(--serif);font-size:17px}
 .resultado .xpbar{max-width:300px;margin:0 auto 4px}
 .resultado small.pequeno{display:block;margin-bottom:18px}
+
+/* som */
+.chip[data-som]{color:inherit;cursor:pointer}
+.gbar .prog{margin-right:4px}
