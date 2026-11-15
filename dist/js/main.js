@@ -76,3 +76,12 @@
     alvos.forEach(function (el) { el.classList.add("revelar"); io.observe(el); });
   }
 })();
+
+// Contador de visitas (sem cookies; "nova" = primeira visita da pessoa no dia)
+(function () {
+  if (location.hostname === "localhost" || /^\/(admin|visitas)/.test(location.pathname)) return;
+  var dia = new Date().toDateString(), nova = true;
+  try { nova = localStorage.getItem("rv-dia") !== dia; localStorage.setItem("rv-dia", dia); } catch (e) {}
+  var corpo = JSON.stringify({ p: location.pathname, nova: nova });
+  try { fetch("/api/visitas", { method: "POST", body: corpo, keepalive: true, headers: { "Content-Type": "application/json" } }); } catch (e) {}
+})();

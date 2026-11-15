@@ -1,9 +1,20 @@
 {
   // Site estático: a Cloudflare publica a pasta dist, gerada por "node build.mjs"
+  // O worker em src/worker.js só atende /api/*: o contador de visitas (D1 "visitas")
   "name": "rodrigovieira-site",
+  "main": "src/worker.js",
   "compatibility_date": "2026-11-11",
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "404-page"
-  }
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "visitas",
+      "database_name": "visitas",
+      "database_id": "385d8779-1cdd-4b77-b408-7c1aaeaf6978"
+    }
+  ]
 }
