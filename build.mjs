@@ -561,6 +561,10 @@ function paginaObrigado() {
 
 // Painel de visitas (endereço não divulgado; os números vêm de /api/visitas)
 function paginaVisitas() {
+  // nomes legíveis para os endereços (o painel mostra o título no lugar do caminho)
+  const titulos = { "/": "Página inicial", "/blog/": "Blog", "/inscreva-se/": "Formulário de inscrição", "/inscreva-se/obrigado/": "Inscrição enviada (obrigado)" };
+  posts.forEach((p) => { titulos[p.url] = p.titulo; });
+  const titulosJson = JSON.stringify(titulos).replace(/</g, "\\u003c");
   return layout({
     titulo: "Visitas do site",
     url: "/visitas/",
@@ -568,54 +572,79 @@ function paginaVisitas() {
     conteudo: `<section class="blog-topo">
   <span class="sobretitulo">Painel</span>
   <h1>Visitas do site</h1>
-  <p>Pessoas = visitantes diferentes no dia. Visualizações = páginas abertas.</p>
+  <p>Pessoas = visitantes diferentes no dia. Visualizações = páginas abertas. As setas comparam com o período anterior.</p>
 </section>
 <section class="secao secao--visitas">
   <div class="visitas-num" id="v-num"><p class="centro">Carregando…</p></div>
   <h2>Pessoas por dia <small>(últimos 30 dias)</small></h2>
   <div class="visitas-graf" id="v-graf"></div>
-  <h2>Cliques no WhatsApp <small>(últimos 30 dias)</small></h2>
+  <h2>Cliques no WhatsApp</h2>
   <div class="visitas-num" id="v-cli-num"></div>
+  <h2>Cliques por página <small>(últimos 30 dias · taxa = cliques ÷ visualizações)</small></h2>
   <ol class="visitas-pag" id="v-cli"></ol>
-  <h2>De onde vêm as pessoas <small>(últimos 30 dias)</small></h2>
+  <h2>De onde vêm as pessoas <small>(últimos 30 dias · taxa = cliques ÷ pessoas)</small></h2>
   <ol class="visitas-pag" id="v-ori"></ol>
   <h2>Páginas mais vistas <small>(últimos 30 dias)</small></h2>
   <ol class="visitas-pag" id="v-pag"></ol>
 </section>
 <script>
 try { localStorage.setItem("rv-dono", "1"); } catch (e) {} // quem abre o painel é o dono: este navegador deixa de ser contado
+var TIT = ${titulosJson};
+function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+function nome(k) { return esc(TIT[k] || k); }
+function tot(o) { var s = 0; for (var k in (o || {})) s += o[k]; return s; }
+function fatia(d, n, deslocar) { var fim = d.length - deslocar; return d.slice(Math.max(0, fim - n), fim); }
+function somaDias(arr, f) { return arr.reduce(function (t, x) { return t + f(x); }, 0); }
+function taxa(a, b) { return b ? (Math.round(a / b * 1000) / 10).toString().replace(".", ",") + "%" : "—"; }
+function delta(atual, antes, rot) {
+  if (!rot) return "";
+  if (!antes) return '<small>sem registro em ' + rot + '</small>';
+  var p = Math.round((atual - antes) / antes * 100);
+  if (p === 0) return '<small>= igual a ' + rot + '</small>';
+  return '<small class="' + (p > 0 ? "v-up" : "v-down") + '">' + (p > 0 ? "▲ " : "▼ ") + Math.abs(p) + '% vs ' + rot + '</small>';
+}
+function ordenar(o) { return Object.keys(o).sort(function (a, b) { return o[b] - o[a]; }); }
 fetch("/api/visitas").then(function (r) { return r.json(); }).then(function (d) {
-  function soma(n, k) { return d.slice(-n).reduce(function (t, x) { return t + x[k]; }, 0); }
-  var blocos = [["Hoje", 1], ["7 dias", 7], ["30 dias", 30], ["90 dias", 90]];
-  document.getElementById("v-num").innerHTML = blocos.map(function (b) {
-    return '<div><span>' + b[0] + '</span><strong>' + soma(b[1], "pes") + '</strong><small>pessoas · ' + soma(b[1], "vis") + ' visualizações</small></div>';
+  var pes = function (x) { return x.pes; }, vis = function (x) { return x.vis; }, cl = function (x) { return tot(x.cli); };
+
+  document.getElementById("v-num").innerHTML = [["Hoje", 1, "ontem"], ["7 dias", 7, "7 dias antes"], ["30 dias", 30, "30 dias antes"], ["90 dias", 90, null]].map(function (b) {
+    var a = somaDias(fatia(d, b[1], 0), pes), p = somaDias(fatia(d, b[1], b[1]), pes);
+    return '<div><span>' + b[0] + '</span><strong>' + a + '</strong><small>pessoas · ' + somaDias(fatia(d, b[1], 0), vis) + ' visualizações</small>' + delta(a, p, b[2]) + '</div>';
   }).join("");
-  var ult = d.slice(-30), max = Math.max.apply(null, ult.map(function (x) { return x.pes; }).concat(1));
+
+  var ult = d.slice(-30), max = Math.max.apply(null, ult.map(pes).concat(1));
   document.getElementById("v-graf").innerHTML = ult.map(function (x) {
     var dt = x.dia.split("-").reverse().slice(0, 2).join("/");
     return '<div title="' + dt + ': ' + x.pes + ' pessoas"><i style="height:' + (x.pes / max * 100) + '%"></i><span>' + dt + '</span></div>';
   }).join("");
-  function somaCli(n) { return d.slice(-n).reduce(function (t, x) { var s = 0; for (var k in (x.cli || {})) s += x.cli[k]; return t + s; }, 0); }
-  document.getElementById("v-cli-num").innerHTML = [["Hoje", 1], ["7 dias", 7], ["30 dias", 30]].map(function (b) {
-    return '<div><span>' + b[0] + '</span><strong>' + somaCli(b[1]) + '</strong><small>cliques</small></div>';
+
+  document.getElementById("v-cli-num").innerHTML = [["Hoje", 1, "ontem"], ["7 dias", 7, "7 dias antes"], ["30 dias", 30, "30 dias antes"]].map(function (b) {
+    var a = somaDias(fatia(d, b[1], 0), cl), p = somaDias(fatia(d, b[1], b[1]), cl), gente = somaDias(fatia(d, b[1], 0), pes);
+    return '<div><span>' + b[0] + '</span><strong>' + a + '</strong><small>cliques · ' + taxa(a, gente) + ' das pessoas</small>' + delta(a, p, b[2]) + '</div>';
   }).join("");
-  var cli = {};
-  ult.forEach(function (x) { for (var k in (x.cli || {})) cli[k] = (cli[k] || 0) + x.cli[k]; });
-  var lc = Object.keys(cli).sort(function (a, b) { return cli[b] - cli[a]; }).slice(0, 10);
+
+  var pag = {}, cli = {}, ori = {}, cor = {};
+  ult.forEach(function (x) {
+    for (var k in x.pag) pag[k] = (pag[k] || 0) + x.pag[k];
+    for (var c in (x.cli || {})) cli[c] = (cli[c] || 0) + x.cli[c];
+    for (var o in (x.ori || {})) ori[o] = (ori[o] || 0) + x.ori[o];
+    for (var q in (x.cor || {})) cor[q] = (cor[q] || 0) + x.cor[q];
+  });
+
+  var lc = ordenar(cli).slice(0, 10);
   document.getElementById("v-cli").innerHTML = lc.length ? lc.map(function (k) {
-    return '<li><span>' + (k === "/" ? "Página inicial" : k.replace(/</g, "&lt;")) + '</span><b>' + cli[k] + '</b></li>';
+    return '<li><span>' + nome(k) + '</span><b>' + cli[k] + ' <small>cliques · ' + taxa(cli[k], pag[k]) + '</small></b></li>';
   }).join("") : "<li>Ainda sem cliques registrados.</li>";
-  var ori = {};
-  ult.forEach(function (x) { for (var k in (x.ori || {})) ori[k] = (ori[k] || 0) + x.ori[k]; });
-  var lo = Object.keys(ori).sort(function (a, b) { return ori[b] - ori[a]; }).slice(0, 10);
+
+  var chaves = {}; Object.keys(ori).concat(Object.keys(cor)).forEach(function (k) { chaves[k] = (ori[k] || 0) * 1000 + (cor[k] || 0); });
+  var lo = ordenar(chaves).slice(0, 10);
   document.getElementById("v-ori").innerHTML = lo.length ? lo.map(function (k) {
-    return '<li><span>' + k.replace(/</g, "&lt;") + '</span><b>' + ori[k] + '</b></li>';
+    return '<li><span>' + esc(k) + '</span><b>' + (ori[k] || 0) + ' <small>pessoas · ' + (cor[k] || 0) + ' cliques · ' + taxa(cor[k] || 0, ori[k] || 0) + '</small></b></li>';
   }).join("") : "<li>Ainda sem dados de origem.</li>";
-  var pag = {};
-  ult.forEach(function (x) { for (var k in x.pag) pag[k] = (pag[k] || 0) + x.pag[k]; });
-  var lista = Object.keys(pag).sort(function (a, b) { return pag[b] - pag[a]; }).slice(0, 15);
+
+  var lista = ordenar(pag).slice(0, 15);
   document.getElementById("v-pag").innerHTML = lista.length ? lista.map(function (k) {
-    return '<li><a href="' + k.replace(/"/g, "") + '">' + (k === "/" ? "Página inicial" : k.replace(/</g, "&lt;")) + '</a><b>' + pag[k] + '</b></li>';
+    return '<li><a href="' + esc(k) + '">' + nome(k) + '</a><b>' + pag[k] + ' <small>visualizações' + (cli[k] ? ' · ' + cli[k] + ' cliques' : '') + '</small></b></li>';
   }).join("") : "<li>Ainda sem visitas registradas.</li>";
 }).catch(function () { document.getElementById("v-num").innerHTML = '<p class="centro">Não foi possível carregar os números agora.</p>'; });
 </script>`,

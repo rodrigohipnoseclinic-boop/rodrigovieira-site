@@ -15,6 +15,12 @@ CREATE TABLE IF NOT EXISTS cliques (
   cli INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (dia, pagina)
 );
+CREATE TABLE IF NOT EXISTS cliques_origem (
+  dia TEXT NOT NULL,
+  origem TEXT NOT NULL,
+  cli INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (dia, origem)
+);
 CREATE TABLE IF NOT EXISTS origens (
   dia TEXT NOT NULL,
   origem TEXT NOT NULL,

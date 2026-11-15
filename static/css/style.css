@@ -380,4 +380,7 @@ p{margin:0 0 1em}
 .visitas-pag li{padding:.5rem 0;border-bottom:1px solid var(--c-linha)}
 .visitas-pag li:last-child{border-bottom:0}
 .visitas-pag a{color:var(--c-texto);word-break:break-all}
-.visitas-pag b{float:right;margin-left:1rem}
+.visitas-pag b{float:right;margin-left:1rem;text-align:right}
+.visitas-pag b small{font-size:.75rem;font-weight:400;opacity:.7}
+.visitas-num small.v-up{color:#2F7A4F;opacity:1;font-weight:600}
+.visitas-num small.v-down{color:#B5483A;opacity:1;font-weight:600}

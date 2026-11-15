@@ -59,9 +59,14 @@ async function registrar(req, env) {
   if (pagina.startsWith("/admin") || pagina.startsWith("/visitas")) return new Response(null, { status: 204 });
   const dia = hoje();
   if (corpo.clique === "whatsapp") {
-    await env.visitas.prepare(
-      "INSERT INTO cliques (dia, pagina, cli) VALUES (?1, ?2, 1) ON CONFLICT(dia, pagina) DO UPDATE SET cli = cli + 1",
-    ).bind(dia, pagina).run();
+    await env.visitas.batch([
+      env.visitas.prepare(
+        "INSERT INTO cliques (dia, pagina, cli) VALUES (?1, ?2, 1) ON CONFLICT(dia, pagina) DO UPDATE SET cli = cli + 1",
+      ).bind(dia, pagina),
+      env.visitas.prepare(
+        "INSERT INTO cliques_origem (dia, origem, cli) VALUES (?1, ?2, 1) ON CONFLICT(dia, origem) DO UPDATE SET cli = cli + 1",
+      ).bind(dia, origem(corpo.r, corpo.u)),
+    ]);
     return new Response(null, { status: 204 });
   }
   const lote = [
@@ -87,18 +92,20 @@ async function listar(env) {
   const dias = [];
   for (let i = 89; i >= 0; i--) dias.push(hoje(new Date(Date.now() - i * 864e5)));
   const inicio = dias[0];
-  const [d, p, o, c] = await env.visitas.batch([
+  const [d, p, o, c, co] = await env.visitas.batch([
     env.visitas.prepare("SELECT dia, vis, pes FROM dias WHERE dia >= ?1").bind(inicio),
     env.visitas.prepare("SELECT dia, pagina, vis FROM paginas WHERE dia >= ?1").bind(inicio),
     env.visitas.prepare("SELECT dia, origem, pes FROM origens WHERE dia >= ?1").bind(inicio),
     env.visitas.prepare("SELECT dia, pagina, cli FROM cliques WHERE dia >= ?1").bind(inicio),
+    env.visitas.prepare("SELECT dia, origem, cli FROM cliques_origem WHERE dia >= ?1").bind(inicio),
   ]);
   const porDia = {};
-  const novo = () => ({ vis: 0, pes: 0, pag: {}, ori: {}, cli: {} });
+  const novo = () => ({ vis: 0, pes: 0, pag: {}, ori: {}, cli: {}, cor: {} });
   for (const x of d.results) porDia[x.dia] = { ...novo(), vis: x.vis, pes: x.pes };
   for (const x of p.results) (porDia[x.dia] ||= novo()).pag[x.pagina] = x.vis;
   for (const x of o.results) (porDia[x.dia] ||= novo()).ori[x.origem] = x.pes;
   for (const x of c.results) (porDia[x.dia] ||= novo()).cli[x.pagina] = x.cli;
+  for (const x of co.results) (porDia[x.dia] ||= novo()).cor[x.origem] = x.cli;
   return Response.json(
     dias.map((dia) => ({ dia, ...(porDia[dia] || novo()) })),
     { headers: { "Cache-Control": "private, no-store" } },
