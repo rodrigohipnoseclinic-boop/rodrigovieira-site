@@ -9,3 +9,9 @@ CREATE TABLE IF NOT EXISTS paginas (
   vis INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (dia, pagina)
 );
+CREATE TABLE IF NOT EXISTS origens (
+  dia TEXT NOT NULL,
+  origem TEXT NOT NULL,
+  pes INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (dia, origem)
+);

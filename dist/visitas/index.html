@@ -19,7 +19,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/style.css?v=mwh4ar2o">
+<link rel="stylesheet" href="/css/style.css?v=mwh4h9ls">
 <style>:root{--c-principal:#3F6F63;--c-principal-escura:#2F574D;--c-destaque:#B8873A;--c-fundo:#F7F5F0;--c-fundo-alt:#EDF1EC;--c-texto:#1C2B33;}</style>
 
 <meta name="robots" content="noindex">
@@ -49,6 +49,8 @@
   <div class="visitas-num" id="v-num"><p class="centro">Carregando…</p></div>
   <h2>Pessoas por dia <small>(últimos 30 dias)</small></h2>
   <div class="visitas-graf" id="v-graf"></div>
+  <h2>De onde vêm as pessoas <small>(últimos 30 dias)</small></h2>
+  <ol class="visitas-pag" id="v-ori"></ol>
   <h2>Páginas mais vistas <small>(últimos 30 dias)</small></h2>
   <ol class="visitas-pag" id="v-pag"></ol>
 </section>
@@ -65,6 +67,12 @@ fetch("/api/visitas").then(function (r) { return r.json(); }).then(function (d) 
     var dt = x.dia.split("-").reverse().slice(0, 2).join("/");
     return '<div title="' + dt + ': ' + x.pes + ' pessoas"><i style="height:' + (x.pes / max * 100) + '%"></i><span>' + dt + '</span></div>';
   }).join("");
+  var ori = {};
+  ult.forEach(function (x) { for (var k in (x.ori || {})) ori[k] = (ori[k] || 0) + x.ori[k]; });
+  var lo = Object.keys(ori).sort(function (a, b) { return ori[b] - ori[a]; }).slice(0, 10);
+  document.getElementById("v-ori").innerHTML = lo.length ? lo.map(function (k) {
+    return '<li><span>' + k.replace(/</g, "&lt;") + '</span><b>' + ori[k] + '</b></li>';
+  }).join("") : "<li>Ainda sem dados de origem.</li>";
   var pag = {};
   ult.forEach(function (x) { for (var k in x.pag) pag[k] = (pag[k] || 0) + x.pag[k]; });
   var lista = Object.keys(pag).sort(function (a, b) { return pag[b] - pag[a]; }).slice(0, 15);

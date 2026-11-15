@@ -83,6 +83,9 @@
   try { if (localStorage.getItem("rv-dono")) return; } catch (e) {} // navegador do dono: não conta
   var dia = new Date().toDateString(), nova = true;
   try { nova = localStorage.getItem("rv-dia") !== dia; localStorage.setItem("rv-dia", dia); } catch (e) {}
-  var corpo = JSON.stringify({ p: location.pathname, nova: nova });
+  var ref = "", utm = "";
+  try { var h = new URL(document.referrer).hostname; if (h && h !== location.hostname) ref = h; } catch (e) {}
+  try { utm = new URLSearchParams(location.search).get("utm_source") || ""; } catch (e) {}
+  var corpo = JSON.stringify({ p: location.pathname, nova: nova, r: ref, u: utm });
   try { fetch("/api/visitas", { method: "POST", body: corpo, keepalive: true, headers: { "Content-Type": "application/json" } }); } catch (e) {}
 })();

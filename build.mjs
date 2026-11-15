@@ -574,6 +574,8 @@ function paginaVisitas() {
   <div class="visitas-num" id="v-num"><p class="centro">Carregando…</p></div>
   <h2>Pessoas por dia <small>(últimos 30 dias)</small></h2>
   <div class="visitas-graf" id="v-graf"></div>
+  <h2>De onde vêm as pessoas <small>(últimos 30 dias)</small></h2>
+  <ol class="visitas-pag" id="v-ori"></ol>
   <h2>Páginas mais vistas <small>(últimos 30 dias)</small></h2>
   <ol class="visitas-pag" id="v-pag"></ol>
 </section>
@@ -590,6 +592,12 @@ fetch("/api/visitas").then(function (r) { return r.json(); }).then(function (d) 
     var dt = x.dia.split("-").reverse().slice(0, 2).join("/");
     return '<div title="' + dt + ': ' + x.pes + ' pessoas"><i style="height:' + (x.pes / max * 100) + '%"></i><span>' + dt + '</span></div>';
   }).join("");
+  var ori = {};
+  ult.forEach(function (x) { for (var k in (x.ori || {})) ori[k] = (ori[k] || 0) + x.ori[k]; });
+  var lo = Object.keys(ori).sort(function (a, b) { return ori[b] - ori[a]; }).slice(0, 10);
+  document.getElementById("v-ori").innerHTML = lo.length ? lo.map(function (k) {
+    return '<li><span>' + k.replace(/</g, "&lt;") + '</span><b>' + ori[k] + '</b></li>';
+  }).join("") : "<li>Ainda sem dados de origem.</li>";
   var pag = {};
   ult.forEach(function (x) { for (var k in x.pag) pag[k] = (pag[k] || 0) + x.pag[k]; });
   var lista = Object.keys(pag).sort(function (a, b) { return pag[b] - pag[a]; }).slice(0, 15);
