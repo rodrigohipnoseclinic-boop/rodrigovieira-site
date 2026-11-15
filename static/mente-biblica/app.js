@@ -109,6 +109,27 @@ function somManga(tipo) {
     if (tipo === "marcha") for (let i = 0; i < 10; i++) { pancada(80, .09, .12, i * .5); ruido(.05, 500, .05, i * .5); }
   } catch (e) {}
 }
+// Navegadores de celular só liberam áudio depois de um toque. No iPhone, o som do navegador também
+// some com a chave de silêncio ligada, a menos que a página toque um áudio de "mídia" em loop.
+let silencio = null, falaLiberada = false;
+function destravarAudio() {
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    if (ac.state === "suspended") ac.resume();
+    const b = ac.createBuffer(1, 1, 22050), s = ac.createBufferSource(); s.buffer = b; s.connect(ac.destination); s.start(0);
+  } catch (e) {}
+  try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {}
+  if (!silencio) {
+    try {
+      const n = 800, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf), w = (o, t) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+      w(0, "RIFF"); v.setUint32(4, 36 + n * 2, true); w(8, "WAVE"); w(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, 8000, true); v.setUint32(28, 16000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, "data"); v.setUint32(40, n * 2, true);
+      silencio = new Audio(URL.createObjectURL(new Blob([buf], { type: "audio/wav" }))); silencio.loop = true; silencio.setAttribute("playsinline", ""); silencio.play().catch(() => { silencio = null; });
+    } catch (e) { silencio = null; }
+  }
+  try { if ("speechSynthesis" in window && !falaLiberada) { const u = new SpeechSynthesisUtterance(" "); u.volume = 0; speechSynthesis.speak(u); falaLiberada = true; } } catch (e) {}
+}
+["pointerdown", "touchend", "click", "keydown"].forEach(ev => document.addEventListener(ev, destravarAudio, { passive: true }));
+document.addEventListener("visibilitychange", () => { if (!document.hidden && ac && ac.state === "suspended") ac.resume(); });
 function iconeSom() { return somLigado() ? "🔊" : "🔇"; }
 function alternarSom() { store.mudo = !store.mudo; salvar(); document.querySelectorAll("[data-som]").forEach(b => { b.textContent = iconeSom() + (b.dataset.som === "chip" ? " Som" : ""); b.setAttribute("aria-label", somLigado() ? "Desligar som" : "Ligar som"); }); if (somLigado()) bip(523, .15); else calarNarracao(); }
 
@@ -725,6 +746,7 @@ function barraXP() {
   if (!fim) return `<div class="xpbar"><i style="width:100%"></i></div><small class="pequeno">${xp()} XP · nível máximo. A roda de letras continua crescendo.</small>`;
   return `<div class="xpbar"><i style="width:${Math.round((xp() - ini) / (fim - ini) * 100)}%"></i></div><small class="pequeno">${xp()} / ${fim} XP para o nível ${n + 1}</small>`;
 }
+const alvoCena = () => { if (store.proxCena == null) { store.proxCena = 20 + rnd(11); salvar(); } return store.proxCena; };
 function concluirFase(id, score, bonus) {
   const fase = store.fase || 1, antes = nivelXP(), ganho = 10 + (bonus || 0);
   store.xp = xp() + score; store.moedas = moedas() + ganho;
@@ -733,7 +755,13 @@ function concluirFase(id, score, bonus) {
   if (nova) store.cartas = [...(store.cartas || []), carta.ref];
   store.fase = fase + 1; store.ultimo = id; store.baralho = (store.baralho || []).slice(1);
   proximoJogo();
-  return { fase, ganho, nova, carta, xpGanho: score, subiu: nivelXP() > antes, nivel: nivelXP() };
+  // cena de mangá: só depois de uma grande conquista, a cada 20 a 30 fases
+  let cena = null;
+  if (window.MANGA && fase >= alvoCena()) {
+    const tot = window.MANGA.lista.length, n = store.cenaN || 0; cena = n % tot;
+    store.cenaN = n + 1; store.cenasVistas = [...new Set([...(store.cenasVistas || []), cena])]; store.proxCena = fase + 20 + rnd(11);
+  }
+  return { fase, ganho, nova, carta, cena, xpGanho: score, subiu: nivelXP() > antes, nivel: nivelXP() };
 }
 const mediaCat = cat => {
   const ult = store.hist.filter(h => JOGOS[h.g] && JOGOS[h.g].cat === cat).slice(-6);
@@ -770,6 +798,7 @@ function telaHome() {
       <div class="card"><div class="rot">Sua jornada</div>
         <div class="jornada"><div><h2>Fase ${store.fase || 1} · Nível ${nivelXP()}</h2><p class="pequeno" style="margin:2px 0 0">🪙 ${moedas()} moedas · 🖼️ ${(store.cartas || []).length} cartões</p></div></div>
         ${barraXP()}
+        <p class="pequeno" style="margin:6px 0 0">🎬 Próxima cena de mangá em <b>${Math.max(1, alvoCena() - (store.fase || 1) + 1)}</b> ${Math.max(1, alvoCena() - (store.fase || 1) + 1) === 1 ? "fase" : "fases"}</p>
         <div class="proxima"><span>${prox.ico}</span><div><small>Próximo desafio</small><b>${prox.nome}</b></div></div>
         <button class="btn ouro" id="jornada">${(store.fase || 1) === 1 ? "Começar jornada" : "Continuar jornada"}</button></div>
       ${jaInstalado() || store.instalado || store.ocultaInstalar ? "" : `<div class="card" id="instalar"><div class="rot">📲 Leve no seu celular</div><h2>Instale o app</h2>
@@ -807,12 +836,25 @@ function telaProgresso() {
         ${ult.length ? `<div class="hist">${ult.map(h => `<div><span>${JOGOS[h.g].ico} ${JOGOS[h.g].nome}</span><b>${h.s}%</b></div>`).join("")}</div>` : '<p class="pequeno">Jogue o primeiro jogo para ver o seu histórico aqui.</p>'}</div>
       <div class="card"><div class="rot">Meus versículos (${(store.cartas || []).length}/${CARTAS.length})</div>
         ${(store.cartas || []).length ? `<div class="hist">${(store.cartas || []).map(r => CARTAS.find(c => c.ref === r)).filter(Boolean).map((c, i) => `<div style="display:block"><i style="font-family:Georgia,serif">“${esc(c.t)}”</i><br><b>${esc(c.ref)}</b> <button class="link" data-cartao="${i}">compartilhar</button></div>`).join("")}</div>` : '<p class="pequeno">Conclua a fase 3 da jornada para ganhar o primeiro cartão. Um novo a cada 3 fases!</p>'}</div>
+      <div class="card"><div class="rot">Minhas cenas (${(store.cenasVistas || []).length}/${(window.MANGA ? window.MANGA.lista.length : 0)})</div>
+        <p class="pequeno" style="margin:0 0 8px">Uma cena nova a cada 20 a 30 fases.</p>
+        <div class="hist">${(window.MANGA ? window.MANGA.lista : []).map((c, i) => (store.cenasVistas || []).includes(i) ? `<div><span>🎬 ${esc(c.t)}</span><button class="link" data-cena="${i}">assistir</button></div>` : `<div><span style="opacity:.5">🔒 Cena bloqueada</span></div>`).join("")}</div></div>
+      <div class="card"><div class="rot">Som e narração</div>
+        <p class="pequeno" style="margin:0 0 8px">Não ouve nada? Toque no botão. No iPhone, desligue a chave de silêncio ao lado e suba o volume.</p>
+        <button class="btn claro" id="testar-som" type="button">🔊 Testar som e voz</button><p class="pequeno" id="diag" style="margin-top:8px"></p></div>
       ${jaInstalado() ? "" : `<div class="card"><div class="rot">Instalar no celular</div><div class="guia">${guiaInstalar()}</div></div>`}
       <button class="link" id="zerar">Apagar meu progresso</button>
       <p class="pequeno" style="margin-top:14px">Versículos na tradução Almeida Revista e Corrigida. O progresso fica salvo apenas neste aparelho.</p>
     </div>`;
   const col = (store.cartas || []).map(r => CARTAS.find(c => c.ref === r)).filter(Boolean);
   view.querySelectorAll("[data-cartao]").forEach(b => b.onclick = () => compartilharCartao(col[+b.dataset.cartao]));
+  view.querySelectorAll("[data-cena]").forEach(b => b.onclick = () => tocarManga(window.MANGA.lista[+b.dataset.cena]));
+  $("#testar-som").onclick = () => {
+    destravarAudio(); if (!somLigado()) { $("#diag").textContent = "O som está desligado. Toque no botão 🔊 da tela inicial para ligar."; return; }
+    bip(523, .3, 0, 1, true); bip(659, .3, .25, 1, true); bip(784, .4, .5, 1, true); narrar("Teste de narração. Se você ouviu esta voz, a narração está funcionando.");
+    let nv = 0; try { nv = speechSynthesis.getVoices().length; } catch (e) {}
+    $("#diag").textContent = `Som: ligado · Áudio: ${ac ? ac.state : "não iniciado"} · Vozes no aparelho: ${nv}${vozPt ? " (português: " + vozPt.name + ")" : " (nenhuma em português: só haverá legenda)"}`;
+  };
   $("#zerar").onclick = () => { if (confirm("Apagar todo o seu progresso neste aparelho?")) { store = { hist: [] }; salvar(); telaProgresso(); } };
 }
 
@@ -828,11 +870,6 @@ function jogar(id, jornada = false) {
   g.iniciar({ stage: $("#stage"), progresso, nivel, jornada, terminar: (s, vv, gi) => resultado(id, s, jornada, vv, gi) });
 }
 
-function escolherCena(especial) {
-  const M = window.MANGA; if (!M) return null;
-  if (especial) return M.especial;
-  const n = M.lista.length - 1; let i; do { i = rnd(n); } while (n > 1 && i === store.cena); store.cena = i; return M.lista[i];
-}
 // cena em estilo mangá: uma página com quadros; a câmera visita um quadro de cada vez enquanto a narração toca
 function tocarManga(m) {
   calarNarracao();
@@ -876,10 +913,10 @@ function resultado(id, score, jornada, extra, gi) {
   const prox = info ? JOGOS[proximoJogo()] : null;
   somFim(est, !!(info && info.subiu));
   view.innerHTML = `<div class="resultado">
-    ${info ? '<button class="btn claro" id="assistir">🎬 Assistir a cena da vitória</button>' : ""}
+    ${info && info.cena != null ? '<button class="btn claro" id="assistir">🎬 Assistir à cena</button>' : ""}
     <div class="estrelas">${[0, 1, 2].map(i => `<span class="${i < est ? "" : "apagada"}">⭐</span>`).join("")}</div>
     <div class="pontos">${score}<small>%</small></div>
-    <p>${info ? `<b>Fase ${info.fase} concluída!</b> +${info.xpGanho} XP · +${info.ganho} 🪙<br>${info.subiu ? `🎉 <b>Você subiu para o nível ${info.nivel}!</b> Os desafios ficam mais difíceis.<br>` : ""}${info.nova ? "✨ Novo cartão de versículo na sua coleção!<br>" : ""}` : ""}${msgs[est]}</p>
+    <p>${info ? `<b>Fase ${info.fase} concluída!</b> +${info.xpGanho} XP · +${info.ganho} 🪙<br>${info.subiu ? `🎉 <b>Você subiu para o nível ${info.nivel}!</b> Os desafios ficam mais difíceis.<br>` : ""}${info.nova ? "✨ Novo cartão de versículo na sua coleção!<br>" : ""}${info.cena != null ? "🎬 <b>Grande conquista!</b> Você desbloqueou uma cena de mangá.<br>" : ""}` : ""}${msgs[est]}</p>
     ${info ? barraXP() : ""}
     <div class="versiculo">“${esc(textoVersiculo(v))}”<cite>${esc(v.ref)}</cite></div>
     ${info && info.carta ? '<button class="btn" id="cartao">🖼️ Compartilhar cartão do versículo</button>' : ""}
@@ -887,7 +924,7 @@ function resultado(id, score, jornada, extra, gi) {
     <button class="btn claro" id="inicio">Voltar ao início</button>
     ${navigator.share ? '<button class="link" id="share">Compartilhar resultado</button>' : ""}</div>`;
   const ct = $("#cartao"); if (ct) ct.onclick = () => compartilharCartao(v);
-  if (info) { const c = escolherCena(info.subiu); if (c) { $("#assistir").textContent = "🎬 Assistir de novo: " + c.t; $("#assistir").onclick = () => tocarManga(c); later(() => tocarManga(c), 1700); } }
+  if (info && info.cena != null) { const c = window.MANGA.lista[info.cena]; $("#assistir").textContent = "🎬 Assistir de novo: " + c.t; $("#assistir").onclick = () => tocarManga(c); later(() => tocarManga(c), 1700); }
   if (info) $("#prox").onclick = () => jogar(proximoJogo(), true); else $("#again").onclick = () => jogar(id);
   $("#inicio").onclick = () => ir("home");
   const sh = $("#share"); if (sh) sh.onclick = () => navigator.share({ title: "Mente Renovada", text: `Fiz ${score}% em “${JOGOS[id].nome}” no Mente Renovada! ${"⭐".repeat(est)}`, url: location.href.split("#")[0] }).catch(() => {});
