@@ -603,7 +603,12 @@ function delta(atual, antes, rot) {
   if (p === 0) return '<small>= igual a ' + rot + '</small>';
   return '<small class="' + (p > 0 ? "v-up" : "v-down") + '">' + (p > 0 ? "▲ " : "▼ ") + Math.abs(p) + '% vs ' + rot + '</small>';
 }
-function ordenar(o) { return Object.keys(o).sort(function (a, b) { return o[b] - o[a]; }); }
+var ORIG = { instagram: "Instagram", facebook: "Facebook", google: "Google", bing: "Bing", youtube: "YouTube", tiktok: "TikTok", whatsapp: "WhatsApp", linktree: "Linktree", direto: "Direto", "x (twitter)": "X (Twitter)", "outros buscadores": "Outros buscadores" };
+function nomeOrigem(k) {
+  if (ORIG[k]) return ORIG[k];
+  if (k.indexOf(".") > -1) return esc(k); // endereço de outro site: mostra completo
+  return esc(k.replace(/(^|[ _-])([a-z])/g, function (m, a, b) { return (a === "_" || a === "-" ? " " : a) + b.toUpperCase(); }));
+}function ordenar(o) { return Object.keys(o).sort(function (a, b) { return o[b] - o[a]; }); }
 fetch("/api/visitas").then(function (r) { return r.json(); }).then(function (d) {
   var pes = function (x) { return x.pes; }, vis = function (x) { return x.vis; }, cl = function (x) { return tot(x.cli); };
 
@@ -639,7 +644,7 @@ fetch("/api/visitas").then(function (r) { return r.json(); }).then(function (d) 
   var chaves = {}; Object.keys(ori).concat(Object.keys(cor)).forEach(function (k) { chaves[k] = (ori[k] || 0) * 1000 + (cor[k] || 0); });
   var lo = ordenar(chaves).slice(0, 10);
   document.getElementById("v-ori").innerHTML = lo.length ? lo.map(function (k) {
-    return '<li><span>' + esc(k) + '</span><b>' + (ori[k] || 0) + ' <small>pessoas · ' + (cor[k] || 0) + ' cliques · ' + taxa(cor[k] || 0, ori[k] || 0) + '</small></b></li>';
+    return '<li><span>' + nomeOrigem(k) + '</span><b>' + (ori[k] || 0) + ' <small>pessoas · ' + (cor[k] || 0) + ' cliques · ' + taxa(cor[k] || 0, ori[k] || 0) + '</small></b></li>';
   }).join("") : "<li>Ainda sem dados de origem.</li>";
 
   var lista = ordenar(pag).slice(0, 15);
