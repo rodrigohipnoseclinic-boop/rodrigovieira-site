@@ -87,11 +87,28 @@ function escolherVoz() {
   } catch (e) {}
 }
 if ("speechSynthesis" in window) { escolherVoz(); speechSynthesis.onvoiceschanged = escolherVoz; }
+function temVoz() { try { return !!(vozPt || speechSynthesis.getVoices().length); } catch (e) { return false; } }
 function narrar(texto) {
   if (!somLigado() || !("speechSynthesis" in window)) return;
   try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(texto); u.lang = "pt-BR"; if (vozPt) u.voice = vozPt; u.rate = .95; speechSynthesis.speak(u); } catch (e) {}
 }
 function calarNarracao() { try { if ("speechSynthesis" in window) speechSynthesis.cancel(); } catch (e) {} }
+// efeitos de mangá: cascos, trovão grave, água e passos
+function somManga(tipo) {
+  if (!somLigado()) return;
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === "suspended") ac.resume();
+    const t0 = ac.currentTime, ruido = (dur, f, vol, at = 0, q = 1) => { const n = Math.floor(ac.sampleRate * dur), buf = ac.createBuffer(1, n, ac.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      const src = ac.createBufferSource(), fl = ac.createBiquadFilter(), g = ac.createGain(); src.buffer = buf; fl.type = "lowpass"; fl.frequency.value = f; fl.Q.value = q;
+      g.gain.setValueAtTime(.0001, t0 + at); g.gain.exponentialRampToValueAtTime(vol, t0 + at + .03); g.gain.exponentialRampToValueAtTime(.0001, t0 + at + dur); src.connect(fl); fl.connect(g); g.connect(ac.destination); src.start(t0 + at); return fl; };
+    const pancada = (f, dur, vol, at) => { const o = ac.createOscillator(), g = ac.createGain(); o.type = "sine"; o.frequency.setValueAtTime(f, t0 + at); o.frequency.exponentialRampToValueAtTime(f * .45, t0 + at + dur); g.gain.setValueAtTime(vol, t0 + at); g.gain.exponentialRampToValueAtTime(.0001, t0 + at + dur); o.connect(g); g.connect(ac.destination); o.start(t0 + at); o.stop(t0 + at + dur + .05); };
+    if (tipo === "cavalos") for (let i = 0; i < 16; i++) { const at = i * .16 + (i % 2) * .03; pancada(110 + (i % 2) * 24, .12, .32, at); ruido(.07, 900, .12, at); }
+    if (tipo === "gooo") { const o = ac.createOscillator(), g = ac.createGain(), lf = ac.createOscillator(), lg = ac.createGain(); o.type = "sawtooth"; o.frequency.value = 42; lf.frequency.value = 7; lg.gain.value = 9; lf.connect(lg); lg.connect(o.frequency);
+      g.gain.setValueAtTime(.0001, t0); g.gain.exponentialRampToValueAtTime(.22, t0 + .6); g.gain.exponentialRampToValueAtTime(.0001, t0 + 3.4); const fl = ac.createBiquadFilter(); fl.type = "lowpass"; fl.frequency.value = 160; o.connect(fl); fl.connect(g); g.connect(ac.destination); o.start(t0); lf.start(t0); o.stop(t0 + 3.5); lf.stop(t0 + 3.5); ruido(3, 400, .09, 0); }
+    if (tipo === "agua") { const f = ruido(3.4, 600, .16, 0, 4); f.frequency.setValueAtTime(300, t0); f.frequency.exponentialRampToValueAtTime(1800, t0 + 2.2); }
+    if (tipo === "marcha") for (let i = 0; i < 10; i++) { pancada(80, .09, .12, i * .5); ruido(.05, 500, .05, i * .5); }
+  } catch (e) {}
+}
 function iconeSom() { return somLigado() ? "🔊" : "🔇"; }
 function alternarSom() { store.mudo = !store.mudo; salvar(); document.querySelectorAll("[data-som]").forEach(b => { b.textContent = iconeSom() + (b.dataset.som === "chip" ? " Som" : ""); b.setAttribute("aria-label", somLigado() ? "Desligar som" : "Ligar som"); }); if (somLigado()) bip(523, .15); else calarNarracao(); }
 
@@ -811,14 +828,40 @@ function jogar(id, jornada = false) {
   g.iniciar({ stage: $("#stage"), progresso, nivel, jornada, terminar: (s, vv, gi) => resultado(id, s, jornada, vv, gi) });
 }
 
-let cenaAtual = null;
-function cenaHTML(especial) {
-  const C = window.CENAS; if (!C) return "";
-  let c = C.especial;
-  if (!especial) { let i; do { i = rnd(C.lista.length); } while (C.lista.length > 1 && i === store.cena); store.cena = i; c = C.lista[i]; }
-  cenaAtual = c;
-  return `<figure class="cena"><svg viewBox="0 0 300 150" role="img" aria-label="${esc(c.t)}">${c.svg}</svg><figcaption><b>${esc(c.t)}</b> · ${esc(c.ref)}</figcaption>
-    <p class="narr">${esc(c.n)}</p><button class="link" id="ouvir">🔊 Ouvir de novo</button></figure>`;
+function escolherCena(especial) {
+  const M = window.MANGA; if (!M) return null;
+  if (especial) return M.especial;
+  const n = M.lista.length - 1; let i; do { i = rnd(n); } while (n > 1 && i === store.cena); store.cena = i; return M.lista[i];
+}
+// cena em estilo mangá: uma página com quadros; a câmera visita um quadro de cada vez enquanto a narração toca
+function tocarManga(m) {
+  calarNarracao();
+  const M = window.MANGA; if (!M) return;
+  const ov = document.createElement("div"); ov.className = "cinema manga";
+  ov.innerHTML = `<div class="c-topo"><span>🎬 ${esc(m.t)} · ${esc(m.ref)}</span><button class="c-pular" type="button">Pular ⏭</button></div><div class="m-tela"><svg viewBox="0 0 600 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g class="m-cam">${M.pagina(m)}</g></svg><div class="c-prog"><i></i></div></div><p class="m-leg" aria-live="polite"></p>`;
+  document.body.appendChild(ov);
+  const cam = ov.querySelector(".m-cam"), leg = ov.querySelector(".m-leg"), barra = ov.querySelector(".c-prog i");
+  let fim = false, bi = 0; const tm = [];
+  const T = (fn, ms) => tm.push(setTimeout(fn, ms));
+  const sair = () => { if (fim) return; fim = true; tm.forEach(clearTimeout); calarNarracao(); ov.classList.add("c-sai"); setTimeout(() => ov.remove(), 650); };
+  aoSair(sair); ov.querySelector(".c-pular").onclick = sair;
+  const visao = (x, y, w, h, zmax) => { const s = Math.min(570 / w, 740 / h, zmax); cam.style.transform = `translate(${300 - s * (x + w / 2)}px,${400 - s * (y + h / 2)}px) scale(${s})`; };
+  const mostrar = i => { const q = ov.querySelector(`.m-painel[data-i="${i}"]`), d = m.paineis[i]; q.classList.add("on"); visao(...M.box(d.pts), 2.5);
+    if (d.tremor) { T(() => { ov.classList.add("c-treme"); T(() => ov.classList.remove("c-treme"), 1500); }, 700); }
+    if (d.som) T(() => somManga(d.som), 500); };
+  visao(0, 0, 600, 900, .88);
+  const passo = () => {
+    if (fim) return;
+    if (bi >= m.beats.length) { visao(0, 0, 600, 900, .88); barra.style.width = "100%"; T(sair, 4200); return; }
+    const b = m.beats[bi++], est = Math.max(b.d || 14, b.fala.split(/\s+/).length / 2.3);
+    b.p.forEach((pi, k) => T(() => mostrar(pi), 300 + k * (est * 1000 / b.p.length)));
+    leg.textContent = b.fala; barra.style.transition = `width ${est}s linear`; barra.style.width = (bi / (m.beats.length + .001) * 100) + "%";
+    let falou = !(somLigado() && "speechSynthesis" in window && temVoz()), tempo = false;
+    const prox = () => { if (falou && tempo) passo(); };
+    T(() => { tempo = true; prox(); }, est * 1000);
+    if (!falou) { try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(b.fala); u.lang = "pt-BR"; if (vozPt) u.voice = vozPt; u.rate = .95; u.onend = u.onerror = () => { falou = true; prox(); }; speechSynthesis.speak(u); T(() => { falou = true; prox(); }, est * 1000 + 6000); } catch (e) { falou = true; } }
+  };
+  T(passo, 1500);
 }
 
 function resultado(id, score, jornada, extra, gi) {
@@ -833,7 +876,7 @@ function resultado(id, score, jornada, extra, gi) {
   const prox = info ? JOGOS[proximoJogo()] : null;
   somFim(est, !!(info && info.subiu));
   view.innerHTML = `<div class="resultado">
-    ${info ? cenaHTML(info.subiu) : ""}
+    ${info ? '<button class="btn claro" id="assistir">🎬 Assistir a cena da vitória</button>' : ""}
     <div class="estrelas">${[0, 1, 2].map(i => `<span class="${i < est ? "" : "apagada"}">⭐</span>`).join("")}</div>
     <div class="pontos">${score}<small>%</small></div>
     <p>${info ? `<b>Fase ${info.fase} concluída!</b> +${info.xpGanho} XP · +${info.ganho} 🪙<br>${info.subiu ? `🎉 <b>Você subiu para o nível ${info.nivel}!</b> Os desafios ficam mais difíceis.<br>` : ""}${info.nova ? "✨ Novo cartão de versículo na sua coleção!<br>" : ""}` : ""}${msgs[est]}</p>
@@ -844,7 +887,7 @@ function resultado(id, score, jornada, extra, gi) {
     <button class="btn claro" id="inicio">Voltar ao início</button>
     ${navigator.share ? '<button class="link" id="share">Compartilhar resultado</button>' : ""}</div>`;
   const ct = $("#cartao"); if (ct) ct.onclick = () => compartilharCartao(v);
-  if (info && cenaAtual) { const c = cenaAtual; later(() => narrar(c.n), 1500); $("#ouvir").onclick = () => narrar(c.n); }
+  if (info) { const c = escolherCena(info.subiu); if (c) { $("#assistir").textContent = "🎬 Assistir de novo: " + c.t; $("#assistir").onclick = () => tocarManga(c); later(() => tocarManga(c), 1700); } }
   if (info) $("#prox").onclick = () => jogar(proximoJogo(), true); else $("#again").onclick = () => jogar(id);
   $("#inicio").onclick = () => ir("home");
   const sh = $("#share"); if (sh) sh.onclick = () => navigator.share({ title: "Mente Renovada", text: `Fiz ${score}% em “${JOGOS[id].nome}” no Mente Renovada! ${"⭐".repeat(est)}`, url: location.href.split("#")[0] }).catch(() => {});
@@ -853,5 +896,7 @@ function resultado(id, score, jornada, extra, gi) {
 
 document.querySelectorAll("#nav button").forEach(b => b.onclick = () => ir(b.dataset.go));
 ir("home");
+{ const qm = new URLSearchParams(location.search).get("manga"); // ?manga=0 a 9 toca uma cena direto (para pré-visualizar)
+  if (qm !== null && window.MANGA) { const c = window.MANGA.lista[+qm]; if (c) tocarManga(c); } }
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
 })();

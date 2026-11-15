@@ -829,45 +829,10 @@ function jogar(id, jornada = false) {
 }
 
 function escolherCena(especial) {
-  const C = window.CENAS; if (!C) return null;
-  if (especial) return C.especial;
-  let i; do { i = rnd(C.lista.length); } while (C.lista.length > 1 && i === store.cena); store.cena = i; return C.lista[i];
+  const M = window.MANGA; if (!M) return null;
+  if (especial) return M.especial;
+  const n = M.lista.length - 1; let i; do { i = rnd(n); } while (n > 1 && i === store.cena); store.cena = i; return M.lista[i];
 }
-// cena de vitória em tela cheia: planos com câmera, narração e legenda. Cada plano espera a fala terminar.
-function tocarCena(c) {
-  calarNarracao();
-  const ov = document.createElement("div"); ov.className = "cinema";
-  ov.innerHTML = `<div class="c-topo"><span>🎬 ${esc(c.t)} · ${esc(c.ref)}</span><button class="c-pular" type="button">Pular ⏭</button></div><div class="c-tela"><svg viewBox="0 0 480 320" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg><div class="c-vinheta"></div><div class="c-prog"><i></i></div></div><p class="c-leg" aria-live="polite"></p>`;
-  document.body.appendChild(ov);
-  const svg = ov.querySelector("svg"), leg = ov.querySelector(".c-leg"), barra = ov.querySelector(".c-prog i");
-  let i = 0, fim = false; const tm = [];
-  const T = (fn, ms) => tm.push(setTimeout(fn, ms));
-  const sair = () => { if (fim) return; fim = true; tm.forEach(clearTimeout); calarNarracao(); ov.classList.add("c-sai"); setTimeout(() => ov.remove(), 650); };
-  aoSair(sair);
-  ov.querySelector(".c-pular").onclick = sair;
-  const total = c.shots.length;
-  const passo = () => {
-    if (fim) return; if (i >= total) return sair();
-    const s = c.shots[i++], est = Math.max(s.d || 14, s.fala.split(/\s+/).length / 2.3), [z0, x0, y0, z1, x1, y1] = s.cam;
-    const g = document.createElementNS("http://www.w3.org/2000/svg", "g"); g.setAttribute("class", "shot");
-    g.innerHTML = `<g class="cam" style="--z0:${z0};--x0:${x0}px;--y0:${y0}px;--z1:${z1};--x1:${x1}px;--y1:${y1}px;--t:${est + 2}s">${s.svg}</g>`;
-    svg.querySelectorAll(".shot").forEach(o => { o.classList.add("sai"); T(() => o.remove(), 1000); });
-    svg.appendChild(g); leg.textContent = s.fala;
-    barra.style.transition = `width ${est}s linear`; barra.style.width = (i / total * 100) + "%";
-    let falou = !(somLigado() && "speechSynthesis" in window && temVoz()), tempo = false;
-    const prox = () => { if (falou && tempo) passo(); };
-    T(() => { tempo = true; prox(); }, est * 1000);
-    if (!falou) {
-      try {
-        speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(s.fala); u.lang = "pt-BR"; if (vozPt) u.voice = vozPt; u.rate = .95;
-        u.onend = u.onerror = () => { falou = true; prox(); }; speechSynthesis.speak(u);
-        T(() => { falou = true; prox(); }, est * 1000 + 6000);
-      } catch (e) { falou = true; }
-    }
-  };
-  passo();
-}
-
 // cena em estilo mangá: uma página com quadros; a câmera visita um quadro de cada vez enquanto a narração toca
 function tocarManga(m) {
   calarNarracao();
@@ -922,7 +887,7 @@ function resultado(id, score, jornada, extra, gi) {
     <button class="btn claro" id="inicio">Voltar ao início</button>
     ${navigator.share ? '<button class="link" id="share">Compartilhar resultado</button>' : ""}</div>`;
   const ct = $("#cartao"); if (ct) ct.onclick = () => compartilharCartao(v);
-  if (info) { const c = escolherCena(info.subiu); if (c) { $("#assistir").textContent = "🎬 Assistir de novo: " + c.t; $("#assistir").onclick = () => tocarCena(c); later(() => tocarCena(c), 1700); } }
+  if (info) { const c = escolherCena(info.subiu); if (c) { $("#assistir").textContent = "🎬 Assistir de novo: " + c.t; $("#assistir").onclick = () => tocarManga(c); later(() => tocarManga(c), 1700); } }
   if (info) $("#prox").onclick = () => jogar(proximoJogo(), true); else $("#again").onclick = () => jogar(id);
   $("#inicio").onclick = () => ir("home");
   const sh = $("#share"); if (sh) sh.onclick = () => navigator.share({ title: "Mente Renovada", text: `Fiz ${score}% em “${JOGOS[id].nome}” no Mente Renovada! ${"⭐".repeat(est)}`, url: location.href.split("#")[0] }).catch(() => {});
@@ -931,8 +896,7 @@ function resultado(id, score, jornada, extra, gi) {
 
 document.querySelectorAll("#nav button").forEach(b => b.onclick = () => ir(b.dataset.go));
 ir("home");
-{ const qc = new URLSearchParams(location.search).get("cena"), C = window.CENAS; // ?cena=0 a 10 toca uma cena direto (para pré-visualizar)
-  if (qc !== null && C) { const c = [...C.lista, C.especial][+qc]; if (c) tocarCena(c); }
-  const qm = new URLSearchParams(location.search).get("manga"); if (qm !== null && window.MANGA) { const c = window.MANGA.lista[+qm]; if (c) tocarManga(c); } }
+{ const qm = new URLSearchParams(location.search).get("manga"); // ?manga=0 a 9 toca uma cena direto (para pré-visualizar)
+  if (qm !== null && window.MANGA) { const c = window.MANGA.lista[+qm]; if (c) tocarManga(c); } }
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
 })();

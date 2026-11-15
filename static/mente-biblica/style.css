@@ -225,46 +225,7 @@ h1,h2,h3{font-family:var(--serif);margin:0;line-height:1.2}
 @keyframes cIn{from{opacity:0}to{opacity:1}}@keyframes cOut{to{opacity:0}}
 .c-topo{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:max(12px,env(safe-area-inset-top)) 14px 14px;color:#f6efe0;font:600 13px/1.2 system-ui,sans-serif;z-index:3;background:linear-gradient(#000b,#0000)}
 .c-pular{background:#ffffff22;border:1px solid #ffffff44;color:#fff;border-radius:99px;padding:9px 15px;font:600 13px system-ui,sans-serif;cursor:pointer}
-.c-tela{position:relative;width:min(100vw,calc((100dvh - 210px)*1.5));aspect-ratio:3/2;overflow:hidden;background:#000;box-shadow:0 0 70px #000}
-.c-tela svg{position:absolute;inset:0;width:100%;height:100%;display:block}
-.c-vinheta{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 52%,#000b 100%)}
 .c-prog{position:absolute;left:0;right:0;bottom:0;height:3px;background:#ffffff22}.c-prog i{display:block;height:100%;width:0;background:#e8c76a}
-.c-leg{margin:0;max-width:580px;padding:16px 22px 10px;min-height:8em;color:#f6efe0;font:italic 18px/1.55 Georgia,serif;text-align:center;text-wrap:balance}
-.shot{animation:shotIn 1s both}.shot.sai{animation:shotOut 1s both}
-@keyframes shotIn{from{opacity:0}to{opacity:1}}@keyframes shotOut{to{opacity:0}}
-.cam{transform-origin:240px 160px;animation:cam var(--t,15s) ease-in-out forwards}
-@keyframes cam{from{transform:translate(var(--x0,0px),var(--y0,0px)) scale(var(--z0,1))}to{transform:translate(var(--x1,0px),var(--y1,0px)) scale(var(--z1,1.12))}}
-.c-tela .gira{animation:gira 120s linear infinite}@keyframes gira{to{transform:rotate(360deg)}}
-.c-tela .deriva{animation:deriva 60s ease-in-out infinite alternate}@keyframes deriva{from{transform:translateX(-35px)}to{transform:translateX(35px)}}
-.c-tela .onda{animation:ondaX 6s linear infinite}@keyframes ondaX{to{transform:translateX(120px)}}
-.c-tela .pulsa{animation:pulsa 3s ease-in-out infinite alternate}@keyframes pulsa{from{opacity:.55}to{opacity:1}}
-.c-tela .p-sobe{animation:psobe 5s linear infinite}@keyframes psobe{0%{transform:translateY(0);opacity:0}15%{opacity:.9}100%{transform:translateY(-46px);opacity:0}}
-.c-tela .p-brilha{transform-box:fill-box;transform-origin:center;animation:pbrilha 2s ease-in-out infinite}@keyframes pbrilha{0%,100%{opacity:.15;transform:scale(.4)}50%{opacity:1;transform:scale(1)}}
-.c-tela .p-chuva{animation:pchuva .6s linear infinite}@keyframes pchuva{from{transform:translate(0,-10px);opacity:.8}to{transform:translate(-18px,50px);opacity:0}}
-.c-tela .p-onda{animation:ponda 1.5s ease-out infinite}@keyframes ponda{from{opacity:.9;transform:translateX(0)}to{opacity:0;transform:translateX(18px)}}
-.c-tela .vel{animation:vel .6s linear infinite}@keyframes vel{from{transform:translateX(0);opacity:0}30%{opacity:.7}to{transform:translateX(-120px);opacity:0}}
-.c-tela .anda{transform-box:fill-box;transform-origin:50% 100%;animation:anda .65s ease-in-out infinite alternate}@keyframes anda{from{transform:translateY(0) rotate(-1.2deg)}to{transform:translateY(-1.3px) rotate(1.2deg)}}
-.c-tela .vento{transform-box:fill-box;transform-origin:0 50%;animation:ventoH 1s ease-in-out infinite alternate}@keyframes ventoH{from{transform:skewY(-6deg) scaleX(.9)}to{transform:skewY(8deg) scaleX(1.15)}}
-.c-tela .marcha{animation:marcha 40s linear infinite alternate}@keyframes marcha{to{transform:translateX(-90px)}}
-.c-tela .marcha2{animation:marcha2 40s linear infinite alternate}@keyframes marcha2{to{transform:translateX(70px)}}
-.c-tela .balanca{transform-box:fill-box;transform-origin:50% 100%;animation:balanca 3s ease-in-out infinite alternate}@keyframes balanca{from{transform:rotate(-1.6deg)}to{transform:rotate(1.6deg)}}
-.c-tela .tomba{transform-box:fill-box;transform-origin:50% 80%;animation:tomba 1.8s ease-in-out infinite alternate}@keyframes tomba{from{transform:rotate(-9deg) translateY(5px)}to{transform:rotate(8deg) translateY(-4px)}}
-.c-tela .relampago{animation:relamp 3.4s infinite}@keyframes relamp{0%,84%,100%{opacity:0}86%,92%{opacity:1}89%{opacity:.15}}
-.c-tela .a-chama{transform-box:fill-box;transform-origin:50% 100%;animation:chama .5s ease-in-out infinite alternate}@keyframes chama{from{transform:scaleY(.86) skewX(-3deg)}to{transform:scaleY(1.1) skewX(3deg)}}
-.c-tela .a-arco{stroke-dasharray:1;stroke-dashoffset:1;animation:arco 1.6s ease-out forwards}@keyframes arco{to{stroke-dashoffset:0}}
-.c-tela .a-asa{transform-box:fill-box;transform-origin:100% 100%;animation:asa .45s ease-in-out infinite alternate}@keyframes asa{from{transform:rotate(-14deg)}to{transform:rotate(16deg)}}
-.c-tela .a-bloco{transform-box:fill-box;transform-origin:center;animation:bloco 1.5s ease-in forwards}@keyframes bloco{to{transform:translateY(120px) rotate(var(--rot,20deg));opacity:0}}
-.c-tela .a-poeira{transform-box:fill-box;transform-origin:center;animation:poeira 3s ease-out infinite}@keyframes poeira{0%{opacity:0;transform:scale(.3)}30%{opacity:.7}100%{opacity:0;transform:scale(2.4) translateY(-20px)}}
-.c-tela .a-anel{transform-box:fill-box;transform-origin:center;animation:anel 2.4s ease-out infinite}@keyframes anel{0%{opacity:.9;transform:scale(.3)}100%{opacity:0;transform:scale(1.6)}}
-.c-tela .nada{animation:nada 4s ease-in-out infinite alternate}@keyframes nada{from{transform:translateX(-8px)}to{transform:translateX(14px)}}
-.c-tela .desce{animation:desceE 7s ease-out both}@keyframes desceE{from{transform:translate(-130px,-24px)}to{transform:translate(0,0)}}
-.c-tela .desce2{animation:desceP 6s ease-out both}@keyframes desceP{from{transform:translate(240px,-40px)}to{transform:translate(240px,92px)}}
-.c-tela .voa{animation:voaP 12s ease-in-out both}@keyframes voaP{0%{transform:translate(-50px,150px)}50%{transform:translate(230px,92px)}100%{transform:translate(330px,104px)}}
-.c-tela .a-sobe-anjo{animation:sobeA 6s linear infinite;opacity:0}@keyframes sobeA{0%{transform:translate(0,0);opacity:0}12%{opacity:1}88%{opacity:1}100%{transform:translate(150px,-290px);opacity:0}}
-.c-tela .a-desce-anjo{animation:desceA 6s linear infinite;opacity:0}@keyframes desceA{0%{transform:translate(150px,-290px);opacity:0}12%{opacity:1}88%{opacity:1}100%{transform:translate(0,0);opacity:0}}
-.c-tela .a-pedra-rola{transform-box:fill-box;transform-origin:center;animation:pedraR 2.4s ease-in-out .4s forwards}@keyframes pedraR{to{transform:translateX(-96px) rotate(-220deg)}}
-.c-tela .a-voa-pao,.c-tela .a-pop{transform-box:fill-box;transform-origin:center;opacity:0;animation:popP 1s ease-out both}@keyframes popP{0%{opacity:0;transform:scale(.2) translateY(20px)}60%{opacity:1}100%{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.c-tela *{animation:none!important}}
 
 /* cenas em estilo mangá */
 .cinema.manga{background:#1a1612}
@@ -296,3 +257,19 @@ h1,h2,h3{font-family:var(--serif);margin:0;line-height:1.2}
 .m-tela .m-gota{animation:mGota 2.2s ease-in infinite}@keyframes mGota{0%{transform-box:fill-box;opacity:1}80%{opacity:1}100%{opacity:0}}
 .m-flash{opacity:0;pointer-events:none}.m-painel.on .m-flash{animation:mFlash .55s ease-out forwards}@keyframes mFlash{0%{opacity:.95}100%{opacity:0}}
 .cinema.c-treme .m-tela{animation:treme .11s linear infinite}@keyframes treme{0%{transform:translate(0,0)}25%{transform:translate(3px,-2px)}50%{transform:translate(-3px,2px)}75%{transform:translate(2px,3px)}100%{transform:translate(0,0)}}
+.m-tela .m-chama{transform-box:fill-box;transform-origin:50% 100%;animation:mChama .5s ease-in-out infinite alternate}@keyframes mChama{from{transform:scaleY(.88) skewX(-3deg)}to{transform:scaleY(1.1) skewX(3deg)}}
+.m-tela .m-asa-l{transform-box:fill-box;transform-origin:100% 40%;animation:mAsaL 1.3s ease-in-out infinite alternate}@keyframes mAsaL{from{transform:rotate(5deg)}to{transform:rotate(-7deg)}}
+.m-tela .m-asa-r{transform-box:fill-box;transform-origin:100% 40%;animation:mAsaL 1.3s ease-in-out infinite alternate-reverse}
+.m-tela .m-flutua{animation:mFlutua 2.4s ease-in-out infinite alternate}@keyframes mFlutua{from{transform:translateY(0)}to{transform:translateY(-6px)}}
+.m-tela .m-asa{transform-box:fill-box;transform-origin:100% 100%;animation:mAsaP .5s ease-in-out infinite alternate}@keyframes mAsaP{from{transform:rotate(-12deg)}to{transform:rotate(14deg)}}
+.m-tela .m-balanca{transform-box:fill-box;transform-origin:50% 100%;animation:mBalanca 3s ease-in-out infinite alternate}@keyframes mBalanca{from{transform:rotate(-1.6deg)}to{transform:rotate(1.6deg)}}
+.m-tela .m-tomba{transform-box:fill-box;transform-origin:50% 80%;animation:mTomba 1.6s ease-in-out infinite alternate}@keyframes mTomba{from{transform:rotate(-8deg) translateY(4px)}to{transform:rotate(7deg) translateY(-4px)}}
+.m-tela .m-relamp{animation:mRelamp 3.2s infinite}@keyframes mRelamp{0%,82%,100%{opacity:0}85%,93%{opacity:1}89%{opacity:.2}}
+.m-tela .m-ponda{animation:mPonda 1.4s ease-out infinite}@keyframes mPonda{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(26px)}}
+.m-tela .m-pedra{transform-box:fill-box;transform-origin:center;animation:mPedra 2.4s ease-in-out .5s forwards}@keyframes mPedra{to{transform:translateX(-70px) rotate(-200deg)}}
+.m-tela .m-bloco{transform-box:fill-box;transform-origin:center;animation:mBloco 1.6s ease-in forwards}@keyframes mBloco{to{transform:translateY(var(--dy,80px)) rotate(var(--rot,20deg));opacity:.0}}
+.m-tela .m-anel{transform-box:fill-box;transform-origin:center;animation:mAnel 2.4s ease-out infinite}@keyframes mAnel{0%{opacity:1;transform:scale(.3)}100%{opacity:0;transform:scale(1.6)}}
+.m-tela .m-sobe{animation:mSobe 5s linear infinite}@keyframes mSobe{0%{transform:translate(-40px,60px);opacity:0}15%{opacity:1}85%{opacity:1}100%{transform:translate(40px,-60px);opacity:0}}
+.m-tela .m-desce{animation:mDesce 5s linear infinite}@keyframes mDesce{0%{transform:translate(40px,-60px);opacity:0}15%{opacity:1}85%{opacity:1}100%{transform:translate(-40px,60px);opacity:0}}
+.m-tela .m-arco{stroke-dasharray:1;stroke-dashoffset:1;animation:mArco 1.6s ease-out forwards}@keyframes mArco{to{stroke-dashoffset:0}}
+.m-tela .m-poeira{transform-box:fill-box;transform-origin:center;opacity:0;animation:mPoeira 3s ease-out infinite}@keyframes mPoeira{0%{opacity:0;transform:scale(.3)}25%{opacity:1}100%{opacity:0;transform:scale(2.2) translateY(-24px)}}
