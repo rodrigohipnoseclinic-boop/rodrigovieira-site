@@ -87,6 +87,7 @@ function escolherVoz() {
   } catch (e) {}
 }
 if ("speechSynthesis" in window) { escolherVoz(); speechSynthesis.onvoiceschanged = escolherVoz; }
+function temVoz() { try { return !!(vozPt || speechSynthesis.getVoices().length); } catch (e) { return false; } }
 function narrar(texto) {
   if (!somLigado() || !("speechSynthesis" in window)) return;
   try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(texto); u.lang = "pt-BR"; if (vozPt) u.voice = vozPt; u.rate = .95; speechSynthesis.speak(u); } catch (e) {}
@@ -811,14 +812,73 @@ function jogar(id, jornada = false) {
   g.iniciar({ stage: $("#stage"), progresso, nivel, jornada, terminar: (s, vv, gi) => resultado(id, s, jornada, vv, gi) });
 }
 
-let cenaAtual = null;
-function cenaHTML(especial) {
-  const C = window.CENAS; if (!C) return "";
-  let c = C.especial;
-  if (!especial) { let i; do { i = rnd(C.lista.length); } while (C.lista.length > 1 && i === store.cena); store.cena = i; c = C.lista[i]; }
-  cenaAtual = c;
-  return `<figure class="cena"><svg viewBox="0 0 300 150" role="img" aria-label="${esc(c.t)}">${c.svg}</svg><figcaption><b>${esc(c.t)}</b> · ${esc(c.ref)}</figcaption>
-    <p class="narr">${esc(c.n)}</p><button class="link" id="ouvir">🔊 Ouvir de novo</button></figure>`;
+function escolherCena(especial) {
+  const C = window.CENAS; if (!C) return null;
+  if (especial) return C.especial;
+  let i; do { i = rnd(C.lista.length); } while (C.lista.length > 1 && i === store.cena); store.cena = i; return C.lista[i];
+}
+// cena de vitória em tela cheia: planos com câmera, narração e legenda. Cada plano espera a fala terminar.
+function tocarCena(c) {
+  calarNarracao();
+  const ov = document.createElement("div"); ov.className = "cinema";
+  ov.innerHTML = `<div class="c-topo"><span>🎬 ${esc(c.t)} · ${esc(c.ref)}</span><button class="c-pular" type="button">Pular ⏭</button></div><div class="c-tela"><svg viewBox="0 0 480 320" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg><div class="c-vinheta"></div><div class="c-prog"><i></i></div></div><p class="c-leg" aria-live="polite"></p>`;
+  document.body.appendChild(ov);
+  const svg = ov.querySelector("svg"), leg = ov.querySelector(".c-leg"), barra = ov.querySelector(".c-prog i");
+  let i = 0, fim = false; const tm = [];
+  const T = (fn, ms) => tm.push(setTimeout(fn, ms));
+  const sair = () => { if (fim) return; fim = true; tm.forEach(clearTimeout); calarNarracao(); ov.classList.add("c-sai"); setTimeout(() => ov.remove(), 650); };
+  aoSair(sair);
+  ov.querySelector(".c-pular").onclick = sair;
+  const total = c.shots.length;
+  const passo = () => {
+    if (fim) return; if (i >= total) return sair();
+    const s = c.shots[i++], est = Math.max(s.d || 14, s.fala.split(/\s+/).length / 2.3), [z0, x0, y0, z1, x1, y1] = s.cam;
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g"); g.setAttribute("class", "shot");
+    g.innerHTML = `<g class="cam" style="--z0:${z0};--x0:${x0}px;--y0:${y0}px;--z1:${z1};--x1:${x1}px;--y1:${y1}px;--t:${est + 2}s">${s.svg}</g>`;
+    svg.querySelectorAll(".shot").forEach(o => { o.classList.add("sai"); T(() => o.remove(), 1000); });
+    svg.appendChild(g); leg.textContent = s.fala;
+    barra.style.transition = `width ${est}s linear`; barra.style.width = (i / total * 100) + "%";
+    let falou = !(somLigado() && "speechSynthesis" in window && temVoz()), tempo = false;
+    const prox = () => { if (falou && tempo) passo(); };
+    T(() => { tempo = true; prox(); }, est * 1000);
+    if (!falou) {
+      try {
+        speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(s.fala); u.lang = "pt-BR"; if (vozPt) u.voice = vozPt; u.rate = .95;
+        u.onend = u.onerror = () => { falou = true; prox(); }; speechSynthesis.speak(u);
+        T(() => { falou = true; prox(); }, est * 1000 + 6000);
+      } catch (e) { falou = true; }
+    }
+  };
+  passo();
+}
+
+// cena em estilo mangá: uma página com quadros; a câmera visita um quadro de cada vez enquanto a narração toca
+function tocarManga(m) {
+  calarNarracao();
+  const M = window.MANGA; if (!M) return;
+  const ov = document.createElement("div"); ov.className = "cinema manga";
+  ov.innerHTML = `<div class="c-topo"><span>🎬 ${esc(m.t)} · ${esc(m.ref)}</span><button class="c-pular" type="button">Pular ⏭</button></div><div class="m-tela"><svg viewBox="0 0 600 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g class="m-cam">${M.pagina(m)}</g></svg><div class="c-prog"><i></i></div></div><p class="m-leg" aria-live="polite"></p>`;
+  document.body.appendChild(ov);
+  const cam = ov.querySelector(".m-cam"), leg = ov.querySelector(".m-leg"), barra = ov.querySelector(".c-prog i");
+  let fim = false, bi = 0; const tm = [];
+  const T = (fn, ms) => tm.push(setTimeout(fn, ms));
+  const sair = () => { if (fim) return; fim = true; tm.forEach(clearTimeout); calarNarracao(); ov.classList.add("c-sai"); setTimeout(() => ov.remove(), 650); };
+  aoSair(sair); ov.querySelector(".c-pular").onclick = sair;
+  const visao = (x, y, w, h, zmax) => { const s = Math.min(570 / w, 740 / h, zmax); cam.style.transform = `translate(${300 - s * (x + w / 2)}px,${400 - s * (y + h / 2)}px) scale(${s})`; };
+  const mostrar = i => { const q = ov.querySelector(`.m-painel[data-i="${i}"]`); q.classList.add("on"); visao(...M.box(m.paineis[i].pts), 2.5); };
+  visao(0, 0, 600, 900, .88);
+  const passo = () => {
+    if (fim) return;
+    if (bi >= m.beats.length) { visao(0, 0, 600, 900, .88); barra.style.width = "100%"; T(sair, 4200); return; }
+    const b = m.beats[bi++], est = Math.max(b.d || 14, b.fala.split(/\s+/).length / 2.3);
+    b.p.forEach((pi, k) => T(() => mostrar(pi), 300 + k * (est * 1000 / b.p.length)));
+    leg.textContent = b.fala; barra.style.transition = `width ${est}s linear`; barra.style.width = (bi / (m.beats.length + .001) * 100) + "%";
+    let falou = !(somLigado() && "speechSynthesis" in window && temVoz()), tempo = false;
+    const prox = () => { if (falou && tempo) passo(); };
+    T(() => { tempo = true; prox(); }, est * 1000);
+    if (!falou) { try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(b.fala); u.lang = "pt-BR"; if (vozPt) u.voice = vozPt; u.rate = .95; u.onend = u.onerror = () => { falou = true; prox(); }; speechSynthesis.speak(u); T(() => { falou = true; prox(); }, est * 1000 + 6000); } catch (e) { falou = true; } }
+  };
+  T(passo, 1500);
 }
 
 function resultado(id, score, jornada, extra, gi) {
@@ -833,7 +893,7 @@ function resultado(id, score, jornada, extra, gi) {
   const prox = info ? JOGOS[proximoJogo()] : null;
   somFim(est, !!(info && info.subiu));
   view.innerHTML = `<div class="resultado">
-    ${info ? cenaHTML(info.subiu) : ""}
+    ${info ? '<button class="btn claro" id="assistir">🎬 Assistir a cena da vitória</button>' : ""}
     <div class="estrelas">${[0, 1, 2].map(i => `<span class="${i < est ? "" : "apagada"}">⭐</span>`).join("")}</div>
     <div class="pontos">${score}<small>%</small></div>
     <p>${info ? `<b>Fase ${info.fase} concluída!</b> +${info.xpGanho} XP · +${info.ganho} 🪙<br>${info.subiu ? `🎉 <b>Você subiu para o nível ${info.nivel}!</b> Os desafios ficam mais difíceis.<br>` : ""}${info.nova ? "✨ Novo cartão de versículo na sua coleção!<br>" : ""}` : ""}${msgs[est]}</p>
@@ -844,7 +904,7 @@ function resultado(id, score, jornada, extra, gi) {
     <button class="btn claro" id="inicio">Voltar ao início</button>
     ${navigator.share ? '<button class="link" id="share">Compartilhar resultado</button>' : ""}</div>`;
   const ct = $("#cartao"); if (ct) ct.onclick = () => compartilharCartao(v);
-  if (info && cenaAtual) { const c = cenaAtual; later(() => narrar(c.n), 1500); $("#ouvir").onclick = () => narrar(c.n); }
+  if (info) { const c = escolherCena(info.subiu); if (c) { $("#assistir").textContent = "🎬 Assistir de novo: " + c.t; $("#assistir").onclick = () => tocarCena(c); later(() => tocarCena(c), 1700); } }
   if (info) $("#prox").onclick = () => jogar(proximoJogo(), true); else $("#again").onclick = () => jogar(id);
   $("#inicio").onclick = () => ir("home");
   const sh = $("#share"); if (sh) sh.onclick = () => navigator.share({ title: "Mente Renovada", text: `Fiz ${score}% em “${JOGOS[id].nome}” no Mente Renovada! ${"⭐".repeat(est)}`, url: location.href.split("#")[0] }).catch(() => {});
@@ -853,5 +913,8 @@ function resultado(id, score, jornada, extra, gi) {
 
 document.querySelectorAll("#nav button").forEach(b => b.onclick = () => ir(b.dataset.go));
 ir("home");
+{ const qc = new URLSearchParams(location.search).get("cena"), C = window.CENAS; // ?cena=0 a 10 toca uma cena direto (para pré-visualizar)
+  if (qc !== null && C) { const c = [...C.lista, C.especial][+qc]; if (c) tocarCena(c); }
+  const qm = new URLSearchParams(location.search).get("manga"); if (qm !== null && window.MANGA) { const c = window.MANGA.lista[+qm]; if (c) tocarManga(c); } }
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
 })();
