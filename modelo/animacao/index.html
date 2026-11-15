@@ -1,0 +1,243 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000}canvas{display:block}</style></head>
+<body><canvas id="c" width="720" height="1280"></canvas>
+<script src="legendas.js"></script>
+<script>
+const W=720,H=1280,c=document.getElementById('c'),ctx=c.getContext('2d');
+const HANDLE='Rodrigo Vieira · Hipnose Clínica';
+const PINK='#ff3b6b',WHITE='#f4f0ff',LILAC='#a99bff',FONT='Inter, sans-serif';
+const TAU=Math.PI*2,clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const ease=x=>{x=clamp(x);return x*x*(3-2*x)};
+const ap=(t,t0,d=.45)=>ease((t-t0)/d);          // 0->1 a partir de t0
+const lerp=(a,b,k)=>a+(b-a)*k;
+let gA=1;
+function R(seed){let s=seed;return()=>((s=(s*16807)%2147483647)/2147483647)}
+const stars=(()=>{const r=R(7),a=[];for(let i=0;i<110;i++)a.push([r()*W,r()*H,r()*1.4+.3,r()*TAU]);return a})();
+
+/* ---------- primitivas ---------- */
+function glow(pts,col=WHITE,w=1.5,a=1,close=false){
+  if(pts.length<2)return;
+  ctx.save();ctx.globalCompositeOperation='lighter';ctx.lineJoin='round';ctx.lineCap='round';
+  for(const [k,al] of [[5,.07],[2.4,.17],[1,.95]]){
+    ctx.strokeStyle=col;ctx.lineWidth=w*k;ctx.globalAlpha=clamp(a*al*gA);
+    ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]);
+    if(close)ctx.closePath();ctx.stroke();
+  }
+  ctx.restore();
+}
+const circle=(cx,cy,r,n=48)=>Array.from({length:n+1},(_,i)=>[cx+r*Math.cos(i/n*TAU),cy+r*Math.sin(i/n*TAU)]);
+const ellipse2=(cx,cy,rx,ry,n=64)=>Array.from({length:n+1},(_,i)=>[cx+rx*Math.cos(i/n*TAU),cy+ry*Math.sin(i/n*TAU)]);
+function rrect(x,y,w,h,r){return[[x+r,y],[x+w-r,y],[x+w,y+r],[x+w,y+h-r],[x+w-r,y+h],[x+r,y+h],[x,y+h-r],[x,y+r]]}
+function text(s,x,y,size=24,col=WHITE,a=1,align='center',glowCol=null,weight=500){
+  ctx.save();ctx.globalAlpha=clamp(a*gA);ctx.font=`${weight} ${size}px ${FONT}`;ctx.textAlign=align;ctx.textBaseline='middle';
+  if(glowCol){ctx.shadowColor=glowCol;ctx.shadowBlur=16}
+  ctx.fillStyle=col;ctx.fillText(s,x,y);ctx.restore();
+}
+function selo(s,t,t0,y=100){          // caixa com número-destaque
+  const a=ap(t,t0);if(a<=0)return;
+  ctx.font=`600 40px ${FONT}`;const w=ctx.measureText(s).width+60,h=66,x=W/2-w/2;
+  glow(rrect(x,y-h/2,w,h,14),LILAC,1.6,a,true);
+  text(s,W/2,y+2,40,WHITE,a,'center',LILAC,600);
+}
+function label(s,x,y,t,t0,col=PINK,size=24,align='center'){const a=ap(t,t0);if(a>0)text(s,x,y-(1-a)*8,size,WHITE,a,align,col,600)}
+/* 3D */
+function P(x,y,z,ry,rx){const x1=x*Math.cos(ry)+z*Math.sin(ry),z1=-x*Math.sin(ry)+z*Math.cos(ry);
+  const y1=y*Math.cos(rx)-z1*Math.sin(rx),z2=y*Math.sin(rx)+z1*Math.cos(rx),s=900/(900+z2);return[x1*s,y1*s]}
+function ell(cx,cy,rx,ry,rz,rotY,rotX,lat,lon,col,w=1.1,a=1,bump=null){
+  const pt=(th,ph)=>{const m=bump?bump(th,ph):1;const [x,y]=P(rx*Math.sin(th)*Math.cos(ph)*m,-ry*Math.cos(th)*m,rz*Math.sin(th)*Math.sin(ph)*m,rotY,rotX);return[cx+x,cy+y]};
+  for(let i=1;i<lat;i++){const th=Math.PI*i/lat;glow(Array.from({length:49},(_,k)=>pt(th,k/48*TAU)),col,w,a)}
+  for(let j=0;j<lon;j++){const ph=TAU*j/lon;glow(Array.from({length:25},(_,k)=>pt(k/24*Math.PI,ph)),col,w,a)}
+}
+function cyl(cx,cy,r,h,rotY,rotX,col,w=1,a=1,rings=4){
+  const f=(y)=>Array.from({length:41},(_,k)=>{const [x,yy]=P(r*Math.cos(k/40*TAU),y,r*Math.sin(k/40*TAU),rotY,rotX);return[cx+x,cy+yy]});
+  for(let i=0;i<=rings;i++)glow(f(-h/2+h*i/rings),col,w,a);
+  for(let j=0;j<10;j++){const ph=TAU*j/10;const A=P(r*Math.cos(ph),-h/2,r*Math.sin(ph),rotY,rotX),B=P(r*Math.cos(ph),h/2,r*Math.sin(ph),rotY,rotX);glow([[cx+A[0],cy+A[1]],[cx+B[0],cy+B[1]]],col,w,a)}
+}
+const brainBump=(th,ph)=>1+.07*Math.sin(5*th)*Math.sin(4*ph)+.03*Math.sin(9*ph);
+function brain(cx,cy,s,t,col=LILAC,a=1,hot=0){ell(cx,cy,120*s,95*s,105*s,t*.5,.15,8,14,col,1.2,a,brainBump);
+  if(hot)ell(cx,cy,120*s,95*s,105*s,t*.5,.15,3,5,PINK,1.2,a*hot,brainBump)}
+function head(cx,cy,s,t,col=LILAC,a=1,inner=null){
+  ell(cx,cy,92*s,122*s,98*s,t*.45,.08,9,14,col,1.1,a);
+  cyl(cx,cy+165*s,42*s,70*s,t*.45,.08,col,1,a*.8,3);
+  glow(Array.from({length:21},(_,k)=>{const q=Math.PI+k/20*Math.PI;return[cx+150*s*Math.cos(q)*-1,cy+265*s+55*s*Math.sin(q)*-1]}),col,1.1,a*.7);
+  const [nx,ny]=P(0,6*s,98*s,t*.45,.08);glow([[cx+nx,cy+ny-10*s],[cx+nx+10*s,cy+ny+14*s],[cx+nx-2*s,cy+ny+16*s]],col,1.1,a);
+  if(inner)inner(cx,cy-20*s,s);
+}
+function platform(a=1,cy=840){
+  ctx.save();ctx.globalAlpha=.5*a*gA;const g=ctx.createRadialGradient(W/2,cy,5,W/2,cy,290);
+  g.addColorStop(0,'rgba(150,140,255,.55)');g.addColorStop(1,'rgba(150,140,255,0)');ctx.fillStyle=g;
+  ctx.beginPath();ctx.ellipse(W/2,cy,290,66,0,0,TAU);ctx.fill();ctx.restore();
+  for(const rx of[250,200,150])glow(ellipse2(W/2,cy,rx,rx*.2),'#b7b0ff',1.1,.7*a);
+}
+function gear(cx,cy,r,teeth,rot,col,a=1){const p=[];for(let i=0;i<teeth*2;i++){const rr=i%2?r:r*1.25,ang=rot+i/(teeth*2)*TAU;p.push([cx+rr*Math.cos(ang),cy+rr*Math.sin(ang)])}
+  glow(p,col,1.3,a,true);glow(circle(cx,cy,r*.35),col,1.1,a)}
+function person(x,y,s,col,a=1,lit=0){const h=circle(x,y-26*s,9*s,20),b=[[x-18*s,y+26*s],[x-14*s,y-6*s],[x+14*s,y-6*s],[x+18*s,y+26*s]];
+  glow(h,col,1.4,a*(1-lit));glow(b,col,1.4,a*(1-lit));if(lit>0){glow(h,PINK,2.2,a*lit);glow(b,PINK,2.2,a*lit)}}
+function trefoil(cx,cy,R,t,k,col,a=1){ // k:0 nó apertado -> 1 círculo calmo
+  const pts=[];for(let i=0;i<=160;i++){const u=i/160*TAU;
+    let x=Math.sin(u)+2*Math.sin(2*u),y=Math.cos(u)-2*Math.cos(2*u),z=-Math.sin(3*u);
+    x=lerp(x/3,Math.sin(u),k);y=lerp(y/3,Math.cos(u),k);z=lerp(z,0,k);
+    const [px,py]=P(x*R,y*R,z*R*.8,t*.6,.4);pts.push([cx+px,cy+py])}
+  glow(pts,col,2,a)}
+function cross(x,y,r,a=1){glow([[x-r,y-r],[x+r,y+r]],PINK,3,a);glow([[x-r,y+r],[x+r,y-r]],PINK,3,a)}
+function burst(cx,cy,t,t0,seed,col){const k=t-t0;if(k<0||k>1.6)return;const r=R(seed);
+  for(let i=0;i<44;i++){const an=r()*TAU,sp=60+r()*190,d=k*sp,al=clamp(1-k/1.6);
+    ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=al*gA;ctx.fillStyle=col;ctx.beginPath();ctx.arc(cx+Math.cos(an)*d,cy+Math.sin(an)*d+k*k*40,2,0,TAU);ctx.fill();ctx.restore()}}
+
+/* ---------- fundo e fixos ---------- */
+function bg(t){
+  const g=ctx.createRadialGradient(W/2,560,20,W/2,640,820);g.addColorStop(0,'#5e2756');g.addColorStop(.55,'#2b0c2f');g.addColorStop(1,'#12021a');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  for(const [x,y,r,ph] of stars){ctx.globalAlpha=.25+.35*Math.sin(t*1.3+ph)**2;ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x,(y+t*3)%H,r*.7,0,TAU);ctx.fill()}
+  ctx.globalAlpha=1;
+}
+function wrap(s,maxW){ctx.font=`500 25px ${FONT}`;const ws=s.split(' '),L=[];let cur='';
+  for(const w of ws){const n=cur?cur+' '+w:w;if(ctx.measureText(n).width>maxW&&cur){L.push(cur);cur=w}else cur=n}L.push(cur);return L}
+function captions(t){
+  let cur=null;for(const cp of CAPS)if(t>=cp[0]&&t<cp[1]+.05){cur=cp}
+  if(!cur)return;const a=Math.min(clamp((t-cur[0])/.18),clamp((cur[1]-t)/.12+.0));
+  const L=wrap(cur[2],560),y0=955-(L.length-1)*17;
+  L.forEach((l,i)=>text(l,W/2,y0+i*34,25,WHITE,Math.max(a,.0)||1,'center','rgba(0,0,0,.6)',500));
+}
+function footer(){text('Rodrigo Vieira · Hipnose Clínica',W/2,1192,18,WHITE,.7,'center',null,600)}
+
+/* ---------- cenas ---------- */
+const S=[];const sc=(a,b,fn)=>S.push({a,b,fn});
+
+// 0 capa
+sc(0,2.9,(t,lt)=>{
+  const a=ap(lt,.1);text('Hipnose clínica',W/2,150,40,WHITE,a,'center',LILAC,700);text('mitos e verdades',W/2,196,22,'#cfc8ff',a*.9);
+  const ic=[()=>head(180,430,.45,t,WHITE),()=>brain(540,420,.55,t,WHITE),()=>trefoil(180,720,70,t,.0,PINK),()=>{gear(540,720,42,8,t,WHITE)}];
+  ic.forEach((f,i)=>{ctx.save();f();ctx.restore()});
+  label('cabeça',180,560,lt,.6,LILAC,20);label('cérebro',540,560,lt,.8,LILAC,20);label('medo',180,820,lt,1,PINK,20);label('automático',540,820,lt,1.2,LILAC,20);
+});
+// 1 cabeça com cadeado (ideia que adia tratamento)
+const lock=(cx,cy,s,open,col,a=1)=>{glow(rrect(cx-38*s,cy,76*s,62*s,10*s),col,2,a,true);
+  const sh=[];for(let i=0;i<=24;i++){const an=Math.PI+i/24*Math.PI;sh.push([cx-24*s+ (48*s)*(.5+.5*Math.cos(an+Math.PI)) *0 + 24*s*Math.cos(an)+24*s,cy-4*s+24*s*Math.sin(an)-open*22*s])}
+  glow(sh,col,2.2,a);glow(circle(cx,cy+30*s,6*s,14),col,1.6,a)};
+sc(2.9,6.5,(t,lt)=>{platform(1);head(360,500,1.05,t,LILAC);lock(520,420,1,0,PINK);label('medo',520,520,lt,.4,PINK,24);label('adiar o tratamento',360,1010,lt,5,PINK,0)});
+sc(6.5,9.3,(t,lt)=>{platform(1);head(360,500,1.05,t,LILAC);lock(520,420,1,ap(lt,.5,.7),PINK);label('aberta',520,520,lt,1.2,PINK,24);selo('cabeça fechada? não existe',t,6.9,100)});
+// 2 estatística APA
+sc(9.3,22.3,(t,lt)=>{
+  label('Associação Americana de Psicologia',360,185,t,10.2,PINK,20);selo('2024',t,10.0,110);
+  if(t>14.7){ctx.save();ctx.globalAlpha=1;ctx.restore()}
+  const lit=ap(t,14.7,6);for(let r=0;r<2;r++)for(let i=0;i<5;i++){const n=r*5+i;const x=130+i*115,y=470+r*150;
+    person(x,y,1.5,WHITE,ap(t,10.8+n*.1),n<7?clamp(lit*10-n):0)}
+  if(t>14.7)selo('60–70%',t,14.7,330);
+  label('respondem de moderada a profunda',360,740,t,17.5,PINK,22);
+});
+// 3 mitos 1a sessão e três medos
+sc(22.3,36.3,(t,lt)=>{
+  platform(1);label('já na primeira sessão',360,150,t,22.3,PINK,22);
+  const x=[130,360,590],names=['perder o controle','desmaiar','virar zumbi'],ts=[26.3,29.1,32.5];
+  // volante / pessoa deitada / cabeça zumbi
+  const A=ap(t,ts[0]),B=ap(t,ts[1]),C=ap(t,ts[2]);
+  const wheel=(cx,cy,a)=>{glow(circle(cx,cy,56),WHITE,1.8,a);glow(circle(cx,cy,14),WHITE,1.5,a);for(let k=0;k<3;k++){const an=k/3*TAU-Math.PI/2;glow([[cx+14*Math.cos(an),cy+14*Math.sin(an)],[cx+56*Math.cos(an),cy+56*Math.sin(an)]],WHITE,1.5,a)}};
+  const lying=(cx,cy,a)=>{glow(circle(cx-48,cy,16,24),WHITE,1.8,a);glow([[cx-30,cy],[cx+50,cy]],WHITE,1.8,a);glow([[cx,cy],[cx+16,cy-26]],WHITE,1.6,a);glow([[cx,cy],[cx+20,cy+26]],WHITE,1.6,a);glow([[cx+50,cy],[cx+72,cy+18]],WHITE,1.6,a)};
+  const zomb=(cx,cy,a)=>{glow(circle(cx,cy,42),WHITE,1.8,a);cross(cx-14,cy-8,7,a*.9);cross(cx+14,cy-8,7,a*.9);glow([[cx-14,cy+18],[cx-6,cy+14],[cx+6,cy+22],[cx+14,cy+16]],WHITE,1.5,a);glow([[cx-40,cy+60],[cx-95,cy+60]],WHITE,1.6,a);glow([[cx+40,cy+60],[cx+95,cy+60]],WHITE,1.6,a)};
+  if(A>0)wheel(x[0],470,A);if(B>0)lying(x[1],470,B);if(C>0)zomb(x[2],450,C);
+  names.forEach((n,i)=>{label(n,x[i],600,t,ts[i]+.1,PINK,20)});
+  [A,B,C].forEach((v,i)=>{if(t>ts[i]+.8)cross(x[i],470,64,ap(t,ts[i]+.8))});
+  if(lt<4.2)head(360,520,.8,t,LILAC,1-ap(t,26.2,.3));
+});
+// 4 desmontando e atenção focada
+sc(36.3,45.3,(t,lt)=>{
+  platform(1);
+  if(t<39.8){label('desmontar essa ideia',360,160,t,36.4,PINK,24);burst(130,470,t,36.5,3,PINK);burst(360,470,t,36.7,5,PINK);burst(590,470,t,36.9,9,PINK)}
+  else{
+    selo('não é isso',t,39.9,100);
+    const k=ap(t,41.2,1);
+    for(let i=0;i<6;i++){const r=220-i*34*k;glow(circle(360,520,r,64),i%2?LILAC:WHITE,1.2+ (i==5?1:0),.9)}
+    glow([[360,300],[360,740]],PINK,1,.5*k);glow([[140,520],[580,520]],PINK,1,.5*k);
+    ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=.5*k*gA;const g=ctx.createRadialGradient(360,520,0,360,520,70);g.addColorStop(0,PINK);g.addColorStop(1,'rgba(255,59,107,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(360,520,70,0,TAU);ctx.fill();ctx.restore();
+    label('atenção super focada',360,770,t,41.8,PINK,26);
+  }
+});
+// 5 dirigindo no automático
+const road=(u)=>{const vx=360,vy=380;return[vx,vy,lerp(vy,860,u)]};
+sc(45.3,58.7,(t,lt)=>{
+  const vx=360,vy=380;
+  glow([[vx,vy],[110,860]],WHITE,1.5,.9);glow([[vx,vy],[610,860]],WHITE,1.5,.9);
+  for(let i=0;i<9;i++){const u=((i/9)+t*.35)%1,y=lerp(vy,860,u),y2=lerp(vy,860,Math.min(1,u+.05));glow([[vx,y],[vx,y2]],LILAC,1.5+u*2,.8*u)}
+  const u=lerp(.95,.28,clamp((t-46)/10)),y=lerp(vy,860,u),s=.25+u*.9;
+  const bw=80*s,bh=48*s;glow(rrect(vx-bw,y-bh*2,bw*2,bh*2,6),WHITE,1.7,1,true);glow(rrect(vx-bw*.7,y-bh*2.7,bw*1.4,bh*.8,6),WHITE,1.5,1,true);
+  glow([[vx-bw*.7,y-bh*.5],[vx+bw*.7,y-bh*.5]],PINK,2.4,.9);glow(rrect(vx-bw*1.05,y-bh*.7,bw*.3,bh*.7,3),WHITE,1.6,1,true);glow(rrect(vx+bw*.75,y-bh*.7,bw*.3,bh*.7,3),WHITE,1.6,1,true);
+  label('caminho conhecido',360,190,t,45.4,PINK,24);
+  if(t>48.9)label('chegou…',360,240,t,48.9,PINK,24);
+  if(t>53.2){const a=ap(t,53.2);const pul=.5+.5*Math.sin(t*4);
+    glow(circle(580,340,36+pul*8,40),PINK,2,a);glow(circle(580,340,10,16),WHITE,3,a);label('você não apagou',580,275,t,53.3,PINK,22);
+    if(t>55.4)label('atenção em outro lugar',580,425,t,55.4,PINK,20)}
+});
+// 6 piloto automático
+sc(58.7,72,(t,lt)=>{
+  platform(1);brain(360,480,1.15,t,LILAC);
+  gear(210,640,34,8,t*.9,PINK,ap(t,59.2));gear(290,700,26,7,-t*1.15+.2,WHITE,ap(t,59.2));gear(510,650,38,9,-t*.8,PINK,ap(t,59.2));
+  const chips=[['padrões automáticos',360,230,59],['medos',170,360,64.1],['crenças',560,330,65.4],['reações',580,520,66.6]];
+  chips.forEach(([s,x,y,t0])=>label(s,x,y,t,t0,PINK,24));
+  if(t>68.6){const a=ap(t,68.6);for(let i=0;i<2;i++){const an=t*1.6+i*Math.PI;glow(Array.from({length:30},(_,k)=>{const q=an+k*.05;return[360+250*Math.cos(q),480+90*Math.sin(q)]}),PINK,2.2,a)}
+    label('piloto automático',360,790,t,68.8,PINK,26)}
+});
+// 7 ressonância
+sc(72,94.7,(t,lt)=>{
+  platform(1);const hot=ap(t,81,2);brain(360,500,1.4,t,LILAC,1,hot);
+  const y=500-170+((t*.55)%1)*340;const w=Math.sqrt(Math.max(0,1-((y-500)/150)**2))*165;
+  glow(ellipse2(360,y,w,w*.22),PINK,2,.95);
+  selo('ressonância magnética',t,72.2,100);
+  const reg=[['atenção',150,380,81.7,[300,420]],['emoção',590,520,83.0,[430,520]],['dor',150,640,84.2,[310,590]]];
+  reg.forEach(([s,x,y,t0,p])=>{if(t>t0){const a=ap(t,t0);glow([[x+(x<360?60:-60),y],[p[0]+ (x<360?0:0),p[1]]],PINK,1.2,a*.8);glow(circle(p[0],p[1],10+4*Math.sin(t*4),20),PINK,2,a);label(s,x,y,t,t0,PINK,24)}});
+  if(t>88.5){selo('real e mensurável',t,88.6,185)}
+  // onda
+  const a=ap(t,75);glow(Array.from({length:70},(_,i)=>[90+i*8.6,700+Math.sin(i*.45+t*3)*18*Math.sin(i*.1)]),LILAC,1.4,a*.8);
+});
+// 8 usos
+sc(94.7,111.7,(t,lt)=>{
+  platform(1);
+  const c=[['dor crônica',360,330,98.2],['ansiedade',360,420,101.3],['trauma',360,510,103.8]];
+  glow(circle(360,640,100,64),WHITE,1.6,.9);glow(circle(360,640,70,64),LILAC,1.2,.8);label('tratamento',360,640,t,95,PINK,22);
+  c.forEach(([s,x,y,t0],i)=>{const a=ap(t,t0);if(a>0){const an=-Math.PI/2+(i-1)*1.1,px=360+Math.cos(an)*190,py=640+Math.sin(an)*140;glow([[360+Math.cos(an)*100,640+Math.sin(an)*100],[px,py]],PINK,1,a*.7);glow(circle(px,py,12,16),PINK,2,a);
+    label(s,px+(i==1?0:(i==0?-8:8)),py+(i==1?-40:-36),t,t0,PINK,24)}});
+  const an=t*1.1;const sx=360+Math.cos(an)*150,sy=640+Math.sin(an)*50;
+  if(t>96)glow(circle(sx,sy,14,18),PINK,2.4,ap(t,96));if(t>96)label('hipnose',sx,sy-30,t,96.5,PINK,20);
+  if(t>105.4){label('nunca isolada',360,820,t,105.5,PINK,26);}
+  if(t>109){const a=ap(t,109);text('truque',360,230,34,WHITE,a,'center',PINK,700);};
+  if(t>109){const a=ap(t,109.3);glow([[250,200],[470,260]],PINK,3.5,a)}
+});
+// 9 controle / nó
+sc(111.7,130.4,(t,lt)=>{
+  platform(1);const tight=ap(t,119.2,3);const k=ap(t,127.2,2.5)*.0;
+  const jit=Math.sin(t*30)*2*tight;trefoil(360+jit,520,200-tight*45,t,0,PINK);
+  label('"tenho medo de perder o controle"',360,190,t,115,PINK,22);
+  label('segurar tudo com força',360,780,t,121,PINK,26);
+  if(t>127.1)label('na prática é o contrário',360,830,t,127.2,PINK,22);
+});
+// 10 quem controla sofre
+sc(130.4,143.6,(t,lt)=>{
+  platform(1);head(360,500,1.0,t,LILAC,1,(cx,cy,s)=>trefoil(cx,cy-10,52,t*2,0,PINK,1));
+  label('ansiedade',150,360,t,134.4,PINK,24);label('insônia',570,420,t,136,PINK,24);label('reações sozinhas',560,640,t,138,PINK,22);
+  [[150,360,134.4],[570,420,136],[560,640,138]].forEach(([x,y,t0])=>{if(t>t0){const a=ap(t,t0);glow([[x+(x<360?50:-50),y+10],[360+(x<360?-60:60),y>500?560:440]],PINK,1,a*.6)}});
+  label('quem controla tudo sofre mais',360,190,t,130.6,PINK,24);
+});
+// 11 entender por dentro
+sc(143.6,148,(t,lt)=>{
+  platform(1);const k=ap(t,143.9,2.2);head(360,500,1.0,t,LILAC,1,(cx,cy,s)=>trefoil(cx,cy-10,60,t*2,k,k>.5?WHITE:PINK,1));
+  selo('entender o que acontece dentro',t,144.2,110);
+});
+// 12 tempo adiando
+sc(148,162,(t,lt)=>{
+  const bar=(y,fill,col,lab,t0)=>{const a=ap(t,t0);for(let i=0;i<14;i++){const x=90+i*40;glow(rrect(x,y,34,40,5),i<fill?col:WHITE,1.4,a*(i<fill?1:.4),true)}label(lab,360,y-26,t,t0,col,22)};
+  bar(380,clamp((t-148)/6)*14,PINK,'adiando o tratamento',148.2);
+  bar(560,t>155?3:0,WHITE,'avaliação',155.2);
+  if(t<155)label('o mesmo problema, mais tempo',360,520,t,151.4,PINK,22);
+  if(t>157.6){const a=ap(t,157.8);glow(circle(360,820,52,48),PINK,2,a*.6);glow([[330,820],[352,842],[396,790]],WHITE,3,a);label('o melhor caminho para você',360,930-0,t,158,PINK,0)}
+  if(t>157.6)selo('agende sua avaliação',t,157.8,100);
+});
+
+/* ---------- render ---------- */
+window.render=(t)=>{
+  ctx.clearRect(0,0,W,H);bg(t);
+  for(const s of S){const aa=s.a-.3,bb=s.b+.3;if(t<aa||t>bb)continue;
+    gA=Math.min(clamp((t-aa)/.5),clamp((bb-t)/.5));ctx.save();s.fn(t,t-s.a);ctx.restore()}
+  gA=1;captions(t);footer();
+};
+window.render(0);
+</script></body></html>
