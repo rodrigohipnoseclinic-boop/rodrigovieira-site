@@ -80,6 +80,7 @@
 // Contador de visitas (sem cookies; "nova" = primeira visita da pessoa no dia)
 (function () {
   if (location.hostname === "localhost" || /^\/(admin|visitas)/.test(location.pathname)) return;
+  try { if (localStorage.getItem("rv-dono")) return; } catch (e) {} // navegador do dono: não conta
   var dia = new Date().toDateString(), nova = true;
   try { nova = localStorage.getItem("rv-dia") !== dia; localStorage.setItem("rv-dia", dia); } catch (e) {}
   var corpo = JSON.stringify({ p: location.pathname, nova: nova });

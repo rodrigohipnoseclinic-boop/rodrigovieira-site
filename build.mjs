@@ -578,6 +578,7 @@ function paginaVisitas() {
   <ol class="visitas-pag" id="v-pag"></ol>
 </section>
 <script>
+try { localStorage.setItem("rv-dono", "1"); } catch (e) {} // quem abre o painel é o dono: este navegador deixa de ser contado
 fetch("/api/visitas").then(function (r) { return r.json(); }).then(function (d) {
   function soma(n, k) { return d.slice(-n).reduce(function (t, x) { return t + x[k]; }, 0); }
   var blocos = [["Hoje", 1], ["7 dias", 7], ["30 dias", 30], ["90 dias", 90]];

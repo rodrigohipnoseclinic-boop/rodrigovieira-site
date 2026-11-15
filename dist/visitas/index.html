@@ -19,7 +19,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/style.css?v=mwh3zu4h">
+<link rel="stylesheet" href="/css/style.css?v=mwh4ar2o">
 <style>:root{--c-principal:#3F6F63;--c-principal-escura:#2F574D;--c-destaque:#B8873A;--c-fundo:#F7F5F0;--c-fundo-alt:#EDF1EC;--c-texto:#1C2B33;}</style>
 
 <meta name="robots" content="noindex">
@@ -53,6 +53,7 @@
   <ol class="visitas-pag" id="v-pag"></ol>
 </section>
 <script>
+try { localStorage.setItem("rv-dono", "1"); } catch (e) {} // quem abre o painel é o dono: este navegador deixa de ser contado
 fetch("/api/visitas").then(function (r) { return r.json(); }).then(function (d) {
   function soma(n, k) { return d.slice(-n).reduce(function (t, x) { return t + x[k]; }, 0); }
   var blocos = [["Hoje", 1], ["7 dias", 7], ["30 dias", 30], ["90 dias", 90]];
