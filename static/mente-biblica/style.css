@@ -199,3 +199,8 @@ h1,h2,h3{font-family:var(--serif);margin:0;line-height:1.2}
 .faixa b{font-family:var(--serif);font-size:18px;color:var(--azul)}
 .atual.bonus{color:var(--ok)}
 .jornada{display:flex;justify-content:space-between;align-items:center;gap:12px}
+
+/* instalação */
+.guia{margin:12px 0 4px;padding:12px 14px 12px 8px;background:var(--perg2);border-radius:12px;font-size:15px;line-height:1.5}
+.guia ol{margin:0;padding-left:24px}
+.guia li{margin-bottom:6px}

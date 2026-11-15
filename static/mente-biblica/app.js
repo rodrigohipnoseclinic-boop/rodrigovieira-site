@@ -655,6 +655,16 @@ const mediaCat = cat => {
 const versiculoDoDia = () => D.versiculos[diaIdx() % D.versiculos.length];
 const textoVersiculo = v => v.t.replace("___", v.r);
 
+/* ---------- instalação como app ---------- */
+let promptInstalar = null;
+const jaInstalado = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+const ehiOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); promptInstalar = e; if ($("#instalar")) telaHome(); });
+window.addEventListener("appinstalled", () => { promptInstalar = null; store.instalado = true; salvar(); if ($("#instalar")) telaHome(); });
+const guiaInstalar = () => ehiOS()
+  ? `<ol><li>Abra este endereço no <b>Safari</b>.</li><li>Toque em <b>Compartilhar</b> (o quadrado com a seta para cima).</li><li>Role e toque em <b>Adicionar à Tela de Início</b>.</li><li>Toque em <b>Adicionar</b>. O ícone aparece junto dos seus apps.</li></ol>`
+  : `<ol><li>Abra este endereço no <b>Chrome</b>.</li><li>Toque no menu <b>⋮</b> (três pontinhos, no canto).</li><li>Toque em <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.</li><li>Confirme. O ícone aparece junto dos seus apps e abre em tela cheia.</li></ol>`;
+
 /* ---------- telas ---------- */
 let fila = null; // treino em andamento
 function marcarNav(go) { document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.go === go)); }
@@ -678,6 +688,11 @@ function telaHome() {
     <div class="topo"><small>Treino mental bíblico</small><h1>${saud}! 🙏</h1><p>${esc(D.dicas[diaIdx() % D.dicas.length])}</p>
       <div class="chips"><span class="chip">🔥 <b>${seq}</b> ${seq === 1 ? "dia" : "dias"} seguidos</span><span class="chip">✅ <b>${n}/3</b> hoje</span></div></div>
     <div class="sobe">
+      ${jaInstalado() || store.instalado || store.ocultaInstalar ? "" : `<div class="card" id="instalar"><div class="rot">📲 Leve no seu celular</div><h2>Instale o app</h2>
+        <p class="pequeno" style="margin:2px 0 12px">Um ícone na tela inicial, em tela cheia e funcionando sem internet.</p>
+        <button class="btn ouro" id="btn-instalar">Instalar app</button>
+        <div id="guia" class="guia" hidden>${guiaInstalar()}</div>
+        <button class="link" id="agora-nao">Agora não</button></div>`}
       <div class="card"><div class="rot">Versículo do dia</div><div class="versiculo">“${esc(textoVersiculo(v))}”<cite>${esc(v.ref)}</cite></div></div>
       <div class="card"><div class="rot">Jornada · Roda de Letras</div><div class="jornada"><div><h2>Fase ${faseAtual()}</h2><p class="pequeno" style="margin:2px 0 0">🪙 ${moedas()} moedas · 🖼️ ${(store.cartas || []).length} cartões</p></div><button class="btn ouro" id="jornada" style="width:auto;padding:12px 18px">Continuar</button></div></div>
       <div class="card treino"><div class="rot">Treino de hoje</div><h2>3 jogos para a sua mente</h2>
@@ -686,6 +701,14 @@ function telaHome() {
         <div class="espaco"></div><button class="btn ouro" id="comecar">${n === 3 ? "Treino concluído! Jogar de novo" : n ? "Continuar treino" : "Começar treino"}</button></div>
     </div>`;
   ligarJogos(view);
+  const bi = $("#btn-instalar");
+  if (bi) {
+    bi.onclick = async () => {
+      if (promptInstalar) { promptInstalar.prompt(); try { await promptInstalar.userChoice; } catch (e) {} promptInstalar = null; return; }
+      const g = $("#guia"); g.hidden = !g.hidden;
+    };
+    $("#agora-nao").onclick = () => { store.ocultaInstalar = true; salvar(); telaHome(); };
+  }
   $("#jornada").onclick = () => jogar("roda");
   $("#comecar").onclick = () => {
     const pendentes = lista.filter(g => !feitos.has(g));
@@ -715,6 +738,7 @@ function telaProgresso() {
         ${ult.length ? `<div class="hist">${ult.map(h => `<div><span>${JOGOS[h.g].ico} ${JOGOS[h.g].nome}</span><b>${h.s}%</b></div>`).join("")}</div>` : '<p class="pequeno">Jogue o primeiro jogo para ver o seu histórico aqui.</p>'}</div>
       <div class="card"><div class="rot">Meus versículos (${(store.cartas || []).length}/${CARTAS.length})</div>
         ${(store.cartas || []).length ? `<div class="hist">${(store.cartas || []).map(r => CARTAS.find(c => c.ref === r)).filter(Boolean).map((c, i) => `<div style="display:block"><i style="font-family:Georgia,serif">“${esc(c.t)}”</i><br><b>${esc(c.ref)}</b> <button class="link" data-cartao="${i}">compartilhar</button></div>`).join("")}</div>` : '<p class="pequeno">Conclua a fase 3 da Roda de Letras para ganhar o primeiro cartão. Um novo a cada 3 fases!</p>'}</div>
+      ${jaInstalado() ? "" : `<div class="card"><div class="rot">Instalar no celular</div><div class="guia">${guiaInstalar()}</div></div>`}
       <button class="link" id="zerar">Apagar meu progresso</button>
       <p class="pequeno" style="margin-top:14px">Versículos na tradução Almeida Revista e Corrigida. O progresso fica salvo apenas neste aparelho.</p>
     </div>`;

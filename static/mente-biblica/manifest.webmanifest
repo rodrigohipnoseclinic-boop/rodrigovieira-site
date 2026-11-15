@@ -1,9 +1,11 @@
 {
+  "id": "/mente-biblica/",
   "name": "Mente Renovada",
   "short_name": "Mente Renovada",
   "description": "Treino mental diário com a Palavra de Deus.",
   "start_url": "./",
   "scope": "./",
+  "categories": ["education", "games", "lifestyle"],
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#1c2a4a",
