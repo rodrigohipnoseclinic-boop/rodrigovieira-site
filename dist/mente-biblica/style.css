@@ -273,3 +273,8 @@ h1,h2,h3{font-family:var(--serif);margin:0;line-height:1.2}
 .m-tela .m-desce{animation:mDesce 5s linear infinite}@keyframes mDesce{0%{transform:translate(40px,-60px);opacity:0}15%{opacity:1}85%{opacity:1}100%{transform:translate(-40px,60px);opacity:0}}
 .m-tela .m-arco{stroke-dasharray:1;stroke-dashoffset:1;animation:mArco 1.6s ease-out forwards}@keyframes mArco{to{stroke-dashoffset:0}}
 .m-tela .m-poeira{transform-box:fill-box;transform-origin:center;opacity:0;animation:mPoeira 3s ease-out infinite}@keyframes mPoeira{0%{opacity:0;transform:scale(.3)}25%{opacity:1}100%{opacity:0;transform:scale(2.2) translateY(-24px)}}
+
+/* modo dono */
+.btn{text-decoration:none}
+.campo{box-sizing:border-box;width:100%;padding:12px 14px;border:1.5px solid var(--linha);border-radius:12px;font:inherit;background:#fff;color:var(--texto)}
+.toast{position:fixed;bottom:104px;left:50%;transform:translateX(-50%);background:var(--azul);color:#fff;padding:10px 18px;border-radius:99px;font-size:14px;z-index:200;box-shadow:0 6px 18px #0005}
