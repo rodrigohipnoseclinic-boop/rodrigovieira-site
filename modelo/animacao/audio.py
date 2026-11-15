@@ -92,34 +92,31 @@ def heartbeat():
     return out
 
 
-# ---------------- linha do tempo dos efeitos ----------------
-cuts = [2.9, 6.5, 9.3, 22.3, 36.3, 45.3, 58.7, 72.0, 94.7, 111.7, 130.4, 143.6, 148.0]
-selos = [6.9, 10.0, 14.7, 39.9, 72.2, 88.6, 144.2, 157.8]
-labels = [11.0, 26.3, 29.1, 32.5, 41.8, 53.3, 59.2, 64.1, 65.4, 66.6, 81.7, 83.0, 84.2,
-          98.2, 101.3, 103.8, 134.4, 136.0, 138.0]
+# ---------------- remapeamento de tempo (pausas removidas) ----------------
+import json, os
+CUTS = json.load(open(sys.argv[2])) if len(sys.argv) > 2 and os.path.exists(sys.argv[2]) else []
+def nt(t):
+    f = t * 30; rem = 0
+    for cs, ce in CUTS:
+        if f > cs: rem += min(f, ce) - cs
+    return (f - rem) / 30
+NEWDUR = nt(DUR - .4)
 
+# ---------------- efeitos: poucos, só onde fazem diferença ----------------
 sfx = np.zeros((N, 2))
-for c in cuts:
-    put(sfx, whoosh(.9), c - .45, .55, pan=rng.uniform(-.3, .3))
-for s in selos:
-    put(sfx, ping(1318.5, .7), s, .30)
-    put(sfx, tick(), s - .01, .25)
-for l in labels:
-    put(sfx, ping(987.8, .45), l, .13, pan=rng.uniform(-.4, .4))
-put(sfx, shatter(1.2), 36.55, .45)
-put(sfx, boom(1.4), 36.5, .55)
-put(sfx, boom(1.4), 6.5, .35)          # cadeado abre
-put(sfx, riser(2.0), 12.7, .35)        # antes do 60-70%
-put(sfx, boom(1.4), 14.7, .5)
-put(sfx, riser(2.0), 86.7, .3)         # antes de "real e mensurável"
-put(sfx, boom(1.2), 88.5, .4)
-put(sfx, heartbeat(), 119.2, .4)       # nó aperta
-put(sfx, heartbeat(), 120.6, .4)
-put(sfx, heartbeat(), 122.0, .4)
-put(sfx, ping(1568, .9), 145.0, .25)   # nó se desfaz
-put(sfx, chime(), 157.8, .55)
+for c in (36.3, 72.0, 111.7, 148.0):           # viradas de assunto
+    put(sfx, whoosh(.9), nt(c) - .45, .30, pan=rng.uniform(-.3, .3))
+put(sfx, tick(), nt(6.9), .12)                   # cadeado abre
+put(sfx, shatter(1.2), nt(36.55), .30)           # "desmontar essa ideia"
+put(sfx, boom(1.4), nt(36.5), .28)
+put(sfx, ping(1318.5, .7), nt(14.7), .22)        # 60-70%
+put(sfx, boom(1.2), nt(14.7), .26)
+put(sfx, ping(1318.5, .7), nt(88.6), .20)        # real e mensurável
+put(sfx, heartbeat(), nt(119.2), .28)            # nó aperta
+put(sfx, ping(1568, .9), nt(145.0), .14)         # nó se desfaz
+put(sfx, chime(), nt(157.8), .40)                # fechamento
 
-# ---------------- trilha: pad em Lá menor + pulsos suaves ----------------
+# ---------------- trilha: pad em Lá menor, bem discreto ----------------
 CH = [(110.0, 130.81, 164.81, 220.0), (87.31, 110.0, 130.81, 174.61),
       (130.81, 164.81, 196.0, 261.63), (98.0, 123.47, 146.83, 196.0)]  # Am F C G
 BAR = 8.0
@@ -134,18 +131,8 @@ for b in range(int(DUR / BAR) + 1):
             s = (np.sin(2 * np.pi * f * det * t) + .4 * np.sin(2 * np.pi * f * 2 * det * t)
                  + .15 * np.sin(2 * np.pi * f * 3 * det * t)) * e * (1 + .12 * np.sin(2 * np.pi * .23 * t + f))
             put(mus, s, b * BAR - 1.2, .06, pan)
-# arpejo suave (colcheias lentas)
-for b in range(int(DUR / BAR)):
-    ch = CH[b % 4]
-    for k in range(16):
-        f = ch[(0, 2, 3, 2)[k % 4]] * 2
-        p = ping(f, .6) * (.6 + .4 * np.sin(k * 1.3))
-        put(mus, p, b * BAR + k * .5, .028, pan=-.5 + (k % 4) / 4)
-# pulso grave discreto nos compassos
-for k in range(int(DUR / 2)):
-    put(mus, boom(.5) * .6, k * 2.0, .05)
-# entrada e saída
-fade = np.minimum(tt / 3, 1) * np.minimum((DUR - tt) / 3, 1)
+# entrada e saída acompanham a duração nova
+fade = np.minimum(tt / 3, 1) * np.minimum(np.maximum(NEWDUR - tt, 0) / 3, 1)
 mus *= fade[:, None]
 
 
