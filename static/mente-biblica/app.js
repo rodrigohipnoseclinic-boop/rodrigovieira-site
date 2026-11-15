@@ -93,6 +93,22 @@ function narrar(texto) {
   try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(texto); u.lang = "pt-BR"; if (vozPt) u.voice = vozPt; u.rate = .95; speechSynthesis.speak(u); } catch (e) {}
 }
 function calarNarracao() { try { if ("speechSynthesis" in window) speechSynthesis.cancel(); } catch (e) {} }
+// efeitos de mangá: cascos, trovão grave, água e passos
+function somManga(tipo) {
+  if (!somLigado()) return;
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === "suspended") ac.resume();
+    const t0 = ac.currentTime, ruido = (dur, f, vol, at = 0, q = 1) => { const n = Math.floor(ac.sampleRate * dur), buf = ac.createBuffer(1, n, ac.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      const src = ac.createBufferSource(), fl = ac.createBiquadFilter(), g = ac.createGain(); src.buffer = buf; fl.type = "lowpass"; fl.frequency.value = f; fl.Q.value = q;
+      g.gain.setValueAtTime(.0001, t0 + at); g.gain.exponentialRampToValueAtTime(vol, t0 + at + .03); g.gain.exponentialRampToValueAtTime(.0001, t0 + at + dur); src.connect(fl); fl.connect(g); g.connect(ac.destination); src.start(t0 + at); return fl; };
+    const pancada = (f, dur, vol, at) => { const o = ac.createOscillator(), g = ac.createGain(); o.type = "sine"; o.frequency.setValueAtTime(f, t0 + at); o.frequency.exponentialRampToValueAtTime(f * .45, t0 + at + dur); g.gain.setValueAtTime(vol, t0 + at); g.gain.exponentialRampToValueAtTime(.0001, t0 + at + dur); o.connect(g); g.connect(ac.destination); o.start(t0 + at); o.stop(t0 + at + dur + .05); };
+    if (tipo === "cavalos") for (let i = 0; i < 16; i++) { const at = i * .16 + (i % 2) * .03; pancada(110 + (i % 2) * 24, .12, .32, at); ruido(.07, 900, .12, at); }
+    if (tipo === "gooo") { const o = ac.createOscillator(), g = ac.createGain(), lf = ac.createOscillator(), lg = ac.createGain(); o.type = "sawtooth"; o.frequency.value = 42; lf.frequency.value = 7; lg.gain.value = 9; lf.connect(lg); lg.connect(o.frequency);
+      g.gain.setValueAtTime(.0001, t0); g.gain.exponentialRampToValueAtTime(.22, t0 + .6); g.gain.exponentialRampToValueAtTime(.0001, t0 + 3.4); const fl = ac.createBiquadFilter(); fl.type = "lowpass"; fl.frequency.value = 160; o.connect(fl); fl.connect(g); g.connect(ac.destination); o.start(t0); lf.start(t0); o.stop(t0 + 3.5); lf.stop(t0 + 3.5); ruido(3, 400, .09, 0); }
+    if (tipo === "agua") { const f = ruido(3.4, 600, .16, 0, 4); f.frequency.setValueAtTime(300, t0); f.frequency.exponentialRampToValueAtTime(1800, t0 + 2.2); }
+    if (tipo === "marcha") for (let i = 0; i < 10; i++) { pancada(80, .09, .12, i * .5); ruido(.05, 500, .05, i * .5); }
+  } catch (e) {}
+}
 function iconeSom() { return somLigado() ? "🔊" : "🔇"; }
 function alternarSom() { store.mudo = !store.mudo; salvar(); document.querySelectorAll("[data-som]").forEach(b => { b.textContent = iconeSom() + (b.dataset.som === "chip" ? " Som" : ""); b.setAttribute("aria-label", somLigado() ? "Desligar som" : "Ligar som"); }); if (somLigado()) bip(523, .15); else calarNarracao(); }
 
@@ -865,7 +881,9 @@ function tocarManga(m) {
   const sair = () => { if (fim) return; fim = true; tm.forEach(clearTimeout); calarNarracao(); ov.classList.add("c-sai"); setTimeout(() => ov.remove(), 650); };
   aoSair(sair); ov.querySelector(".c-pular").onclick = sair;
   const visao = (x, y, w, h, zmax) => { const s = Math.min(570 / w, 740 / h, zmax); cam.style.transform = `translate(${300 - s * (x + w / 2)}px,${400 - s * (y + h / 2)}px) scale(${s})`; };
-  const mostrar = i => { const q = ov.querySelector(`.m-painel[data-i="${i}"]`); q.classList.add("on"); visao(...M.box(m.paineis[i].pts), 2.5); };
+  const mostrar = i => { const q = ov.querySelector(`.m-painel[data-i="${i}"]`), d = m.paineis[i]; q.classList.add("on"); visao(...M.box(d.pts), 2.5);
+    if (d.tremor) { T(() => { ov.classList.add("c-treme"); T(() => ov.classList.remove("c-treme"), 1500); }, 700); }
+    if (d.som) T(() => somManga(d.som), 500); };
   visao(0, 0, 600, 900, .88);
   const passo = () => {
     if (fim) return;

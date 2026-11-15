@@ -291,3 +291,8 @@ h1,h2,h3{font-family:var(--serif);margin:0;line-height:1.2}
 .m-tela .m-galope{transform-box:fill-box;transform-origin:50% 100%;animation:mGalope .32s ease-in-out infinite alternate}@keyframes mGalope{from{transform:translateY(0) rotate(-1.5deg)}to{transform:translateY(-3px) rotate(1.5deg)}}
 .m-tela .m-roda{animation:mRoda .5s linear infinite}@keyframes mRoda{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.m-tela *{animation:none!important}.m-tela .m-painel{opacity:1}}
+.m-tela .m-mvr{animation:mMvr .45s linear infinite}@keyframes mMvr{from{transform:translateX(-60px);opacity:0}25%{opacity:1}to{transform:translateX(160px);opacity:0}}
+.m-tela .m-manto{transform-box:fill-box;transform-origin:100% 20%;animation:mManto 1.1s ease-in-out infinite alternate}@keyframes mManto{from{transform:skewY(-3deg) scaleX(.95)}to{transform:skewY(4deg) scaleX(1.06)}}
+.m-tela .m-gota{animation:mGota 2.2s ease-in infinite}@keyframes mGota{0%{transform-box:fill-box;opacity:1}80%{opacity:1}100%{opacity:0}}
+.m-flash{opacity:0;pointer-events:none}.m-painel.on .m-flash{animation:mFlash .55s ease-out forwards}@keyframes mFlash{0%{opacity:.95}100%{opacity:0}}
+.cinema.c-treme .m-tela{animation:treme .11s linear infinite}@keyframes treme{0%{transform:translate(0,0)}25%{transform:translate(3px,-2px)}50%{transform:translate(-3px,2px)}75%{transform:translate(2px,3px)}100%{transform:translate(0,0)}}
