@@ -84,7 +84,7 @@ const JOGOS = {
     nome: "Complete o Versículo", cat: "Memória", ico: "📖", desc: "Descubra a palavra que falta.",
     iniciar(c) {
       const vs = sample(D.versiculos, 6);
-      jogoEscolha({ ...c, rodadas: 6, fazer: i => {
+      jogoEscolha({ ...c, rodadas: 6, tempo: [0, 0, 30][c.nivel - 1], fazer: i => {
         const v = vs[i], correta = v.r, ops = [correta, ...sample(v.ops, 3)];
         const completo = v.t.replace("___", correta);
         return { enun: `<small>${esc(v.ref)}</small>${esc(v.t).replace("___", '<b style="color:var(--ouro)">_____</b>')}`,
@@ -97,7 +97,7 @@ const JOGOS = {
     nome: "Quiz Bíblico", cat: "Conhecimento", ico: "❓", desc: "Quanto você conhece das Escrituras?",
     iniciar(c) {
       const qs = sample(D.quiz, 8);
-      jogoEscolha({ ...c, rodadas: 8, fazer: i => ({ enun: esc(qs[i].p), opcoes: qs[i].o, certa: 0, explica: `Resposta: <b>${esc(qs[i].o[0])}</b>.` }) });
+      jogoEscolha({ ...c, rodadas: 8, tempo: [0, 25, 15][c.nivel - 1], fazer: i => ({ enun: esc(qs[i].p), opcoes: qs[i].o, certa: 0, explica: `Resposta: <b>${esc(qs[i].o[0])}</b>.` }) });
     }
   },
 
@@ -230,8 +230,8 @@ const JOGOS = {
 
   palavras: {
     nome: "Palavras Embaralhadas", cat: "Linguagem", ico: "🔤", desc: "Monte nomes e termos da Bíblia.",
-    iniciar({ stage, progresso, terminar }) {
-      const R = 6, lista = sample(D.palavras, R);
+    iniciar({ stage, progresso, terminar, nivel }) {
+      const R = 6, maxLetras = [6, 8, 12][nivel - 1], lista = sample(D.palavras.filter(x => x[0].length <= maxLetras), R);
       let r = 0, pontos = 0;
       function rodada() {
         if (r >= R) return terminar(Math.round(pontos / R * 100));
@@ -364,10 +364,10 @@ let basesCache = null;
 const basesRoda = () => basesCache || (basesCache = VOC.filter(w => w.length >= 4)
   .map(b => ({ b, ws: VOC.filter(w => cabeEm(w, b)) })).filter(x => x.ws.length >= 4));
 const fixarNum = (n, a, b) => Math.max(a, Math.min(b, n));
-function faseRoda(n) {
+function faseRoda(n, tier = 1) {
   const manual = window.PUZZLES.roda;
-  if (n <= manual.length) return manual[n - 1].palavras;
-  const m = n - manual.length, L = fixarNum(4 + Math.floor((m - 1) / 6), 4, 7);
+  if (n <= manual.length && tier === 1) return manual[n - 1].palavras;
+  const m = Math.max(1, n - manual.length) + (tier - 1) * 6, L = fixarNum(4 + Math.floor((m - 1) / 6), 4, 7);
   let cand = basesRoda().filter(x => L >= 6 ? x.b.length >= 5 : x.b.length === L);
   if (!cand.length) cand = basesRoda();
   const base = cand[(m * 7 + 3) % cand.length], T = fixarNum(3 + Math.floor(m / 4), 3, 9);
@@ -376,7 +376,6 @@ function faseRoda(n) {
 const CARTAS = D.versiculos.map(v => ({ ref: v.ref, t: v.t.replace("___", v.r) }));
 const cartaDaFase = n => n % 3 === 0 ? CARTAS[(n / 3 - 1) % CARTAS.length] : null;
 const moedas = () => store.moedas == null ? 30 : store.moedas;
-const faseAtual = () => store.roda || 1;
 
 /* cartão de versículo como imagem, para compartilhar */
 function cartaoPNG(v) {
@@ -408,8 +407,8 @@ async function compartilharCartao(v) {
 Object.assign(JOGOS, {
   roda: {
     nome: "Roda de Letras", cat: "Linguagem", ico: "🎡", desc: "Ligue as letras e preencha a grade.",
-    iniciar({ stage, progresso, terminar }) {
-      const fase = faseAtual(), grade = montarGrade(faseRoda(fase), true), palavras = grade.words.map(x => x.w);
+    iniciar({ stage, progresso, terminar, jornada }) {
+      const grade = montarGrade(faseRoda(jornada ? (store.rodaN || 0) + 1 : 1 + rnd(40), jornada ? tierXP() : 1), true), palavras = grade.words.map(x => x.w);
       const cont = {};
       palavras.forEach(w => { const c = {}; [...w].forEach(l => c[l] = (c[l] || 0) + 1); for (const l in c) cont[l] = Math.max(cont[l] || 0, c[l]); });
       let letras = shuffle(Object.entries(cont).flatMap(([l, n]) => Array(n).fill(l)));
@@ -419,7 +418,7 @@ Object.assign(JOGOS, {
       const letrasTodas = Object.entries(cont).map(([l, n]) => l.repeat(n)).join("");
       const bonusValidos = VOC.filter(w => !palavras.includes(w) && cabeEm(w, letrasTodas)), bonusAchados = new Set();
       const mostra = (r, c) => reveladas.has(r + "," + c) || grade.words.some(w => achadas.has(w.w) && celulasDe(w).some(([a, b]) => a === r && b === c));
-      stage.innerHTML = `<div class="faixa"><b>Fase ${fase}</b><span id="bn">Bônus: 0</span><span id="moe">🪙 ${moedas()}</span></div>
+      stage.innerHTML = `<div class="faixa"><b>${jornada ? "Fase " + (store.fase || 1) : "Treino livre"}</b><span id="bn">Bônus: 0</span><span id="moe">🪙 ${moedas()}</span></div>
         <div class="xgrid" id="xg" style="--cols:${grade.cols};grid-template-columns:repeat(${grade.cols},1fr)"></div>
         <div class="atual" id="atual">&nbsp;</div>
         <div class="roda" id="roda"><button class="mistura" id="mistura" aria-label="Embaralhar letras">🔀</button></div>
@@ -448,12 +447,7 @@ Object.assign(JOGOS, {
         pintarGrade();
         if (!fim && achadas.size === palavras.length) {
           fim = true; bip(800, .3);
-          const ganho = 10 + bonusAchados.size, carta = cartaDaFase(fase);
-          const nova = !!carta && !(store.cartas || []).includes(carta.ref);
-          store.roda = fase + 1; store.moedas = moedas() + ganho;
-          if (nova) store.cartas = [...(store.cartas || []), carta.ref];
-          salvar();
-          later(() => terminar(Math.max(30, 100 - dicas * 12 - Math.min(erros, 10) * 2), carta || undefined, { fase, ganho, nova }), 900);
+          later(() => terminar(Math.max(30, 100 - dicas * 12 - Math.min(erros, 10) * 2), undefined, { bonus: bonusAchados.size }), 900);
         }
       };
       const letraEm = e => { const el = document.elementFromPoint(e.clientX, e.clientY); return el && el.closest ? el.closest(".rl") : null; };
@@ -536,8 +530,8 @@ Object.assign(JOGOS, {
 
   cruzadinha: {
     nome: "Cruzadinha Bíblica", cat: "Conhecimento", ico: "🧩", desc: "Resolva as dicas e cruze as respostas.",
-    iniciar({ stage, progresso, terminar }) {
-      const P = pick(window.PUZZLES.cruz), dicasDe = Object.fromEntries(P.palavras);
+    iniciar({ stage, progresso, terminar, nivel }) {
+      const P0 = pick(window.PUZZLES.cruz), P = { ...P0, palavras: sample(P0.palavras, [5, 6, 8][nivel - 1]) }, dicasDe = Object.fromEntries(P.palavras);
       const grade = montarGrade(P.palavras.map(x => x[0]), true), ws = grade.words;
       const resp = new Map(), num = new Map(), user = new Map();
       ws.forEach(w => celulasDe(w).forEach(([r, c], k) => resp.set(r + "," + c, w.w[k])));
@@ -636,18 +630,40 @@ Object.assign(JOGOS, {
 
 const ORDEM = ["roda", "caca", "cruzadinha", "verso", "versiculo", "quiz", "pares", "intruso", "calculo", "sequencia", "ordem", "palavras"];
 
-/* ---------- treino diário, sequência e progresso ---------- */
-const treinoDoDia = ds => { const d = diaIdx(ds), n = ORDEM.length; return [ORDEM[d % n], ORDEM[(d + 3) % n], ORDEM[(d + 5) % n]]; };
-const jogadosNoDia = ds => new Set(store.hist.filter(h => h.d === ds).map(h => h.g));
-const diaCompleto = ds => { const j = jogadosNoDia(ds); return treinoDoDia(ds).every(g => j.has(g)); };
+/* ---------- jornada: XP, nível, baralho de desafios e sequência de dias ---------- */
+const NIVEL_XP = [0, 600, 1600];
+const xp = () => store.xp || 0;
+const nivelXP = () => xp() >= NIVEL_XP[2] ? 3 : xp() >= NIVEL_XP[1] ? 2 : 1;
+const tierXP = () => 1 + Math.floor(xp() / 450);
+const novoBaralho = ultimo => {
+  let b = ultimo ? shuffle(ORDEM) : ["roda", ...shuffle(ORDEM.filter(x => x !== "roda"))];
+  if (ultimo && b[0] === ultimo) b.push(b.shift());
+  return b;
+};
+const proximoJogo = () => { if (!store.baralho || !store.baralho.length) store.baralho = novoBaralho(store.ultimo); return store.baralho[0]; };
+const fasesNoDia = ds => store.hist.filter(h => h.d === ds && h.j).length;
+const diaCompleto = ds => fasesNoDia(ds) >= 3;
 function sequenciaDias() {
   let ds = dataStr(), n = 0;
   if (!diaCompleto(ds)) ds = addDias(ds, -1);
   while (diaCompleto(ds)) { n++; ds = addDias(ds, -1); }
   return n;
 }
-const partidas = id => store.hist.filter(h => h.g === id).length;
-const nivelDe = id => Math.min(3, 1 + Math.floor(partidas(id) / 3));
+function barraXP() {
+  const n = nivelXP(), ini = NIVEL_XP[n - 1], fim = NIVEL_XP[n];
+  if (!fim) return `<div class="xpbar"><i style="width:100%"></i></div><small class="pequeno">${xp()} XP · nível máximo. A roda de letras continua crescendo.</small>`;
+  return `<div class="xpbar"><i style="width:${Math.round((xp() - ini) / (fim - ini) * 100)}%"></i></div><small class="pequeno">${xp()} / ${fim} XP para o nível ${n + 1}</small>`;
+}
+function concluirFase(id, score, bonus) {
+  const fase = store.fase || 1, antes = nivelXP(), ganho = 10 + (bonus || 0);
+  store.xp = xp() + score; store.moedas = moedas() + ganho;
+  if (id === "roda") store.rodaN = (store.rodaN || 0) + 1;
+  const carta = cartaDaFase(fase), nova = !!carta && !(store.cartas || []).includes(carta.ref);
+  if (nova) store.cartas = [...(store.cartas || []), carta.ref];
+  store.fase = fase + 1; store.ultimo = id; store.baralho = (store.baralho || []).slice(1);
+  proximoJogo();
+  return { fase, ganho, nova, carta, xpGanho: score, subiu: nivelXP() > antes, nivel: nivelXP() };
+}
 const mediaCat = cat => {
   const ult = store.hist.filter(h => JOGOS[h.g] && JOGOS[h.g].cat === cat).slice(-6);
   return ult.length ? Math.round(ult.reduce((s, h) => s + h.s, 0) / ult.length) : null;
@@ -666,10 +682,9 @@ const guiaInstalar = () => ehiOS()
   : `<ol><li>Abra este endereço no <b>Chrome</b>.</li><li>Toque no menu <b>⋮</b> (três pontinhos, no canto).</li><li>Toque em <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.</li><li>Confirme. O ícone aparece junto dos seus apps e abre em tela cheia.</li></ol>`;
 
 /* ---------- telas ---------- */
-let fila = null; // treino em andamento
 function marcarNav(go) { document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.go === go)); }
 function ir(tela) {
-  limpar(); appEl.classList.remove("em-jogo"); fila = tela === "treino" ? fila : null;
+  limpar(); appEl.classList.remove("em-jogo");
   ({ home: telaHome, games: telaJogos, progress: telaProgresso }[tela] || telaHome)();
   marcarNav(tela); window.scrollTo(0, 0);
 }
@@ -681,26 +696,24 @@ function linhaJogo(id, extra = "", feito = false) {
 function ligarJogos(raiz) { raiz.querySelectorAll("[data-play]").forEach(b => b.onclick = () => jogar(b.dataset.play)); }
 
 function telaHome() {
-  const hoje = dataStr(), lista = treinoDoDia(hoje), feitos = jogadosNoDia(hoje);
-  const n = lista.filter(g => feitos.has(g)).length, seq = sequenciaDias(), v = versiculoDoDia();
+  const hoje = dataStr(), n = Math.min(3, fasesNoDia(hoje)), seq = sequenciaDias(), v = versiculoDoDia(), prox = JOGOS[proximoJogo()];
   const hora = new Date().getHours(), saud = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
   view.innerHTML = `
     <div class="topo"><small>Treino mental bíblico</small><h1>${saud}! 🙏</h1><p>${esc(D.dicas[diaIdx() % D.dicas.length])}</p>
-      <div class="chips"><span class="chip">🔥 <b>${seq}</b> ${seq === 1 ? "dia" : "dias"} seguidos</span><span class="chip">✅ <b>${n}/3</b> hoje</span></div></div>
+      <div class="chips"><span class="chip">🔥 <b>${seq}</b> ${seq === 1 ? "dia" : "dias"} seguidos</span><span class="chip">✅ <b>${n}/3</b> fases hoje</span></div></div>
     <div class="sobe">
+      <div class="card"><div class="rot">Sua jornada</div>
+        <div class="jornada"><div><h2>Fase ${store.fase || 1} · Nível ${nivelXP()}</h2><p class="pequeno" style="margin:2px 0 0">🪙 ${moedas()} moedas · 🖼️ ${(store.cartas || []).length} cartões</p></div></div>
+        ${barraXP()}
+        <div class="proxima"><span>${prox.ico}</span><div><small>Próximo desafio</small><b>${prox.nome}</b></div></div>
+        <button class="btn ouro" id="jornada">${(store.fase || 1) === 1 ? "Começar jornada" : "Continuar jornada"}</button></div>
       ${jaInstalado() || store.instalado || store.ocultaInstalar ? "" : `<div class="card" id="instalar"><div class="rot">📲 Leve no seu celular</div><h2>Instale o app</h2>
         <p class="pequeno" style="margin:2px 0 12px">Um ícone na tela inicial, em tela cheia e funcionando sem internet.</p>
         <button class="btn ouro" id="btn-instalar">Instalar app</button>
         <div id="guia" class="guia" hidden>${guiaInstalar()}</div>
         <button class="link" id="agora-nao">Agora não</button></div>`}
       <div class="card"><div class="rot">Versículo do dia</div><div class="versiculo">“${esc(textoVersiculo(v))}”<cite>${esc(v.ref)}</cite></div></div>
-      <div class="card"><div class="rot">Jornada · Roda de Letras</div><div class="jornada"><div><h2>Fase ${faseAtual()}</h2><p class="pequeno" style="margin:2px 0 0">🪙 ${moedas()} moedas · 🖼️ ${(store.cartas || []).length} cartões</p></div><button class="btn ouro" id="jornada" style="width:auto;padding:12px 18px">Continuar</button></div></div>
-      <div class="card treino"><div class="rot">Treino de hoje</div><h2>3 jogos para a sua mente</h2>
-        <p class="pequeno" style="margin:2px 0 12px">Complete os três para manter a sequência.</p>
-        <div class="lista">${lista.map(g => linhaJogo(g, "", feitos.has(g))).join("")}</div>
-        <div class="espaco"></div><button class="btn ouro" id="comecar">${n === 3 ? "Treino concluído! Jogar de novo" : n ? "Continuar treino" : "Começar treino"}</button></div>
     </div>`;
-  ligarJogos(view);
   const bi = $("#btn-instalar");
   if (bi) {
     bi.onclick = async () => {
@@ -709,16 +722,12 @@ function telaHome() {
     };
     $("#agora-nao").onclick = () => { store.ocultaInstalar = true; salvar(); telaHome(); };
   }
-  $("#jornada").onclick = () => jogar("roda");
-  $("#comecar").onclick = () => {
-    const pendentes = lista.filter(g => !feitos.has(g));
-    fila = (pendentes.length ? pendentes : lista).slice(); jogar(fila.shift(), true);
-  };
+  $("#jornada").onclick = () => jogar(proximoJogo(), true);
 }
 
 function telaJogos() {
-  view.innerHTML = `<div class="topo" style="padding-bottom:24px"><small>Escolha</small><h1>Todos os jogos</h1><p>Treine memória, atenção, linguagem e raciocínio.</p></div>
-    <div class="pad"><div class="lista">${ORDEM.map(g => linhaJogo(g, `${JOGOS[g].desc} · Nível ${nivelDe(g)}`)).join("")}</div></div>`;
+  view.innerHTML = `<div class="topo" style="padding-bottom:24px"><small>Pratique à vontade</small><h1>Treino livre</h1><p>Escolha qualquer jogo. Aqui não vale para a jornada.</p></div>
+    <div class="pad"><div class="lista">${ORDEM.map(g => linhaJogo(g, `${JOGOS[g].desc} · Nível ${nivelXP()}`)).join("")}</div></div>`;
   ligarJogos(view);
 }
 
@@ -731,13 +740,13 @@ function telaProgresso() {
       <div class="card"><div class="rot">Últimos 7 dias</div>
         <div class="cal">${dias.map(d => { const [y, m, dd] = d.split("-").map(Number); const wd = new Date(y, m - 1, dd).getDay();
           return `<div class="${diaCompleto(d) ? "feito" : ""} ${d === hoje ? "hoje" : ""}"><i>${diaCompleto(d) ? "✓" : ""}</i>${nomes[wd]}</div>`; }).join("")}</div>
-        <p class="pequeno" style="margin-top:12px">Sequência atual: <b>${sequenciaDias()}</b> · Partidas: <b>${store.hist.length}</b></p></div>
+        <p class="pequeno" style="margin-top:12px">Meta: 3 fases por dia. Sequência atual: <b>${sequenciaDias()}</b> · Fase <b>${store.fase || 1}</b> · Nível <b>${nivelXP()}</b></p>${barraXP()}</div>
       <div class="card"><div class="rot">Áreas da mente</div>
         ${CATS.map(c => { const m = mediaCat(c); return `<div class="cat"><div class="t"><span>${c}</span><span>${m === null ? "ainda não jogou" : m + "%"}</span></div><div class="trilho"><i style="width:${m || 0}%"></i></div></div>`; }).join("")}</div>
       <div class="card"><div class="rot">Últimas partidas</div>
         ${ult.length ? `<div class="hist">${ult.map(h => `<div><span>${JOGOS[h.g].ico} ${JOGOS[h.g].nome}</span><b>${h.s}%</b></div>`).join("")}</div>` : '<p class="pequeno">Jogue o primeiro jogo para ver o seu histórico aqui.</p>'}</div>
       <div class="card"><div class="rot">Meus versículos (${(store.cartas || []).length}/${CARTAS.length})</div>
-        ${(store.cartas || []).length ? `<div class="hist">${(store.cartas || []).map(r => CARTAS.find(c => c.ref === r)).filter(Boolean).map((c, i) => `<div style="display:block"><i style="font-family:Georgia,serif">“${esc(c.t)}”</i><br><b>${esc(c.ref)}</b> <button class="link" data-cartao="${i}">compartilhar</button></div>`).join("")}</div>` : '<p class="pequeno">Conclua a fase 3 da Roda de Letras para ganhar o primeiro cartão. Um novo a cada 3 fases!</p>'}</div>
+        ${(store.cartas || []).length ? `<div class="hist">${(store.cartas || []).map(r => CARTAS.find(c => c.ref === r)).filter(Boolean).map((c, i) => `<div style="display:block"><i style="font-family:Georgia,serif">“${esc(c.t)}”</i><br><b>${esc(c.ref)}</b> <button class="link" data-cartao="${i}">compartilhar</button></div>`).join("")}</div>` : '<p class="pequeno">Conclua a fase 3 da jornada para ganhar o primeiro cartão. Um novo a cada 3 fases!</p>'}</div>
       ${jaInstalado() ? "" : `<div class="card"><div class="rot">Instalar no celular</div><div class="guia">${guiaInstalar()}</div></div>`}
       <button class="link" id="zerar">Apagar meu progresso</button>
       <p class="pequeno" style="margin-top:14px">Versículos na tradução Almeida Revista e Corrigida. O progresso fica salvo apenas neste aparelho.</p>
@@ -747,40 +756,39 @@ function telaProgresso() {
   $("#zerar").onclick = () => { if (confirm("Apagar todo o seu progresso neste aparelho?")) { store = { hist: [] }; salvar(); telaProgresso(); } };
 }
 
-function jogar(id, treino = false) {
+function jogar(id, jornada = false) {
   limpar(); appEl.classList.add("em-jogo"); window.scrollTo(0, 0);
-  const g = JOGOS[id], nivel = nivelDe(id);
+  const g = JOGOS[id], nivel = nivelXP();
   view.innerHTML = `<div class="gbar"><button class="x" id="sai" aria-label="Sair">✕</button><h2>${g.ico} ${g.nome}</h2><span class="prog" id="prog"></span></div>
     <div class="barra"><i id="barra"></i></div><div class="stage" id="stage"></div>`;
-  $("#sai").onclick = () => { fila = null; ir("home"); };
+  $("#sai").onclick = () => ir("home");
   const progresso = (i, total) => { $("#prog").textContent = total > 1 ? `${Math.min(i + 1, total)}/${total}` : ""; $("#barra").style.width = (i / total * 100) + "%"; };
-  g.iniciar({ stage: $("#stage"), progresso, nivel, terminar: (s, vv, info) => resultado(id, s, treino, vv, info) });
+  g.iniciar({ stage: $("#stage"), progresso, nivel, jornada, terminar: (s, vv, gi) => resultado(id, s, jornada, vv, gi) });
 }
 
-function resultado(id, score, treino, extra, info) {
+function resultado(id, score, jornada, extra, gi) {
   limpar();
-  store.hist.push({ g: id, s: score, d: dataStr(), t: Date.now() });
+  const info = jornada ? concluirFase(id, score, gi && gi.bonus) : null;
+  store.hist.push({ g: id, s: score, d: dataStr(), t: Date.now(), j: jornada ? 1 : 0 });
   if (store.hist.length > 400) store.hist = store.hist.slice(-400);
   salvar();
   const est = score >= 85 ? 3 : score >= 60 ? 2 : score >= 30 ? 1 : 0;
   const msgs = ["Continue treinando, cada partida fortalece a mente.", "Bom começo! Mais uma partida e você melhora.", "Muito bom! Sua mente está ficando mais afiada.", "Excelente! Sabedoria e atenção em dia."];
-  const v = extra || pick(D.versiculos);
-  const proximo = fila && fila.length ? fila.shift() : null;
-  const fim = treino && !proximo;
+  const v = (info && info.carta) || extra || pick(D.versiculos);
+  const prox = info ? JOGOS[proximoJogo()] : null;
   view.innerHTML = `<div class="resultado">
     <div class="estrelas">${[0, 1, 2].map(i => `<span class="${i < est ? "" : "apagada"}">⭐</span>`).join("")}</div>
     <div class="pontos">${score}<small>%</small></div>
-    <p>${info ? `<b>Fase ${info.fase} concluída!</b> +${info.ganho} 🪙<br>${info.nova ? "✨ Novo cartão de versículo na sua coleção!<br>" : ""}` : ""}${fim ? "Treino de hoje concluído! 🎉 " : ""}${msgs[est]}</p>
+    <p>${info ? `<b>Fase ${info.fase} concluída!</b> +${info.xpGanho} XP · +${info.ganho} 🪙<br>${info.subiu ? `🎉 <b>Você subiu para o nível ${info.nivel}!</b> Os desafios ficam mais difíceis.<br>` : ""}${info.nova ? "✨ Novo cartão de versículo na sua coleção!<br>" : ""}` : ""}${msgs[est]}</p>
+    ${info ? barraXP() : ""}
     <div class="versiculo">“${esc(textoVersiculo(v))}”<cite>${esc(v.ref)}</cite></div>
-    ${info && extra ? '<button class="btn" id="cartao">🖼️ Compartilhar cartão do versículo</button>' : ""}
-    ${proximo ? `<button class="btn ouro" id="prox">Próximo jogo: ${JOGOS[proximo].nome}</button>` : ""}
-    <button class="btn ${proximo ? "claro" : "ouro"}" id="again">${info ? "Próxima fase" : "Jogar de novo"}</button>
+    ${info && info.carta ? '<button class="btn" id="cartao">🖼️ Compartilhar cartão do versículo</button>' : ""}
+    ${info ? `<button class="btn ouro" id="prox">Próxima fase: ${prox.ico} ${prox.nome}</button>` : '<button class="btn ouro" id="again">Jogar de novo</button>'}
     <button class="btn claro" id="inicio">Voltar ao início</button>
     ${navigator.share ? '<button class="link" id="share">Compartilhar resultado</button>' : ""}</div>`;
-  if (proximo) $("#prox").onclick = () => jogar(proximo, true);
-  const ct = $("#cartao"); if (ct) ct.onclick = () => compartilharCartao(extra);
-  $("#again").onclick = () => { fila = null; jogar(id); };
-  $("#inicio").onclick = () => { fila = null; ir("home"); };
+  const ct = $("#cartao"); if (ct) ct.onclick = () => compartilharCartao(v);
+  if (info) $("#prox").onclick = () => jogar(proximoJogo(), true); else $("#again").onclick = () => jogar(id);
+  $("#inicio").onclick = () => ir("home");
   const sh = $("#share"); if (sh) sh.onclick = () => navigator.share({ title: "Mente Renovada", text: `Fiz ${score}% em “${JOGOS[id].nome}” no Mente Renovada! ${"⭐".repeat(est)}`, url: location.href.split("#")[0] }).catch(() => {});
   window.scrollTo(0, 0);
 }
