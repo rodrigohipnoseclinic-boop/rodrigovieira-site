@@ -1,7 +1,7 @@
 // Worker do site: serve os arquivos estáticos (dist) e o contador de visitas.
 // POST /api/visitas  { p: "/caminho/", nova: true, r: "site.de.origem", u: "utm_source" }  -> soma uma visita
 // GET  /api/visitas  (com senha)                                                          -> últimos 90 dias
-// /visitas/          (com senha)                                                          -> painel
+// /visitas/ e /admin/ (com senha)                                                         -> painel de visitas e editor do blog
 const FUSO = "America/Sao_Paulo";
 const hoje = (d = new Date()) => d.toLocaleDateString("en-CA", { timeZone: FUSO }); // AAAA-MM-DD
 const ROBO = /bot|crawl|spider|slurp|preview|lighthouse|headless/i;
@@ -113,7 +113,8 @@ export default {
       if (req.method === "GET") return (await autorizado(req, env)) ? listar(env) : pedirSenha();
       return new Response(null, { status: 405 });
     }
-    if (url.pathname === "/visitas" || url.pathname.startsWith("/visitas/")) {
+    const protegido = /^\/(visitas|admin)(\/|$)/.test(url.pathname); // painel de visitas e editor do blog
+    if (protegido) {
       if (!(await autorizado(req, env))) return pedirSenha();
       const r = await env.ASSETS.fetch(req);
       const h = new Headers(r.headers);

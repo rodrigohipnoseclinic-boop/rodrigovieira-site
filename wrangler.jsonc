@@ -8,7 +8,7 @@
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "404-page",
-    "run_worker_first": ["/api/*", "/visitas", "/visitas/*"]
+    "run_worker_first": ["/api/*", "/visitas", "/visitas/*", "/admin", "/admin/*"]
   },
   "d1_databases": [
     {
