@@ -212,6 +212,7 @@ ${conteudo}
       <a href="${waLink()}" target="_blank" rel="noopener">WhatsApp ${esc(site.whatsapp_exibicao)}</a>
       <a href="https://instagram.com/${esc(site.instagram)}" target="_blank" rel="noopener">Instagram @${esc(site.instagram)}</a>
       <a href="${esc(site.linktree)}" target="_blank" rel="noopener">Cursos online</a>
+      <a href="/mente-biblica/">App Mente Renovada · treino bíblico</a>
     </div>
   </div>
   <p class="rodape__aviso">Este site tem caráter informativo e não substitui avaliação médica ou psiquiátrica. Em caso de emergência, procure o serviço de saúde mais próximo ou ligue 192. Se precisar conversar, o CVV atende 24h pelo 188.</p>
