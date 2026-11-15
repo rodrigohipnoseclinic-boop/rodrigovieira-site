@@ -18,7 +18,7 @@ const addDias = (ds, n) => { const [y, m, d] = ds.split("-").map(Number); return
 /* limpeza de timers ao sair de uma tela */
 let limpezas = [];
 const aoSair = fn => limpezas.push(fn);
-const limpar = () => { limpezas.forEach(f => { try { f(); } catch (e) {} }); limpezas = []; };
+const limpar = () => { limpezas.forEach(f => { try { f(); } catch (e) {} }); limpezas = []; calarNarracao(); };
 const later = (fn, ms) => { const t = setTimeout(fn, ms); aoSair(() => clearTimeout(t)); return t; };
 
 /* ---------- armazenamento ---------- */
@@ -27,19 +27,90 @@ let store = { hist: [] };
 try { store = Object.assign(store, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) {}
 const salvar = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} };
 
-/* ---------- som ---------- */
-let ac;
-function bip(freq, dur = 0.18) {
+/* ---------- som: cada tipo de desafio tem a sua assinatura sonora ---------- */
+// root: nota base (Hz) · esc: semitons permitidos · tipo: timbre · dec: duração da nota · motivo: vinheta de abertura
+const SONS = {
+  roda:       { root: 261.63, esc: [0, 2, 4, 7, 9],     tipo: "triangle", vol: .30, dec: 1.6, motivo: [0, 4, 7, 12, 16] },   // harpa
+  caca:       { root: 293.66, esc: [0, 2, 3, 7, 9],     tipo: "square",   vol: .10, dec: .7,  motivo: [0, 3, 7, 3, 12] },    // sonar
+  cruzadinha: { root: 220.00, esc: [0, 3, 5, 7, 10],    tipo: "triangle", vol: .32, dec: .6,  motivo: [0, 7, 3, 10, 12] },   // marimba
+  verso:      { root: 174.61, esc: [0, 2, 4, 6, 7, 9],  tipo: "sine",     vol: .30, dec: 2.2, atk: .06, motivo: [0, 7, 11, 14] }, // órgão
+  versiculo:  { root: 196.00, esc: [0, 2, 4, 7, 9],     tipo: "sine",     vol: .30, dec: 1.4, motivo: [0, 2, 4, 7, 9, 12] }, // lira
+  quiz:       { root: 329.63, esc: [0, 2, 4, 5, 7, 9, 11], tipo: "sine",  vol: .28, dec: 2.0, motivo: [12, 7, 12, 16] },     // sino
+  pares:      { root: 523.25, esc: [0, 2, 4, 7, 9],     tipo: "square",   vol: .09, dec: .35, motivo: [0, 12, 4, 16] },     // tambor de madeira
+  intruso:    { root: 146.83, esc: [0, 2, 3, 5, 7, 8, 10], tipo: "sawtooth", vol: .08, dec: .9, motivo: [0, 1, 0, 6] },     // mistério
+  calculo:    { root: 261.63, esc: [0, 4, 7, 12],       tipo: "square",   vol: .09, dec: .4,  motivo: [0, 4, 7, 12, 7, 12] }, // 8 bits
+  sequencia:  { root: 392.00, esc: [0, 2, 7, 12], fixo: true, tipo: "sine", vol: .30, dec: 1.2, motivo: [0, 2, 7, 12] },      // cristal
+  ordem:      { root: 233.08, esc: [0, 2, 4, 5, 7, 9, 11], tipo: "triangle", vol: .30, dec: 1.0, motivo: [0, 2, 4, 5, 7] }, // escada
+  palavras:   { root: 164.81, esc: [0, 3, 5, 7, 10],    tipo: "triangle", vol: .30, dec: 1.2, motivo: [0, 5, 3, 7, 12] }    // flauta
+};
+let ac, somAtual = "roda";
+const somLigado = () => !store.mudo;
+const quant = f => {
+  const S = SONS[somAtual] || SONS.roda; if (S.fixo) return f;
+  const n = 12 * Math.log2(f / S.root); let melhor = 0, dist = 1e9;
+  for (let o = Math.floor(n / 12) - 1; o <= Math.floor(n / 12) + 1; o++) for (const x of S.esc) { const m = o * 12 + x, d = Math.abs(m - n); if (d < dist) { dist = d; melhor = m; } }
+  return S.root * Math.pow(2, melhor / 12);
+};
+function bip(freq, dur = 0.18, atraso = 0, forca = 1, musical = false) {
+  if (!somLigado()) return;
   try {
     ac = ac || new (window.AudioContext || window.webkitAudioContext)();
-    const o = ac.createOscillator(), g = ac.createGain();
-    o.frequency.value = freq; o.type = "sine"; o.connect(g); g.connect(ac.destination);
-    g.gain.setValueAtTime(0.0001, ac.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.25, ac.currentTime + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
-    o.start(); o.stop(ac.currentTime + dur + 0.02);
+    if (ac.state === "suspended") ac.resume();
+    const S = SONS[somAtual] || SONS.roda, erro = !musical && freq < 200, f = erro ? freq : musical ? freq : quant(freq), t0 = ac.currentTime + atraso;
+    const fim = t0 + dur * (erro ? 1 : S.dec) + .06, o = ac.createOscillator(), g = ac.createGain();
+    o.type = erro ? "sawtooth" : S.tipo; o.frequency.setValueAtTime(f, t0);
+    if (erro) o.frequency.exponentialRampToValueAtTime(f * .7, t0 + dur);
+    g.gain.setValueAtTime(.0001, t0);
+    g.gain.exponentialRampToValueAtTime((erro ? .1 : S.vol) * forca, t0 + (S.atk || .015));
+    g.gain.exponentialRampToValueAtTime(.0001, fim);
+    o.connect(g); g.connect(ac.destination); o.start(t0); o.stop(fim + .02);
   } catch (e) {}
 }
+// vinheta de abertura de cada desafio
+function somAbertura(id) {
+  const S = SONS[id]; if (!S) return;
+  S.motivo.forEach((m, i) => bip(S.root * Math.pow(2, m / 12), .16, i * .11, .8, true));
+}
+// fim de fase: arpejo na escala do desafio; subir de nível ganha um floreio
+function somFim(est, subiu) {
+  const S = SONS[somAtual] || SONS.roda, notas = [...S.esc, ...S.esc.map(x => x + 12), ...S.esc.map(x => x + 24)];
+  const n = [2, 3, 5, 7][est];
+  for (let i = 0; i < n; i++) bip(S.root * 2 * Math.pow(2, notas[i] / 12), .22, i * .1, 1, true);
+  if (subiu) [0, 4, 7, 12, 16, 19].forEach((m, i) => bip(523.25 * Math.pow(2, m / 12), .35, .7 + i * .09, 1.1, true));
+}
+/* ---------- narração (voz do aparelho, em português) ---------- */
+let vozPt = null;
+function escolherVoz() {
+  try {
+    const vs = speechSynthesis.getVoices();
+    vozPt = vs.find(v => /^pt[-_]BR/i.test(v.lang) && /google|luciana|francisca|microsoft/i.test(v.name)) || vs.find(v => /^pt[-_]BR/i.test(v.lang)) || vs.find(v => /^pt/i.test(v.lang)) || null;
+  } catch (e) {}
+}
+if ("speechSynthesis" in window) { escolherVoz(); speechSynthesis.onvoiceschanged = escolherVoz; }
+function temVoz() { try { return !!(vozPt || speechSynthesis.getVoices().length); } catch (e) { return false; } }
+function narrar(texto) {
+  if (!somLigado() || !("speechSynthesis" in window)) return;
+  try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(texto); u.lang = "pt-BR"; if (vozPt) u.voice = vozPt; u.rate = .95; speechSynthesis.speak(u); } catch (e) {}
+}
+function calarNarracao() { try { if ("speechSynthesis" in window) speechSynthesis.cancel(); } catch (e) {} }
+// efeitos de mangá: cascos, trovão grave, água e passos
+function somManga(tipo) {
+  if (!somLigado()) return;
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === "suspended") ac.resume();
+    const t0 = ac.currentTime, ruido = (dur, f, vol, at = 0, q = 1) => { const n = Math.floor(ac.sampleRate * dur), buf = ac.createBuffer(1, n, ac.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      const src = ac.createBufferSource(), fl = ac.createBiquadFilter(), g = ac.createGain(); src.buffer = buf; fl.type = "lowpass"; fl.frequency.value = f; fl.Q.value = q;
+      g.gain.setValueAtTime(.0001, t0 + at); g.gain.exponentialRampToValueAtTime(vol, t0 + at + .03); g.gain.exponentialRampToValueAtTime(.0001, t0 + at + dur); src.connect(fl); fl.connect(g); g.connect(ac.destination); src.start(t0 + at); return fl; };
+    const pancada = (f, dur, vol, at) => { const o = ac.createOscillator(), g = ac.createGain(); o.type = "sine"; o.frequency.setValueAtTime(f, t0 + at); o.frequency.exponentialRampToValueAtTime(f * .45, t0 + at + dur); g.gain.setValueAtTime(vol, t0 + at); g.gain.exponentialRampToValueAtTime(.0001, t0 + at + dur); o.connect(g); g.connect(ac.destination); o.start(t0 + at); o.stop(t0 + at + dur + .05); };
+    if (tipo === "cavalos") for (let i = 0; i < 16; i++) { const at = i * .16 + (i % 2) * .03; pancada(110 + (i % 2) * 24, .12, .32, at); ruido(.07, 900, .12, at); }
+    if (tipo === "gooo") { const o = ac.createOscillator(), g = ac.createGain(), lf = ac.createOscillator(), lg = ac.createGain(); o.type = "sawtooth"; o.frequency.value = 42; lf.frequency.value = 7; lg.gain.value = 9; lf.connect(lg); lg.connect(o.frequency);
+      g.gain.setValueAtTime(.0001, t0); g.gain.exponentialRampToValueAtTime(.22, t0 + .6); g.gain.exponentialRampToValueAtTime(.0001, t0 + 3.4); const fl = ac.createBiquadFilter(); fl.type = "lowpass"; fl.frequency.value = 160; o.connect(fl); fl.connect(g); g.connect(ac.destination); o.start(t0); lf.start(t0); o.stop(t0 + 3.5); lf.stop(t0 + 3.5); ruido(3, 400, .09, 0); }
+    if (tipo === "agua") { const f = ruido(3.4, 600, .16, 0, 4); f.frequency.setValueAtTime(300, t0); f.frequency.exponentialRampToValueAtTime(1800, t0 + 2.2); }
+    if (tipo === "marcha") for (let i = 0; i < 10; i++) { pancada(80, .09, .12, i * .5); ruido(.05, 500, .05, i * .5); }
+  } catch (e) {}
+}
+function iconeSom() { return somLigado() ? "🔊" : "🔇"; }
+function alternarSom() { store.mudo = !store.mudo; salvar(); document.querySelectorAll("[data-som]").forEach(b => { b.textContent = iconeSom() + (b.dataset.som === "chip" ? " Som" : ""); b.setAttribute("aria-label", somLigado() ? "Desligar som" : "Ligar som"); }); if (somLigado()) bip(523, .15); else calarNarracao(); }
 
 /* ---------- jogos ---------- */
 const CATS = ["Memória", "Atenção", "Linguagem", "Raciocínio", "Conhecimento"];
@@ -84,7 +155,7 @@ const JOGOS = {
     nome: "Complete o Versículo", cat: "Memória", ico: "📖", desc: "Descubra a palavra que falta.",
     iniciar(c) {
       const vs = sample(D.versiculos, 6);
-      jogoEscolha({ ...c, rodadas: 6, fazer: i => {
+      jogoEscolha({ ...c, rodadas: 6, tempo: [0, 0, 30][c.nivel - 1], fazer: i => {
         const v = vs[i], correta = v.r, ops = [correta, ...sample(v.ops, 3)];
         const completo = v.t.replace("___", correta);
         return { enun: `<small>${esc(v.ref)}</small>${esc(v.t).replace("___", '<b style="color:var(--ouro)">_____</b>')}`,
@@ -97,7 +168,7 @@ const JOGOS = {
     nome: "Quiz Bíblico", cat: "Conhecimento", ico: "❓", desc: "Quanto você conhece das Escrituras?",
     iniciar(c) {
       const qs = sample(D.quiz, 8);
-      jogoEscolha({ ...c, rodadas: 8, fazer: i => ({ enun: esc(qs[i].p), opcoes: qs[i].o, certa: 0, explica: `Resposta: <b>${esc(qs[i].o[0])}</b>.` }) });
+      jogoEscolha({ ...c, rodadas: 8, tempo: [0, 25, 15][c.nivel - 1], fazer: i => ({ enun: esc(qs[i].p), opcoes: qs[i].o, certa: 0, explica: `Resposta: <b>${esc(qs[i].o[0])}</b>.` }) });
     }
   },
 
@@ -230,8 +301,8 @@ const JOGOS = {
 
   palavras: {
     nome: "Palavras Embaralhadas", cat: "Linguagem", ico: "🔤", desc: "Monte nomes e termos da Bíblia.",
-    iniciar({ stage, progresso, terminar }) {
-      const R = 6, lista = sample(D.palavras, R);
+    iniciar({ stage, progresso, terminar, nivel }) {
+      const R = 6, maxLetras = [6, 8, 12][nivel - 1], lista = sample(D.palavras.filter(x => x[0].length <= maxLetras), R);
       let r = 0, pontos = 0;
       function rodada() {
         if (r >= R) return terminar(Math.round(pontos / R * 100));
@@ -364,10 +435,10 @@ let basesCache = null;
 const basesRoda = () => basesCache || (basesCache = VOC.filter(w => w.length >= 4)
   .map(b => ({ b, ws: VOC.filter(w => cabeEm(w, b)) })).filter(x => x.ws.length >= 4));
 const fixarNum = (n, a, b) => Math.max(a, Math.min(b, n));
-function faseRoda(n) {
+function faseRoda(n, tier = 1) {
   const manual = window.PUZZLES.roda;
-  if (n <= manual.length) return manual[n - 1].palavras;
-  const m = n - manual.length, L = fixarNum(4 + Math.floor((m - 1) / 6), 4, 7);
+  if (n <= manual.length && tier === 1) return manual[n - 1].palavras;
+  const m = Math.max(1, n - manual.length) + (tier - 1) * 6, L = fixarNum(4 + Math.floor((m - 1) / 6), 4, 7);
   let cand = basesRoda().filter(x => L >= 6 ? x.b.length >= 5 : x.b.length === L);
   if (!cand.length) cand = basesRoda();
   const base = cand[(m * 7 + 3) % cand.length], T = fixarNum(3 + Math.floor(m / 4), 3, 9);
@@ -376,7 +447,6 @@ function faseRoda(n) {
 const CARTAS = D.versiculos.map(v => ({ ref: v.ref, t: v.t.replace("___", v.r) }));
 const cartaDaFase = n => n % 3 === 0 ? CARTAS[(n / 3 - 1) % CARTAS.length] : null;
 const moedas = () => store.moedas == null ? 30 : store.moedas;
-const faseAtual = () => store.roda || 1;
 
 /* cartão de versículo como imagem, para compartilhar */
 function cartaoPNG(v) {
@@ -408,8 +478,8 @@ async function compartilharCartao(v) {
 Object.assign(JOGOS, {
   roda: {
     nome: "Roda de Letras", cat: "Linguagem", ico: "🎡", desc: "Ligue as letras e preencha a grade.",
-    iniciar({ stage, progresso, terminar }) {
-      const fase = faseAtual(), grade = montarGrade(faseRoda(fase), true), palavras = grade.words.map(x => x.w);
+    iniciar({ stage, progresso, terminar, jornada }) {
+      const grade = montarGrade(faseRoda(jornada ? (store.rodaN || 0) + 1 : 1 + rnd(40), jornada ? tierXP() : 1), true), palavras = grade.words.map(x => x.w);
       const cont = {};
       palavras.forEach(w => { const c = {}; [...w].forEach(l => c[l] = (c[l] || 0) + 1); for (const l in c) cont[l] = Math.max(cont[l] || 0, c[l]); });
       let letras = shuffle(Object.entries(cont).flatMap(([l, n]) => Array(n).fill(l)));
@@ -419,7 +489,7 @@ Object.assign(JOGOS, {
       const letrasTodas = Object.entries(cont).map(([l, n]) => l.repeat(n)).join("");
       const bonusValidos = VOC.filter(w => !palavras.includes(w) && cabeEm(w, letrasTodas)), bonusAchados = new Set();
       const mostra = (r, c) => reveladas.has(r + "," + c) || grade.words.some(w => achadas.has(w.w) && celulasDe(w).some(([a, b]) => a === r && b === c));
-      stage.innerHTML = `<div class="faixa"><b>Fase ${fase}</b><span id="bn">Bônus: 0</span><span id="moe">🪙 ${moedas()}</span></div>
+      stage.innerHTML = `<div class="faixa"><b>${jornada ? "Fase " + (store.fase || 1) : "Treino livre"}</b><span id="bn">Bônus: 0</span><span id="moe">🪙 ${moedas()}</span></div>
         <div class="xgrid" id="xg" style="--cols:${grade.cols};grid-template-columns:repeat(${grade.cols},1fr)"></div>
         <div class="atual" id="atual">&nbsp;</div>
         <div class="roda" id="roda"><button class="mistura" id="mistura" aria-label="Embaralhar letras">🔀</button></div>
@@ -448,12 +518,7 @@ Object.assign(JOGOS, {
         pintarGrade();
         if (!fim && achadas.size === palavras.length) {
           fim = true; bip(800, .3);
-          const ganho = 10 + bonusAchados.size, carta = cartaDaFase(fase);
-          const nova = !!carta && !(store.cartas || []).includes(carta.ref);
-          store.roda = fase + 1; store.moedas = moedas() + ganho;
-          if (nova) store.cartas = [...(store.cartas || []), carta.ref];
-          salvar();
-          later(() => terminar(Math.max(30, 100 - dicas * 12 - Math.min(erros, 10) * 2), carta || undefined, { fase, ganho, nova }), 900);
+          later(() => terminar(Math.max(30, 100 - dicas * 12 - Math.min(erros, 10) * 2), undefined, { bonus: bonusAchados.size }), 900);
         }
       };
       const letraEm = e => { const el = document.elementFromPoint(e.clientX, e.clientY); return el && el.closest ? el.closest(".rl") : null; };
@@ -536,8 +601,8 @@ Object.assign(JOGOS, {
 
   cruzadinha: {
     nome: "Cruzadinha Bíblica", cat: "Conhecimento", ico: "🧩", desc: "Resolva as dicas e cruze as respostas.",
-    iniciar({ stage, progresso, terminar }) {
-      const P = pick(window.PUZZLES.cruz), dicasDe = Object.fromEntries(P.palavras);
+    iniciar({ stage, progresso, terminar, nivel }) {
+      const P0 = pick(window.PUZZLES.cruz), P = { ...P0, palavras: sample(P0.palavras, [5, 6, 8][nivel - 1]) }, dicasDe = Object.fromEntries(P.palavras);
       const grade = montarGrade(P.palavras.map(x => x[0]), true), ws = grade.words;
       const resp = new Map(), num = new Map(), user = new Map();
       ws.forEach(w => celulasDe(w).forEach(([r, c], k) => resp.set(r + "," + c, w.w[k])));
@@ -636,18 +701,40 @@ Object.assign(JOGOS, {
 
 const ORDEM = ["roda", "caca", "cruzadinha", "verso", "versiculo", "quiz", "pares", "intruso", "calculo", "sequencia", "ordem", "palavras"];
 
-/* ---------- treino diário, sequência e progresso ---------- */
-const treinoDoDia = ds => { const d = diaIdx(ds), n = ORDEM.length; return [ORDEM[d % n], ORDEM[(d + 3) % n], ORDEM[(d + 5) % n]]; };
-const jogadosNoDia = ds => new Set(store.hist.filter(h => h.d === ds).map(h => h.g));
-const diaCompleto = ds => { const j = jogadosNoDia(ds); return treinoDoDia(ds).every(g => j.has(g)); };
+/* ---------- jornada: XP, nível, baralho de desafios e sequência de dias ---------- */
+const NIVEL_XP = [0, 600, 1600];
+const xp = () => store.xp || 0;
+const nivelXP = () => xp() >= NIVEL_XP[2] ? 3 : xp() >= NIVEL_XP[1] ? 2 : 1;
+const tierXP = () => 1 + Math.floor(xp() / 450);
+const novoBaralho = ultimo => {
+  let b = ultimo ? shuffle(ORDEM) : ["roda", ...shuffle(ORDEM.filter(x => x !== "roda"))];
+  if (ultimo && b[0] === ultimo) b.push(b.shift());
+  return b;
+};
+const proximoJogo = () => { if (!store.baralho || !store.baralho.length) store.baralho = novoBaralho(store.ultimo); return store.baralho[0]; };
+const fasesNoDia = ds => store.hist.filter(h => h.d === ds && h.j).length;
+const diaCompleto = ds => fasesNoDia(ds) >= 3;
 function sequenciaDias() {
   let ds = dataStr(), n = 0;
   if (!diaCompleto(ds)) ds = addDias(ds, -1);
   while (diaCompleto(ds)) { n++; ds = addDias(ds, -1); }
   return n;
 }
-const partidas = id => store.hist.filter(h => h.g === id).length;
-const nivelDe = id => Math.min(3, 1 + Math.floor(partidas(id) / 3));
+function barraXP() {
+  const n = nivelXP(), ini = NIVEL_XP[n - 1], fim = NIVEL_XP[n];
+  if (!fim) return `<div class="xpbar"><i style="width:100%"></i></div><small class="pequeno">${xp()} XP · nível máximo. A roda de letras continua crescendo.</small>`;
+  return `<div class="xpbar"><i style="width:${Math.round((xp() - ini) / (fim - ini) * 100)}%"></i></div><small class="pequeno">${xp()} / ${fim} XP para o nível ${n + 1}</small>`;
+}
+function concluirFase(id, score, bonus) {
+  const fase = store.fase || 1, antes = nivelXP(), ganho = 10 + (bonus || 0);
+  store.xp = xp() + score; store.moedas = moedas() + ganho;
+  if (id === "roda") store.rodaN = (store.rodaN || 0) + 1;
+  const carta = cartaDaFase(fase), nova = !!carta && !(store.cartas || []).includes(carta.ref);
+  if (nova) store.cartas = [...(store.cartas || []), carta.ref];
+  store.fase = fase + 1; store.ultimo = id; store.baralho = (store.baralho || []).slice(1);
+  proximoJogo();
+  return { fase, ganho, nova, carta, xpGanho: score, subiu: nivelXP() > antes, nivel: nivelXP() };
+}
 const mediaCat = cat => {
   const ult = store.hist.filter(h => JOGOS[h.g] && JOGOS[h.g].cat === cat).slice(-6);
   return ult.length ? Math.round(ult.reduce((s, h) => s + h.s, 0) / ult.length) : null;
@@ -666,41 +753,33 @@ const guiaInstalar = () => ehiOS()
   : `<ol><li>Abra este endereço no <b>Chrome</b>.</li><li>Toque no menu <b>⋮</b> (três pontinhos, no canto).</li><li>Toque em <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.</li><li>Confirme. O ícone aparece junto dos seus apps e abre em tela cheia.</li></ol>`;
 
 /* ---------- telas ---------- */
-let fila = null; // treino em andamento
 function marcarNav(go) { document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.go === go)); }
 function ir(tela) {
-  limpar(); appEl.classList.remove("em-jogo"); fila = tela === "treino" ? fila : null;
-  ({ home: telaHome, games: telaJogos, progress: telaProgresso }[tela] || telaHome)();
+  limpar(); appEl.classList.remove("em-jogo");
+  ({ home: telaHome, progress: telaProgresso }[tela] || telaHome)();
   marcarNav(tela); window.scrollTo(0, 0);
 }
 
-function linhaJogo(id, extra = "", feito = false) {
-  const g = JOGOS[id];
-  return `<button class="jogo" data-play="${id}"><span class="ico">${g.ico}</span><span><span class="tag">${g.cat}</span><b>${g.nome}</b><small>${extra || g.desc}</small></span>${feito ? '<span class="ok">✅</span>' : ""}</button>`;
-}
-function ligarJogos(raiz) { raiz.querySelectorAll("[data-play]").forEach(b => b.onclick = () => jogar(b.dataset.play)); }
-
 function telaHome() {
-  const hoje = dataStr(), lista = treinoDoDia(hoje), feitos = jogadosNoDia(hoje);
-  const n = lista.filter(g => feitos.has(g)).length, seq = sequenciaDias(), v = versiculoDoDia();
+  const hoje = dataStr(), n = Math.min(3, fasesNoDia(hoje)), seq = sequenciaDias(), v = versiculoDoDia(), prox = JOGOS[proximoJogo()];
   const hora = new Date().getHours(), saud = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
   view.innerHTML = `
     <div class="topo"><small>Treino mental bíblico</small><h1>${saud}! 🙏</h1><p>${esc(D.dicas[diaIdx() % D.dicas.length])}</p>
-      <div class="chips"><span class="chip">🔥 <b>${seq}</b> ${seq === 1 ? "dia" : "dias"} seguidos</span><span class="chip">✅ <b>${n}/3</b> hoje</span></div></div>
+      <div class="chips"><span class="chip">🔥 <b>${seq}</b> ${seq === 1 ? "dia" : "dias"} seguidos</span><span class="chip">✅ <b>${n}/3</b> fases hoje</span><button class="chip" data-som="chip" aria-label="Som">${iconeSom()} Som</button></div></div>
     <div class="sobe">
+      <div class="card"><div class="rot">Sua jornada</div>
+        <div class="jornada"><div><h2>Fase ${store.fase || 1} · Nível ${nivelXP()}</h2><p class="pequeno" style="margin:2px 0 0">🪙 ${moedas()} moedas · 🖼️ ${(store.cartas || []).length} cartões</p></div></div>
+        ${barraXP()}
+        <div class="proxima"><span>${prox.ico}</span><div><small>Próximo desafio</small><b>${prox.nome}</b></div></div>
+        <button class="btn ouro" id="jornada">${(store.fase || 1) === 1 ? "Começar jornada" : "Continuar jornada"}</button></div>
       ${jaInstalado() || store.instalado || store.ocultaInstalar ? "" : `<div class="card" id="instalar"><div class="rot">📲 Leve no seu celular</div><h2>Instale o app</h2>
         <p class="pequeno" style="margin:2px 0 12px">Um ícone na tela inicial, em tela cheia e funcionando sem internet.</p>
         <button class="btn ouro" id="btn-instalar">Instalar app</button>
         <div id="guia" class="guia" hidden>${guiaInstalar()}</div>
         <button class="link" id="agora-nao">Agora não</button></div>`}
       <div class="card"><div class="rot">Versículo do dia</div><div class="versiculo">“${esc(textoVersiculo(v))}”<cite>${esc(v.ref)}</cite></div></div>
-      <div class="card"><div class="rot">Jornada · Roda de Letras</div><div class="jornada"><div><h2>Fase ${faseAtual()}</h2><p class="pequeno" style="margin:2px 0 0">🪙 ${moedas()} moedas · 🖼️ ${(store.cartas || []).length} cartões</p></div><button class="btn ouro" id="jornada" style="width:auto;padding:12px 18px">Continuar</button></div></div>
-      <div class="card treino"><div class="rot">Treino de hoje</div><h2>3 jogos para a sua mente</h2>
-        <p class="pequeno" style="margin:2px 0 12px">Complete os três para manter a sequência.</p>
-        <div class="lista">${lista.map(g => linhaJogo(g, "", feitos.has(g))).join("")}</div>
-        <div class="espaco"></div><button class="btn ouro" id="comecar">${n === 3 ? "Treino concluído! Jogar de novo" : n ? "Continuar treino" : "Começar treino"}</button></div>
     </div>`;
-  ligarJogos(view);
+  view.querySelector("[data-som]").onclick = alternarSom;
   const bi = $("#btn-instalar");
   if (bi) {
     bi.onclick = async () => {
@@ -709,17 +788,7 @@ function telaHome() {
     };
     $("#agora-nao").onclick = () => { store.ocultaInstalar = true; salvar(); telaHome(); };
   }
-  $("#jornada").onclick = () => jogar("roda");
-  $("#comecar").onclick = () => {
-    const pendentes = lista.filter(g => !feitos.has(g));
-    fila = (pendentes.length ? pendentes : lista).slice(); jogar(fila.shift(), true);
-  };
-}
-
-function telaJogos() {
-  view.innerHTML = `<div class="topo" style="padding-bottom:24px"><small>Escolha</small><h1>Todos os jogos</h1><p>Treine memória, atenção, linguagem e raciocínio.</p></div>
-    <div class="pad"><div class="lista">${ORDEM.map(g => linhaJogo(g, `${JOGOS[g].desc} · Nível ${nivelDe(g)}`)).join("")}</div></div>`;
-  ligarJogos(view);
+  $("#jornada").onclick = () => jogar(proximoJogo(), true);
 }
 
 function telaProgresso() {
@@ -731,13 +800,13 @@ function telaProgresso() {
       <div class="card"><div class="rot">Últimos 7 dias</div>
         <div class="cal">${dias.map(d => { const [y, m, dd] = d.split("-").map(Number); const wd = new Date(y, m - 1, dd).getDay();
           return `<div class="${diaCompleto(d) ? "feito" : ""} ${d === hoje ? "hoje" : ""}"><i>${diaCompleto(d) ? "✓" : ""}</i>${nomes[wd]}</div>`; }).join("")}</div>
-        <p class="pequeno" style="margin-top:12px">Sequência atual: <b>${sequenciaDias()}</b> · Partidas: <b>${store.hist.length}</b></p></div>
+        <p class="pequeno" style="margin-top:12px">Meta: 3 fases por dia. Sequência atual: <b>${sequenciaDias()}</b> · Fase <b>${store.fase || 1}</b> · Nível <b>${nivelXP()}</b></p>${barraXP()}</div>
       <div class="card"><div class="rot">Áreas da mente</div>
         ${CATS.map(c => { const m = mediaCat(c); return `<div class="cat"><div class="t"><span>${c}</span><span>${m === null ? "ainda não jogou" : m + "%"}</span></div><div class="trilho"><i style="width:${m || 0}%"></i></div></div>`; }).join("")}</div>
       <div class="card"><div class="rot">Últimas partidas</div>
         ${ult.length ? `<div class="hist">${ult.map(h => `<div><span>${JOGOS[h.g].ico} ${JOGOS[h.g].nome}</span><b>${h.s}%</b></div>`).join("")}</div>` : '<p class="pequeno">Jogue o primeiro jogo para ver o seu histórico aqui.</p>'}</div>
       <div class="card"><div class="rot">Meus versículos (${(store.cartas || []).length}/${CARTAS.length})</div>
-        ${(store.cartas || []).length ? `<div class="hist">${(store.cartas || []).map(r => CARTAS.find(c => c.ref === r)).filter(Boolean).map((c, i) => `<div style="display:block"><i style="font-family:Georgia,serif">“${esc(c.t)}”</i><br><b>${esc(c.ref)}</b> <button class="link" data-cartao="${i}">compartilhar</button></div>`).join("")}</div>` : '<p class="pequeno">Conclua a fase 3 da Roda de Letras para ganhar o primeiro cartão. Um novo a cada 3 fases!</p>'}</div>
+        ${(store.cartas || []).length ? `<div class="hist">${(store.cartas || []).map(r => CARTAS.find(c => c.ref === r)).filter(Boolean).map((c, i) => `<div style="display:block"><i style="font-family:Georgia,serif">“${esc(c.t)}”</i><br><b>${esc(c.ref)}</b> <button class="link" data-cartao="${i}">compartilhar</button></div>`).join("")}</div>` : '<p class="pequeno">Conclua a fase 3 da jornada para ganhar o primeiro cartão. Um novo a cada 3 fases!</p>'}</div>
       ${jaInstalado() ? "" : `<div class="card"><div class="rot">Instalar no celular</div><div class="guia">${guiaInstalar()}</div></div>`}
       <button class="link" id="zerar">Apagar meu progresso</button>
       <p class="pequeno" style="margin-top:14px">Versículos na tradução Almeida Revista e Corrigida. O progresso fica salvo apenas neste aparelho.</p>
@@ -747,45 +816,87 @@ function telaProgresso() {
   $("#zerar").onclick = () => { if (confirm("Apagar todo o seu progresso neste aparelho?")) { store = { hist: [] }; salvar(); telaProgresso(); } };
 }
 
-function jogar(id, treino = false) {
+function jogar(id, jornada = false) {
   limpar(); appEl.classList.add("em-jogo"); window.scrollTo(0, 0);
-  const g = JOGOS[id], nivel = nivelDe(id);
-  view.innerHTML = `<div class="gbar"><button class="x" id="sai" aria-label="Sair">✕</button><h2>${g.ico} ${g.nome}</h2><span class="prog" id="prog"></span></div>
+  const g = JOGOS[id], nivel = nivelXP();
+  view.innerHTML = `<div class="gbar"><button class="x" id="sai" aria-label="Sair">✕</button><h2>${g.ico} ${g.nome}</h2><span class="prog" id="prog"></span><button class="x" data-som="x" aria-label="Som">${iconeSom()}</button></div>
     <div class="barra"><i id="barra"></i></div><div class="stage" id="stage"></div>`;
-  $("#sai").onclick = () => { fila = null; ir("home"); };
+  $("#sai").onclick = () => ir("home");
+  view.querySelector("[data-som]").onclick = alternarSom;
+  somAtual = id; somAbertura(id);
   const progresso = (i, total) => { $("#prog").textContent = total > 1 ? `${Math.min(i + 1, total)}/${total}` : ""; $("#barra").style.width = (i / total * 100) + "%"; };
-  g.iniciar({ stage: $("#stage"), progresso, nivel, terminar: (s, vv, info) => resultado(id, s, treino, vv, info) });
+  g.iniciar({ stage: $("#stage"), progresso, nivel, jornada, terminar: (s, vv, gi) => resultado(id, s, jornada, vv, gi) });
 }
 
-function resultado(id, score, treino, extra, info) {
+function escolherCena(especial) {
+  const M = window.MANGA; if (!M) return null;
+  if (especial) return M.especial;
+  const n = M.lista.length - 1; let i; do { i = rnd(n); } while (n > 1 && i === store.cena); store.cena = i; return M.lista[i];
+}
+// cena em estilo mangá: uma página com quadros; a câmera visita um quadro de cada vez enquanto a narração toca
+function tocarManga(m) {
+  calarNarracao();
+  const M = window.MANGA; if (!M) return;
+  const ov = document.createElement("div"); ov.className = "cinema manga";
+  ov.innerHTML = `<div class="c-topo"><span>🎬 ${esc(m.t)} · ${esc(m.ref)}</span><button class="c-pular" type="button">Pular ⏭</button></div><div class="m-tela"><svg viewBox="0 0 600 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g class="m-cam">${M.pagina(m)}</g></svg><div class="c-prog"><i></i></div></div><p class="m-leg" aria-live="polite"></p>`;
+  document.body.appendChild(ov);
+  const cam = ov.querySelector(".m-cam"), leg = ov.querySelector(".m-leg"), barra = ov.querySelector(".c-prog i");
+  let fim = false, bi = 0; const tm = [];
+  const T = (fn, ms) => tm.push(setTimeout(fn, ms));
+  const sair = () => { if (fim) return; fim = true; tm.forEach(clearTimeout); calarNarracao(); ov.classList.add("c-sai"); setTimeout(() => ov.remove(), 650); };
+  aoSair(sair); ov.querySelector(".c-pular").onclick = sair;
+  const visao = (x, y, w, h, zmax) => { const s = Math.min(570 / w, 740 / h, zmax); cam.style.transform = `translate(${300 - s * (x + w / 2)}px,${400 - s * (y + h / 2)}px) scale(${s})`; };
+  const mostrar = i => { const q = ov.querySelector(`.m-painel[data-i="${i}"]`), d = m.paineis[i]; q.classList.add("on"); visao(...M.box(d.pts), 2.5);
+    if (d.tremor) { T(() => { ov.classList.add("c-treme"); T(() => ov.classList.remove("c-treme"), 1500); }, 700); }
+    if (d.som) T(() => somManga(d.som), 500); };
+  visao(0, 0, 600, 900, .88);
+  const passo = () => {
+    if (fim) return;
+    if (bi >= m.beats.length) { visao(0, 0, 600, 900, .88); barra.style.width = "100%"; T(sair, 4200); return; }
+    const b = m.beats[bi++], est = Math.max(b.d || 14, b.fala.split(/\s+/).length / 2.3);
+    b.p.forEach((pi, k) => T(() => mostrar(pi), 300 + k * (est * 1000 / b.p.length)));
+    leg.textContent = b.fala; barra.style.transition = `width ${est}s linear`; barra.style.width = (bi / (m.beats.length + .001) * 100) + "%";
+    let falou = !(somLigado() && "speechSynthesis" in window && temVoz()), tempo = false;
+    const prox = () => { if (falou && tempo) passo(); };
+    T(() => { tempo = true; prox(); }, est * 1000);
+    if (!falou) { try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(b.fala); u.lang = "pt-BR"; if (vozPt) u.voice = vozPt; u.rate = .95; u.onend = u.onerror = () => { falou = true; prox(); }; speechSynthesis.speak(u); T(() => { falou = true; prox(); }, est * 1000 + 6000); } catch (e) { falou = true; } }
+  };
+  T(passo, 1500);
+}
+
+function resultado(id, score, jornada, extra, gi) {
   limpar();
-  store.hist.push({ g: id, s: score, d: dataStr(), t: Date.now() });
+  const info = jornada ? concluirFase(id, score, gi && gi.bonus) : null;
+  store.hist.push({ g: id, s: score, d: dataStr(), t: Date.now(), j: jornada ? 1 : 0 });
   if (store.hist.length > 400) store.hist = store.hist.slice(-400);
   salvar();
   const est = score >= 85 ? 3 : score >= 60 ? 2 : score >= 30 ? 1 : 0;
   const msgs = ["Continue treinando, cada partida fortalece a mente.", "Bom começo! Mais uma partida e você melhora.", "Muito bom! Sua mente está ficando mais afiada.", "Excelente! Sabedoria e atenção em dia."];
-  const v = extra || pick(D.versiculos);
-  const proximo = fila && fila.length ? fila.shift() : null;
-  const fim = treino && !proximo;
+  const v = (info && info.carta) || extra || pick(D.versiculos);
+  const prox = info ? JOGOS[proximoJogo()] : null;
+  somFim(est, !!(info && info.subiu));
   view.innerHTML = `<div class="resultado">
+    ${info ? '<button class="btn claro" id="assistir">🎬 Assistir a cena da vitória</button>' : ""}
     <div class="estrelas">${[0, 1, 2].map(i => `<span class="${i < est ? "" : "apagada"}">⭐</span>`).join("")}</div>
     <div class="pontos">${score}<small>%</small></div>
-    <p>${info ? `<b>Fase ${info.fase} concluída!</b> +${info.ganho} 🪙<br>${info.nova ? "✨ Novo cartão de versículo na sua coleção!<br>" : ""}` : ""}${fim ? "Treino de hoje concluído! 🎉 " : ""}${msgs[est]}</p>
+    <p>${info ? `<b>Fase ${info.fase} concluída!</b> +${info.xpGanho} XP · +${info.ganho} 🪙<br>${info.subiu ? `🎉 <b>Você subiu para o nível ${info.nivel}!</b> Os desafios ficam mais difíceis.<br>` : ""}${info.nova ? "✨ Novo cartão de versículo na sua coleção!<br>" : ""}` : ""}${msgs[est]}</p>
+    ${info ? barraXP() : ""}
     <div class="versiculo">“${esc(textoVersiculo(v))}”<cite>${esc(v.ref)}</cite></div>
-    ${info && extra ? '<button class="btn" id="cartao">🖼️ Compartilhar cartão do versículo</button>' : ""}
-    ${proximo ? `<button class="btn ouro" id="prox">Próximo jogo: ${JOGOS[proximo].nome}</button>` : ""}
-    <button class="btn ${proximo ? "claro" : "ouro"}" id="again">${info ? "Próxima fase" : "Jogar de novo"}</button>
+    ${info && info.carta ? '<button class="btn" id="cartao">🖼️ Compartilhar cartão do versículo</button>' : ""}
+    ${info ? `<button class="btn ouro" id="prox">Próxima fase: ${prox.ico} ${prox.nome}</button>` : '<button class="btn ouro" id="again">Jogar de novo</button>'}
     <button class="btn claro" id="inicio">Voltar ao início</button>
     ${navigator.share ? '<button class="link" id="share">Compartilhar resultado</button>' : ""}</div>`;
-  if (proximo) $("#prox").onclick = () => jogar(proximo, true);
-  const ct = $("#cartao"); if (ct) ct.onclick = () => compartilharCartao(extra);
-  $("#again").onclick = () => { fila = null; jogar(id); };
-  $("#inicio").onclick = () => { fila = null; ir("home"); };
+  const ct = $("#cartao"); if (ct) ct.onclick = () => compartilharCartao(v);
+  if (info) { const c = escolherCena(info.subiu); if (c) { $("#assistir").textContent = "🎬 Assistir de novo: " + c.t; $("#assistir").onclick = () => tocarManga(c); later(() => tocarManga(c), 1700); } }
+  if (info) $("#prox").onclick = () => jogar(proximoJogo(), true); else $("#again").onclick = () => jogar(id);
+  $("#inicio").onclick = () => ir("home");
   const sh = $("#share"); if (sh) sh.onclick = () => navigator.share({ title: "Mente Renovada", text: `Fiz ${score}% em “${JOGOS[id].nome}” no Mente Renovada! ${"⭐".repeat(est)}`, url: location.href.split("#")[0] }).catch(() => {});
   window.scrollTo(0, 0);
 }
 
 document.querySelectorAll("#nav button").forEach(b => b.onclick = () => ir(b.dataset.go));
 ir("home");
+{ const qm = new URLSearchParams(location.search).get("manga"); // ?manga=0 a 9 toca uma cena direto (para pré-visualizar)
+  if (qm !== null && window.MANGA) { const c = window.MANGA.lista[+qm]; if (c) tocarManga(c); } }
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
 })();
