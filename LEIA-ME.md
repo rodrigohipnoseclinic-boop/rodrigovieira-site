@@ -47,3 +47,32 @@ Para gerar o site no computador: `node build.mjs` (o resultado fica em `dist/`).
 - **Inscritos:** o formulário usa o Web3Forms (grátis, 250 por mês). Cada inscrição chega por e-mail.
   A chave do formulário fica em **Página inicial e configurações → Contato, autor e cores**.
   Enquanto estiver vazia, a página Inscreva-se mostra um botão de WhatsApp.
+
+## App Mente Renovada (treino mental bíblico)
+
+Jogo instalável (PWA) em **rodrigovieiraterapeuta.com.br/mente-biblica/**. Fica em `static/mente-biblica/` e é copiado para `dist/` pelo `node build.mjs`.
+
+- **Jornada:** cada fase sorteia um dos 12 desafios; o nível sobe com o XP (600 e 1600). A cada 20 a 30 fases o jogador ganha uma cena de mangá, com narração.
+- **Arquivos:** `app.js` (regras e telas), `data.js` / `puzzles.js` / `vocab.js` (versículos, perguntas, palavras), `manga.js` (as 10 cenas), `style.css`, `sw.js` (funciona offline).
+- **Ver uma cena direto:** `/mente-biblica/?manga=0` até `?manga=9`.
+- **Se mudar os arquivos do jogo**, aumente a versão em `sw.js` (`mente-renovada-vN`), senão quem já instalou continua vendo a versão antiga.
+
+### Modo dono (convidar amigos)
+
+- Em **Progresso → Área do dono**, digite a mesma senha do painel de visitas (segredo `VISITAS_SENHA`). O jogo confere no servidor; nenhuma senha fica no código.
+- Com o modo dono ligado, a tela inicial mostra **Convidar amigos** (WhatsApp e e-mail) e um campo de nome. Quem recebe o link não vê esses botões.
+- Isso só esconde os botões: não impede alguém de copiar o endereço do navegador.
+- No iPhone, o app instalado guarda dados separados do Safari: libere o modo dono dentro do app instalado.
+
+### Contagem anônima do jogo
+
+- O jogo envia só somas por dia para `POST /api/jogo`: `abriu` (1x por dia), `jogou` e `instalou` (1x por aparelho), `fase`, `cena`, `nivel`. Não guarda nome, IP, aparelho nem localização. O dono não é contado.
+- O nome digitado no convite vira `?de=nome` no link. O painel **/visitas/** mostra "Jogo Mente Renovada" e "Por convite".
+- Há um aviso de transparência no rodapé de Progresso. Mantenha-o (LGPD).
+- Depois de mudar `src/worker.js`, publique com `npx wrangler deploy` (a tabela `jogo` é criada sozinha).
+
+### Pendências conhecidas
+
+- Revisar os textos escritos por IA: versículos (Almeida Revista e Corrigida), perguntas do quiz, dicas da cruzadinha e falas das cenas.
+- Jogo de debate teológico (60% NT / 40% AT): combinado, ainda não feito.
+

@@ -1,5 +1,5 @@
-const V = "mente-renovada-v17";
-const FILES = ["./", "index.html", "style.css", "data.js", "puzzles.js", "vocab.js", "manga.js", "app.js", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png"];
+const V = "mente-renovada-v20";
+const FILES = ["./", "index.html", "style.css", "data.js", "puzzles.js", "vocab.js", "conteudo.js", "fonts/nunito.woff2", "fonts/alfa.woff2", "fonts/fraunces.woff2", "manga.js", "app.js", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(V).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim()));

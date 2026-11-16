@@ -74,21 +74,51 @@ const quant = f => {
   for (let o = Math.floor(n / 12) - 1; o <= Math.floor(n / 12) + 1; o++) for (const x of S.esc) { const m = o * 12 + x, d = Math.abs(m - n); if (d < dist) { dist = d; melhor = m; } }
   return S.root * Math.pow(2, melhor / 12);
 };
+// cadeia de áudio: compressor + eco suave de sala (reverb gerado), para um som cheio e agradável
+let mestre = null;
+function saida() {
+  ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+  if (ac.state === "suspended") ac.resume();
+  if (mestre) return mestre;
+  const comp = ac.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4; comp.connect(ac.destination);
+  const seco = ac.createGain(); seco.gain.value = .85; seco.connect(comp);
+  const n = Math.floor(ac.sampleRate * 1.3), buf = ac.createBuffer(2, n, ac.sampleRate);
+  for (let c = 0; c < 2; c++) { const d = buf.getChannelData(c); for (let k = 0; k < n; k++) d[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / n, 2.6); }
+  const rev = ac.createConvolver(); rev.buffer = buf; const molhado = ac.createGain(); molhado.gain.value = .32; rev.connect(molhado); molhado.connect(comp);
+  const entrada = ac.createGain(); entrada.connect(seco); entrada.connect(rev);
+  return (mestre = entrada);
+}
+// timbres: parciais (harmônicos) por instrumento, mais quentes que uma onda simples
+const TIMBRE = { sine: [1, .18, .05], triangle: [1, .3, .12, .05], square: [1, .35, .2, .1], sawtooth: [1, .4, .25, .15, .08] };
 function bip(freq, dur = 0.18, atraso = 0, forca = 1, musical = false) {
   if (!somLigado()) return;
   try {
-    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
-    if (ac.state === "suspended") ac.resume();
-    const S = SONS[somAtual] || SONS.roda, erro = !musical && freq < 200, f = erro ? freq : musical ? freq : quant(freq), t0 = ac.currentTime + atraso;
-    const fim = t0 + dur * (erro ? 1 : S.dec) + .06, o = ac.createOscillator(), g = ac.createGain();
-    o.type = erro ? "sawtooth" : S.tipo; o.frequency.setValueAtTime(f, t0);
-    if (erro) o.frequency.exponentialRampToValueAtTime(f * .7, t0 + dur);
+    const out = saida(), S = SONS[somAtual] || SONS.roda, erro = !musical && freq < 200, f = erro ? 196 : musical ? freq : quant(freq), t0 = ac.currentTime + atraso;
+    const fim = t0 + dur * (erro ? 1.6 : S.dec) + .08, g = ac.createGain(), fl = ac.createBiquadFilter();
+    fl.type = "lowpass"; fl.frequency.setValueAtTime(erro ? 700 : 5200, t0); fl.frequency.exponentialRampToValueAtTime(erro ? 260 : 1400, fim);
     g.gain.setValueAtTime(.0001, t0);
-    g.gain.exponentialRampToValueAtTime((erro ? .1 : S.vol) * forca, t0 + (S.atk || .015));
+    g.gain.exponentialRampToValueAtTime((erro ? .16 : S.vol * .9) * forca, t0 + (S.atk || .012));
     g.gain.exponentialRampToValueAtTime(.0001, fim);
-    o.connect(g); g.connect(ac.destination); o.start(t0); o.stop(fim + .02);
+    fl.connect(g); g.connect(out);
+    (erro ? [1, .4] : TIMBRE[S.tipo] || [1]).forEach((amp, k) => {
+      const o = ac.createOscillator(), h = ac.createGain();
+      o.type = erro ? "triangle" : "sine"; o.frequency.setValueAtTime(f * (k + 1), t0);
+      if (erro) o.frequency.exponentialRampToValueAtTime(f * (k + 1) * .84, t0 + dur * 1.4);
+      o.detune.value = k ? (k % 2 ? 4 : -4) : 0; h.gain.value = amp; o.connect(h); h.connect(fl); o.start(t0); o.stop(fim + .02);
+    });
   } catch (e) {}
 }
+// toque suave de botão
+function tique(forte) {
+  if (!somLigado()) return;
+  try {
+    const out = saida(), t0 = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+    o.type = "sine"; o.frequency.setValueAtTime(forte ? 520 : 380, t0); o.frequency.exponentialRampToValueAtTime(forte ? 780 : 560, t0 + .05);
+    g.gain.setValueAtTime(.0001, t0); g.gain.exponentialRampToValueAtTime(.16, t0 + .008); g.gain.exponentialRampToValueAtTime(.0001, t0 + .11);
+    o.connect(g); g.connect(out); o.start(t0); o.stop(t0 + .13);
+  } catch (e) {}
+}
+function vibrar(p) { try { if (navigator.vibrate && !store.mudo) navigator.vibrate(p); } catch (e) {} }
 // vinheta de abertura de cada desafio
 function somAbertura(id) {
   const S = SONS[id]; if (!S) return;
@@ -153,8 +183,68 @@ function destravarAudio() {
 }
 ["pointerdown", "touchend", "click", "keydown"].forEach(ev => document.addEventListener(ev, destravarAudio, { passive: true }));
 document.addEventListener("visibilitychange", () => { if (!document.hidden && ac && ac.state === "suspended") ac.resume(); });
-function iconeSom() { return somLigado() ? "🔊" : "🔇"; }
-function alternarSom() { store.mudo = !store.mudo; salvar(); document.querySelectorAll("[data-som]").forEach(b => { b.textContent = iconeSom() + (b.dataset.som === "chip" ? " Som" : ""); b.setAttribute("aria-label", somLigado() ? "Desligar som" : "Ligar som"); }); if (somLigado()) bip(523, .15); else calarNarracao(); }
+function iconeSom() { return ico(somLigado() ? "i-sound" : "i-mute"); }
+function alternarSom() { store.mudo = !store.mudo; salvar(); document.querySelectorAll("[data-som]").forEach(b => { b.innerHTML = iconeSom(); b.setAttribute("aria-label", somLigado() ? "Desligar som" : "Ligar som"); }); if (somLigado()) bip(523, .15); else calarNarracao(); }
+
+/* ---------- sorteio sem repetição ---------- */
+// Cada banco (quiz, versículos, palavras...) lembra o que já saiu. Só volta a repetir depois de passar por todos.
+function tirar(chave, ids, n) {
+  const u = new Set((store.usados && store.usados[chave]) || []);
+  let livres = shuffle(ids.filter(i => !u.has(i))), saida = livres.slice(0, n);
+  if (saida.length < n) {                                  // acabou o banco: começa um ciclo novo sem repetir os que acabaram de sair
+    const resto = shuffle(ids.filter(i => !saida.includes(i)));
+    u.clear(); saida = saida.concat(resto.slice(0, n - saida.length));
+  }
+  saida.forEach(i => u.add(i));
+  (store.usados = store.usados || {})[chave] = [...u]; salvar();
+  return saida;
+}
+const todosIds = arr => arr.map((_, i) => i);
+const refHtml = (ref, txt) => ref ? `<div class="refbox">${ico("i-biblia")} <b>${esc(ref)}</b>${txt ? `<br><i>“${esc(txt)}”</i>` : '<br><span class="pequeno">Leia este trecho na sua Bíblia.</span>'}</div>` : "";
+const semAcento = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z]/g, "");
+
+/* ---------- peças de interface (vinho e madeira) ---------- */
+const ico = (nome, cls = "") => `<svg class="ic ${cls}" aria-hidden="true"><use href="#${nome}"/></svg>`;
+const CATSLUG = { "Memória": "mem", "Atenção": "ate", "Linguagem": "lin", "Raciocínio": "rac", "Conhecimento": "con" };
+const tile = (id, p = false) => `<span class="tile ${CATSLUG[JOGOS[id].cat]}${p ? " p" : ""}">${ico("g-" + id)}</span>`;
+const estrelaSvg = (on, atraso) => `<svg viewBox="0 0 24 24" class="${on ? "st-on" : "st-off"}" style="animation-delay:${atraso}s" stroke-linejoin="round"><path d="M12 2.6l2.9 6 6.6.9-4.8 4.6 1.2 6.6L12 17.6l-5.9 3.1 1.2-6.6L2.5 9.5l6.6-.9z"/></svg>`;
+const hud = (centro = "home") => `<div class="hud"><div class="moedas"><span class="moeda">${ico("i-coin")}</span><b id="hud-moedas">${moedas()}</b></div><button class="rb livro" id="sai" data-ir="${centro}" aria-label="${centro === "home" ? "Voltar ao início" : "Abrir progresso"}" type="button">${ico("i-biblia")}</button><div class="hud-dir"><button class="rb peq" data-som="x" aria-label="Som" type="button">${iconeSom()}</button></div></div>`;
+function ligarHud() {
+  view.querySelectorAll("[data-ir]").forEach(b => b.onclick = () => ir(b.dataset.ir));
+  view.querySelectorAll("[data-som]").forEach(b => b.onclick = alternarSom);
+}
+const biblia = () => `<svg class="biblia-svg" viewBox="0 0 340 190" role="img" aria-label="Bíblia aberta com uma cruz">
+<defs><radialGradient id="bgl" cx=".5" cy=".4" r=".6"><stop offset="0" stop-color="#FFE9A0" stop-opacity=".95"/><stop offset="1" stop-color="#FFB454" stop-opacity="0"/></radialGradient>
+<linearGradient id="bpg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFDF3"/><stop offset="1" stop-color="#F0DDAE"/></linearGradient>
+<linearGradient id="bcv" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C8283E"/><stop offset="1" stop-color="#6E0F1E"/></linearGradient>
+<linearGradient id="bcr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF6A78"/><stop offset="1" stop-color="#B31B30"/></linearGradient>
+<linearGradient id="bfl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8BDD66"/><stop offset="1" stop-color="#2B8A2F"/></linearGradient></defs>
+<circle cx="170" cy="72" r="112" fill="url(#bgl)"/><ellipse cx="170" cy="176" rx="152" ry="10" fill="rgba(0,0,0,.35)"/>
+<g stroke="#17521B" stroke-width="2.4" stroke-linejoin="round" fill="url(#bfl)">
+<path d="M22 124C10 98 30 78 58 80 56 100 44 116 22 124Z"/><path d="M30 138C6 134-4 112 6 96 30 100 40 118 30 138Z"/>
+<path d="M318 124C330 98 310 78 282 80 284 100 296 116 318 124Z"/><path d="M310 138C334 134 344 112 334 96 310 100 300 118 310 138Z"/></g>
+<path d="M14 118Q92 96 168 128L172 128Q248 96 326 118V142Q250 124 170 156Q90 124 14 142Z" fill="url(#bcv)" stroke="#FFD36B" stroke-width="3" stroke-linejoin="round"/>
+<path d="M24 62Q94 40 168 74V140Q94 108 24 130Z" fill="url(#bpg)" stroke="#B9822E" stroke-width="3" stroke-linejoin="round"/>
+<path d="M316 62Q246 40 172 74V140Q246 108 316 130Z" fill="url(#bpg)" stroke="#B9822E" stroke-width="3" stroke-linejoin="round"/>
+<g stroke="#C9A66B" stroke-width="2" fill="none" stroke-linecap="round"><path d="M40 78Q92 62 150 88"/><path d="M40 92Q92 76 150 102"/><path d="M40 106Q92 90 150 116"/><path d="M300 78Q248 62 190 88"/><path d="M300 92Q248 76 190 102"/><path d="M300 106Q248 90 190 116"/></g>
+<path d="M160 138V172L170 164L180 172V138Z" fill="url(#bcr)" stroke="#6E0F1E" stroke-width="2" stroke-linejoin="round"/>
+<g transform="translate(170 38)" stroke="#FFD36B" stroke-width="4.5" stroke-linejoin="round" fill="url(#bcr)"><rect x="-9" y="-30" width="18" height="64" rx="5"/><rect x="-26" y="-14" width="52" height="18" rx="5"/><rect x="-9" y="-30" width="18" height="64" rx="5" stroke="none"/><rect x="-26" y="-14" width="52" height="18" rx="5" stroke="none"/></g></svg>`;
+const FOLHAS = `<svg class="f1" viewBox="0 0 160 200"><g fill="#3FA23A" stroke="#14501A" stroke-width="3" stroke-linejoin="round"><path d="M0 30C50 0 120 20 150 70 90 70 40 60 0 30Z"/><path d="M0 90C60 60 130 80 156 130 90 130 40 120 0 90Z"/><path d="M0 150C50 130 110 140 140 185 80 190 36 180 0 150Z" fill="#2E8A2E"/></g></svg><svg class="f2" viewBox="0 0 160 200"><g fill="#4DB145" stroke="#14501A" stroke-width="3" stroke-linejoin="round"><path d="M0 30C50 0 120 20 150 70 90 70 40 60 0 30Z"/><path d="M0 90C60 60 130 80 156 130 90 130 40 120 0 90Z"/><path d="M0 150C50 130 110 140 140 185 80 190 36 180 0 150Z" fill="#2E8A2E"/></g></svg><svg class="f3" viewBox="0 0 160 200"><g fill="#2E8A2E" stroke="#14501A" stroke-width="3" stroke-linejoin="round"><path d="M0 40C50 10 120 30 150 80 90 80 40 70 0 40Z"/><path d="M0 110C60 80 130 100 156 150 90 150 40 140 0 110Z" fill="#3FA23A"/></g></svg><svg class="f4" viewBox="0 0 160 200"><g fill="#2E8A2E" stroke="#14501A" stroke-width="3" stroke-linejoin="round"><path d="M0 40C50 10 120 30 150 80 90 80 40 70 0 40Z"/><path d="M0 110C60 80 130 100 156 150 90 150 40 140 0 110Z" fill="#3FA23A"/></g></svg>`;
+// confete e contagem animada na tela de resultado
+function confete(forte) {
+  const cv = $("#confete"); if (!cv || (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+  const dpr = window.devicePixelRatio || 1, W = cv.width = innerWidth * dpr, H = cv.height = innerHeight * dpr, g = cv.getContext("2d");
+  const cores = ["#FFE68C", "#F6B91F", "#E24A5E", "#7FDD8E", "#8FB0F4", "#FFFFFF"], n = forte ? 150 : 90;
+  const ps = Array.from({ length: n }, () => ({ x: W / 2 + (Math.random() - .5) * W * .35, y: H * .3, vx: (Math.random() - .5) * 15 * dpr, vy: (-Math.random() * 15 - 5) * dpr, w: (6 + Math.random() * 7) * dpr, h: (4 + Math.random() * 7) * dpr, r: Math.random() * 6, vr: (Math.random() - .5) * .45, c: cores[(Math.random() * cores.length) | 0] }));
+  let t0 = performance.now(), vivo = true; aoSair(() => { vivo = false; });
+  (function quadro(t) {
+    if (!vivo || !document.body.contains(cv)) return;
+    const dt = Math.min(2, (t - t0) / 16.7); t0 = t; g.clearRect(0, 0, W, H); let alguem = false;
+    ps.forEach(p => { p.vy += .5 * dpr * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= .995; p.r += p.vr * dt; if (p.y < H + 40) alguem = true; g.save(); g.translate(p.x, p.y); g.rotate(p.r); g.fillStyle = p.c; g.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); g.restore(); });
+    if (alguem) requestAnimationFrame(quadro); else g.clearRect(0, 0, W, H);
+  })(t0);
+}
+function contar_ate(el, alvo, ms = 900) { if (!el) return; const t0 = performance.now(); (function q(t) { const k = Math.min(1, (t - t0) / ms); el.textContent = Math.round(alvo * (1 - Math.pow(1 - k, 3))); if (k < 1 && document.body.contains(el)) requestAnimationFrame(q); })(t0); }
 
 /* ---------- jogos ---------- */
 const CATS = ["Memória", "Atenção", "Linguagem", "Raciocínio", "Conhecimento"];
@@ -169,21 +259,21 @@ function jogoEscolha({ stage, progresso, terminar, rodadas, fazer, tempo }) {
     const ordem = shuffle(q.opcoes.map((t, k) => ({ t, ok: k === q.certa })));
     stage.innerHTML = `
       ${tempo ? `<div class="tempo"><i style="animation-duration:${tempo}s"></i></div>` : ""}
-      <div class="enun">${q.enun}</div>
+      <div class="pm pergunta">${q.enun}</div>
       <div class="ops">${ordem.map((o, k) => `<button class="op" data-k="${k}">${esc(o.t)}</button>`).join("")}</div>
       <div id="fb"></div>`;
     let respondida = false;
     const resolver = (k) => {
       if (respondida) return; respondida = true; clearTimeout(tt);
       const ok = k >= 0 && ordem[k].ok;
-      if (ok) { acertos++; bip(660, .15); } else bip(180, .25);
+      if (ok) { acertos++; bip(660, .15); vibrar(12); } else bip(180, .25);
       stage.querySelectorAll(".op").forEach((b, n) => {
         b.disabled = true;
         if (ordem[n].ok) b.classList.add("certo"); else if (n === k) b.classList.add("errado");
       });
       const t = $(".tempo i", stage); if (t) t.style.animationPlayState = "paused";
       const msg = (k < 0 ? "Tempo esgotado. " : ok ? "Muito bem! " : "Quase! ") + (q.explica || "");
-      $("#fb", stage).innerHTML = `<div class="feedback ${ok ? "ok" : "erro"}">${msg}</div><div class="espaco"></div><button class="btn" id="seg">Continuar</button>`;
+      $("#fb", stage).innerHTML = `<div class="feedback ${ok ? "ok" : "erro"}">${msg}</div><div class="espaco"></div><button class="btn ouro" id="seg">Continuar</button>`;
       $("#seg", stage).onclick = () => { i++; proxima(); };
       $("#seg", stage).focus({ preventScroll: true });
     };
@@ -198,11 +288,11 @@ const JOGOS = {
   versiculo: {
     nome: "Complete o Versículo", cat: "Memória", ico: "📖", desc: "Descubra a palavra que falta.",
     iniciar(c) {
-      const vs = sample(D.versiculos, 6);
+      const vs = tirar("ver", todosIds(D.versiculos), 6).map(i => D.versiculos[i]);
       jogoEscolha({ ...c, rodadas: 6, tempo: [0, 0, 30][c.nivel - 1], fazer: i => {
         const v = vs[i], correta = v.r, ops = [correta, ...sample(v.ops, 3)];
         const completo = v.t.replace("___", correta);
-        return { enun: `<small>${esc(v.ref)}</small>${esc(v.t).replace("___", '<b style="color:var(--ouro)">_____</b>')}`,
+        return { enun: `<small>${esc(v.ref)}</small>${esc(v.t).replace("___", '<b style="color:#B5192E">_____</b>')}`,
           opcoes: ops, certa: 0, explica: `<i>${esc(completo)}</i> — ${esc(v.ref)}` };
       } });
     }
@@ -211,8 +301,8 @@ const JOGOS = {
   quiz: {
     nome: "Quiz Bíblico", cat: "Conhecimento", ico: "❓", desc: "Quanto você conhece das Escrituras?",
     iniciar(c) {
-      const qs = sample(D.quiz, 8);
-      jogoEscolha({ ...c, rodadas: 8, tempo: [0, 25, 15][c.nivel - 1], fazer: i => ({ enun: esc(qs[i].p), opcoes: qs[i].o, certa: 0, explica: `Resposta: <b>${esc(qs[i].o[0])}</b>.` }) });
+      const qs = tirar("quiz", todosIds(D.quiz), 8).map(i => D.quiz[i]);
+      jogoEscolha({ ...c, rodadas: 8, tempo: [0, 25, 15][c.nivel - 1], fazer: i => ({ enun: esc(qs[i].p), opcoes: qs[i].o, certa: 0, explica: `Resposta: <b>${esc(qs[i].o[0])}</b>.${refHtml(qs[i].r, qs[i].t)}` }) });
     }
   },
 
@@ -220,11 +310,11 @@ const JOGOS = {
     nome: "Quem não pertence?", cat: "Raciocínio", ico: "🔎", desc: "Encontre o intruso do grupo.",
     iniciar(c) {
       const seg = [14, 10, 7][c.nivel - 1];
-      const gs = sample(D.grupos, 8);
+      const gs = tirar("gru", todosIds(D.grupos), 8).map(i => D.grupos[i]);
       jogoEscolha({ ...c, rodadas: 8, tempo: seg, fazer: i => {
         const g = gs[i], membros = sample(g.m, 3), intruso = pick(g.f);
         return { enun: "<small>Qual deles NÃO pertence ao grupo?</small>", opcoes: [intruso, ...membros], certa: 0,
-          explica: `<b>${esc(intruso)}</b> não é um dos ${esc(g.nome)}.` };
+          explica: `<b>${esc(intruso)}</b> não é um dos ${esc(g.nome)}.${refHtml(g.r, g.t)}` };
       } });
     }
   },
@@ -254,7 +344,7 @@ const JOGOS = {
     nome: "Pares da Palavra", cat: "Memória", ico: "🃏", desc: "Una cada símbolo à sua história.",
     iniciar({ stage, progresso, terminar, nivel }) {
       const n = [4, 6, 8][nivel - 1], cols = n === 8 ? 4 : n === 6 ? 4 : 4;
-      const ps = sample(D.pares, n);
+      const ps = tirar("par", todosIds(D.pares), n).map(i => D.pares[i]);
       const cartas = shuffle(ps.flatMap((p, id) => [{ id, tipo: "e", txt: p.e }, { id, tipo: "n", txt: p.n }]));
       stage.innerHTML = `<div class="stats"><span id="jg">Jogadas: 0</span><span id="pr">Pares: 0/${n}</span></div>
         <div class="grade" style="grid-template-columns:repeat(${cols},1fr)">${cartas.map((c, k) =>
@@ -322,7 +412,7 @@ const JOGOS = {
         const livros = r % 2 === 0;
         const base = livros ? D.livros : D.eventos;
         // escolhe índices distintos e guarda a ordem correta
-        const idx = sample(base.map((_, i) => i), tam).sort((a, b) => a - b);
+        const idx = tirar(livros ? "liv" : "ev", todosIds(base), tam).sort((a, b) => a - b);
         const itens = shuffle(idx.map(i => base[i]));
         const certa = idx.map(i => base[i]);
         let prox = 0;
@@ -333,6 +423,7 @@ const JOGOS = {
           const nome = b.textContent;
           if (nome === certa[prox]) {
             b.classList.add("feito"); $(".n", b).textContent = ++prox; bip(500 + prox * 60, .12);
+            if (!livros && D.eventosRef && D.eventosRef[nome]) b.insertAdjacentHTML("beforeend", `<small class="refm">${ico("i-biblia")} ${esc(D.eventosRef[nome])}</small>`);
             if (prox === certa.length) later(() => { r++; rodada(); }, 700);
           } else {
             erros++; bip(170, .2); b.classList.remove("balanca"); void b.offsetWidth; b.classList.add("balanca");
@@ -346,12 +437,12 @@ const JOGOS = {
   palavras: {
     nome: "Palavras Embaralhadas", cat: "Linguagem", ico: "🔤", desc: "Monte nomes e termos da Bíblia.",
     iniciar({ stage, progresso, terminar, nivel }) {
-      const R = 6, maxLetras = [6, 8, 12][nivel - 1], lista = sample(D.palavras.filter(x => x[0].length <= maxLetras), R);
+      const R = 6, maxLetras = [6, 8, 12][nivel - 1], lista = tirar("pal", todosIds(D.palavras).filter(i => D.palavras[i][0].length <= maxLetras), R).map(i => D.palavras[i]);
       let r = 0, pontos = 0;
       function rodada() {
         if (r >= R) return terminar(Math.round(pontos / R * 100));
         progresso(r, R);
-        const [palavra, dica] = lista[r], alvo = Array.from(palavra);
+        const [palavra, dica, pref, ptxt] = lista[r], alvo = Array.from(palavra);
         let embaralhada; do { embaralhada = shuffle(alvo); } while (embaralhada.join("") === palavra);
         let montada = [], usadas = new Set(), erros = 0, usouDica = false;
         stage.innerHTML = `<div class="enun"><small>Palavra ${r + 1} de ${R}</small>${esc(dica)}</div>
@@ -364,18 +455,18 @@ const JOGOS = {
           letras.innerHTML = embaralhada.map((l, i) => `<button class="letra ${usadas.has(i) ? "usada" : ""}" data-i="${i}">${esc(l)}</button>`).join("");
           letras.querySelectorAll(".letra").forEach(b => b.onclick = () => add(+b.dataset.i));
         };
-        const avancar = pt => { pontos += pt; r++; later(rodada, 1500); };
+        const avancar = pt => { pontos += pt; r++; later(rodada, pref ? 3600 : 1500); };
         function add(i) {
           if (montada.length >= alvo.length) return;
           montada.push({ i, l: embaralhada[i] }); usadas.add(i); bip(480, .08); pintar();
           if (montada.length === alvo.length) {
             if (montada.map(m => m.l).join("") === palavra) {
-              bip(740, .2); $("#fb", stage).innerHTML = `<div class="feedback ok">Isso! <b>${esc(palavra)}</b></div>`;
+              bip(740, .2); $("#fb", stage).innerHTML = `<div class="feedback ok">Isso! <b>${esc(palavra)}</b>${refHtml(pref, ptxt)}</div>`;
               slots.querySelectorAll(".slot").forEach(s => s.style.background = "#e3f3ea");
               avancar(usouDica ? .5 : 1);
             } else {
               erros++; bip(170, .25); slots.classList.add("erro");
-              if (erros >= 2) { $("#fb", stage).innerHTML = `<div class="feedback erro">Era <b>${esc(palavra)}</b>.</div>`; avancar(0); return; }
+              if (erros >= 2) { $("#fb", stage).innerHTML = `<div class="feedback erro">Era <b>${esc(palavra)}</b>.${refHtml(pref, ptxt)}</div>`; avancar(0); return; }
               later(() => { slots.classList.remove("erro"); montada = []; usadas = new Set(); pintar(); }, 450);
             }
           }
@@ -533,30 +624,36 @@ Object.assign(JOGOS, {
       const letrasTodas = Object.entries(cont).map(([l, n]) => l.repeat(n)).join("");
       const bonusValidos = VOC.filter(w => !palavras.includes(w) && cabeEm(w, letrasTodas)), bonusAchados = new Set();
       const mostra = (r, c) => reveladas.has(r + "," + c) || grade.words.some(w => achadas.has(w.w) && celulasDe(w).some(([a, b]) => a === r && b === c));
-      stage.innerHTML = `<div class="faixa"><b>${jornada ? "Fase " + (store.fase || 1) : "Treino livre"}</b><span id="bn">Bônus: 0</span><span id="moe">🪙 ${moedas()}</span></div>
-        <div class="xgrid" id="xg" style="--cols:${grade.cols};grid-template-columns:repeat(${grade.cols},1fr)"></div>
-        <div class="atual" id="atual">&nbsp;</div>
-        <div class="roda" id="roda"><button class="mistura" id="mistura" aria-label="Embaralhar letras">🔀</button></div>
-        <div class="linha"><button class="btn claro" id="dica">💡 Dica (5 🪙)</button></div>`;
-      const roda = $("#roda", stage), R = 88;
+      stage.innerHTML = `<div class="folhas">${FOLHAS}</div>
+        <div class="faixa"><span class="chip">${ico("i-spark")} Bônus <b id="bn">0</b></span><span class="chip">Palavras <b id="pc">0/${palavras.length}</b></span></div>
+        <div class="pm grade-pm"><div class="xgrid" id="xg" style="--cols:${grade.cols};grid-template-columns:repeat(${grade.cols},1fr)"></div></div>
+        <div class="atual" id="atual"></div>
+        <div class="roda" id="roda"><svg class="traco"><polyline id="tr" fill="none" stroke="#fff" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" opacity=".92" style="filter:drop-shadow(0 0 7px rgba(255,255,255,.85))"/></svg></div>
+        <div class="roda-btns"><button class="rb verde" id="dica" type="button" aria-label="Dica: revela uma letra (5 moedas)">${ico("i-bulb")}<span class="preco">${ico("i-coin")}5</span></button><button class="rb verde" id="mistura" type="button" aria-label="Embaralhar letras">${ico("i-shuffle")}</button></div>`;
+      const roda = $("#roda", stage); let ptr = null, flashAtivo = false;
       const pintarGrade = () => {
         let h = "";
         for (let r = 0; r < grade.rows; r++) for (let c = 0; c < grade.cols; c++) {
           const k = r + "," + c;
           h += usada.has(k) ? `<div class="xc ${mostra(r, c) ? "on" : ""}">${mostra(r, c) ? usada.get(k) : ""}</div>` : '<div class="xc vazio"></div>';
         }
-        $("#xg", stage).innerHTML = h; progresso(achadas.size, palavras.length);
+        $("#xg", stage).innerHTML = h; progresso(achadas.size, palavras.length); $("#pc", stage).textContent = achadas.size + "/" + palavras.length;
       };
+      const centros = [];
       const pintarRoda = () => {
-        roda.querySelectorAll(".rl").forEach(e => e.remove());
+        roda.querySelectorAll(".rl").forEach(e => e.remove()); centros.length = 0;
+        const Wd = roda.clientWidth || 300, R = Wd * .335, tam = Math.round(Wd * .21);
         letras.forEach((l, i) => {
-          const ang = -Math.PI / 2 + i * 2 * Math.PI / letras.length, b = document.createElement("div");
+          const ang = -Math.PI / 2 + i * 2 * Math.PI / letras.length + (letras.length === 3 ? .52 : 0), b = document.createElement("div"), cx = Wd / 2 + R * Math.cos(ang), cy = Wd / 2 + R * Math.sin(ang);
           b.className = "rl" + (caminho.includes(i) ? " sel" : ""); b.dataset.i = i; b.textContent = l;
-          b.style.left = (125 + R * Math.cos(ang) - 26) + "px"; b.style.top = (125 + R * Math.sin(ang) - 26) + "px";
-          roda.appendChild(b);
+          b.style.left = (cx - tam / 2) + "px"; b.style.top = (cy - tam / 2) + "px"; b.style.transform = "rotate(" + ((i * 37 % 9) - 4) + "deg)";
+          roda.appendChild(b); centros.push([cx, cy]);
         });
-        $("#atual", stage).innerHTML = caminho.length ? caminho.map(i => letras[i]).join("") : "&nbsp;";
+        const pts = caminho.map(i => centros[i]); if (ativo && ptr && pts.length) pts.push(ptr);
+        $("#tr", stage).setAttribute("points", pts.map(p => p.join(",")).join(" "));
+        if (!flashAtivo) $("#atual", stage).innerHTML = caminho.map(i => `<span class="cap">${letras[i]}</span>`).join("");
       };
+      const flash = (classe, texto) => { flashAtivo = true; const at = $("#atual", stage); at.innerHTML = [...texto].map(l => `<span class="cap ${classe}">${l}</span>`).join(""); later(() => { flashAtivo = false; if (!caminho.length) at.innerHTML = ""; }, 650); };
       const checar = () => {
         grade.words.forEach(w => { if (!achadas.has(w.w) && celulasDe(w).every(([r, c]) => mostra(r, c))) achadas.add(w.w); });
         pintarGrade();
@@ -566,41 +663,42 @@ Object.assign(JOGOS, {
         }
       };
       const letraEm = e => { const el = document.elementFromPoint(e.clientX, e.clientY); return el && el.closest ? el.closest(".rl") : null; };
-      roda.onpointerdown = e => { const l = letraEm(e); if (!l || fim) return; ativo = true; try { roda.setPointerCapture(e.pointerId); } catch (x) {} caminho = [+l.dataset.i]; bip(440 + 40 * caminho.length, .06); pintarRoda(); };
+      const pos = e => { const r = roda.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+      roda.onpointerdown = e => { const l = letraEm(e); if (!l || fim) return; ativo = true; try { roda.setPointerCapture(e.pointerId); } catch (x) {} caminho = [+l.dataset.i]; ptr = pos(e); bip(440 + 40 * caminho.length, .06); pintarRoda(); };
       roda.onpointermove = e => {
-        if (!ativo) return; const l = letraEm(e); if (!l) return; const i = +l.dataset.i;
-        if (caminho[caminho.length - 2] === i) caminho.pop(); else if (!caminho.includes(i)) { caminho.push(i); bip(440 + 40 * caminho.length, .06); } else return;
+        if (!ativo) return; ptr = pos(e); const l = letraEm(e);
+        if (l) { const i = +l.dataset.i;
+          if (caminho[caminho.length - 2] === i) caminho.pop(); else if (!caminho.includes(i)) { caminho.push(i); bip(440 + 40 * caminho.length, .06); } }
         pintarRoda();
       };
       roda.onpointerup = () => {
         if (!ativo) return; ativo = false;
         const p = caminho.map(i => letras[i]).join("");
-        if (palavras.includes(p) && !achadas.has(p)) { achadas.add(p); bip(780, .2); }
-        else if (bonusValidos.includes(p) && !bonusAchados.has(p)) {
-          bonusAchados.add(p); bip(900, .2); $("#bn", stage).textContent = "Bônus: " + bonusAchados.size;
-          $("#atual", stage).classList.add("bonus"); later(() => $("#atual", stage).classList.remove("bonus"), 500);
-        }
-        else if (p.length >= 3 && !bonusAchados.has(p) && !achadas.has(p)) { erros++; bip(170, .2); $("#atual", stage).classList.add("erro"); later(() => $("#atual", stage).classList.remove("erro"), 400); }
-        caminho = []; pintarRoda(); checar();
+        if (palavras.includes(p) && !achadas.has(p)) { achadas.add(p); bip(780, .2); flash("ok", p); }
+        else if (bonusValidos.includes(p) && !bonusAchados.has(p)) { bonusAchados.add(p); bip(900, .2); $("#bn", stage).textContent = bonusAchados.size; flash("ok", p); }
+        else if (p.length >= 3 && !bonusAchados.has(p) && !achadas.has(p)) { erros++; bip(170, .2); flash("erro", p); }
+        caminho = []; ptr = null; pintarRoda(); checar();
       };
-      roda.onpointercancel = () => { ativo = false; caminho = []; pintarRoda(); };
+      roda.onpointercancel = () => { ativo = false; caminho = []; ptr = null; pintarRoda(); };
       $("#mistura", stage).onclick = () => { letras = shuffle(letras); caminho = []; pintarRoda(); };
       $("#dica", stage).onclick = () => {
         if (fim) return;
-        if (moedas() < 5) { $("#atual", stage).textContent = "Faltam moedas"; later(pintarRoda, 1200); return; }
+        if (moedas() < 5) { aviso("Você precisa de 5 moedas para uma dica"); return; }
         const w = pick(grade.words.filter(x => !achadas.has(x.w)));
         if (!w) return; const livres = celulasDe(w).filter(([r, c]) => !mostra(r, c));
         if (!livres.length) return; const [r, c] = livres[0]; reveladas.add(r + "," + c); dicas++;
-        store.moedas = moedas() - 5; salvar(); $("#moe", stage).textContent = "🪙 " + moedas(); checar();
+        store.moedas = moedas() - 5; salvar(); const hm = $("#hud-moedas"); if (hm) hm.textContent = moedas(); checar();
       };
-      pintarGrade(); pintarRoda();
+      pintarGrade(); requestAnimationFrame(pintarRoda); window.addEventListener("resize", pintarRoda); aoSair(() => window.removeEventListener("resize", pintarRoda));
     }
   },
 
   caca: {
     nome: "Caça-Palavras", cat: "Atenção", ico: "🔍", desc: "Deslize o dedo sobre as palavras escondidas.",
     iniciar({ stage, progresso, terminar, nivel }) {
-      const P = pick(window.PUZZLES.caca), n = [8, 9, 10][nivel - 1], palavras = sample(P.palavras, nivel === 1 ? 4 : 5);
+      const n = [8, 9, 10][nivel - 1], vv = D.versiculos[tirar("cacv", todosIds(D.versiculos), 1)[0]], P = { tema: "Palavras da Bíblia", v: { ref: vv.ref, t: vv.t.replace("___", vv.r) } };
+      const ids = todosIds(D.palavras).filter(i => { const l = semAcento(D.palavras[i][0]).length; return l >= 3 && l <= n; });
+      const palavras = [...new Set(tirar("cac", ids, nivel === 1 ? 4 : 5).map(i => semAcento(D.palavras[i][0])))];
       const dirs = [[0, 1], [1, 0]]; if (nivel >= 2) dirs.push([1, 1]); if (nivel >= 3) dirs.push([0, -1], [-1, 0], [-1, -1]);
       const g = gerarCaca(palavras, n, dirs);
       const achadas = new Set(); let ini = null, fim = null, erros = 0, dicas = 0, acabou = false;
@@ -646,7 +744,10 @@ Object.assign(JOGOS, {
   cruzadinha: {
     nome: "Cruzadinha Bíblica", cat: "Conhecimento", ico: "🧩", desc: "Resolva as dicas e cruze as respostas.",
     iniciar({ stage, progresso, terminar, nivel }) {
-      const P0 = pick(window.PUZZLES.cruz), P = { ...P0, palavras: sample(P0.palavras, [5, 6, 8][nivel - 1]) }, dicasDe = Object.fromEntries(P.palavras);
+      const vv = D.versiculos[tirar("cruv", todosIds(D.versiculos), 1)[0]];
+      const ids = todosIds(D.palavras).filter(i => { const l = semAcento(D.palavras[i][0]).length; return l >= 3 && l <= 9; });
+      const mapa = new Map(); tirar("cru", ids, [5, 6, 8][nivel - 1] + 2).forEach(i => { const w = semAcento(D.palavras[i][0]); if (!mapa.has(w)) mapa.set(w, D.palavras[i][1]); });
+      const P = { tema: "Palavras da Bíblia", palavras: [...mapa].slice(0, [5, 6, 8][nivel - 1]), v: { ref: vv.ref, t: vv.t.replace("___", vv.r) } }, dicasDe = Object.fromEntries(P.palavras);
       const grade = montarGrade(P.palavras.map(x => x[0]), true), ws = grade.words;
       const resp = new Map(), num = new Map(), user = new Map();
       ws.forEach(w => celulasDe(w).forEach(([r, c], k) => resp.set(r + "," + c, w.w[k])));
@@ -714,7 +815,7 @@ Object.assign(JOGOS, {
     iniciar({ stage, progresso, terminar, nivel }) {
       const limite = [14, 22, 34][nivel - 1];
       const todos = D.versiculos.map(v => ({ ref: v.ref, t: textoVersiculo(v) }));
-      const ok = todos.filter(v => v.t.split(/\s+/).length <= limite), v = pick(ok.length ? ok : todos);
+      const cand = todosIds(todos).filter(i => todos[i].t.split(/\s+/).length <= limite), v = todos[tirar("verso", cand.length ? cand : todosIds(todos), 1)[0]];
       const ps = v.t.split(/\s+/), alvo = [6, 8, 10][nivel - 1], tam = Math.ceil(ps.length / alvo), partes = [];
       for (let i = 0; i < ps.length; i += tam) partes.push(ps.slice(i, i + tam).join(" "));
       let ordem; do { ordem = shuffle(partes.map((_, i) => i)); } while (partes.length > 1 && ordem.every((x, i) => partes[x] === partes[i]));
@@ -806,7 +907,7 @@ const guiaInstalar = () => ehiOS()
 /* ---------- telas ---------- */
 function marcarNav(go) { document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.go === go)); }
 function ir(tela) {
-  limpar(); appEl.classList.remove("em-jogo");
+  limpar(); appEl.classList.remove("em-jogo", "selva");
   ({ home: telaHome, progress: telaProgresso }[tela] || telaHome)();
   marcarNav(tela); window.scrollTo(0, 0);
 }
@@ -814,28 +915,32 @@ function ir(tela) {
 function telaHome() {
   const hoje = dataStr(), n = Math.min(3, fasesNoDia(hoje)), seq = sequenciaDias(), v = versiculoDoDia(), prox = JOGOS[proximoJogo()];
   const hora = new Date().getHours(), saud = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
-  view.innerHTML = `
-    <div class="topo"><small>Treino mental bíblico</small><h1>${saud}! 🙏</h1><p>${esc(D.dicas[diaIdx() % D.dicas.length])}</p>
-      <div class="chips"><span class="chip">🔥 <b>${seq}</b> ${seq === 1 ? "dia" : "dias"} seguidos</span><span class="chip">✅ <b>${n}/3</b> fases hoje</span><button class="chip" data-som="chip" aria-label="Som">${iconeSom()} Som</button></div></div>
+  const fx = nivelXP(), xpTxt = NIVEL_XP[fx] ? `${xp()} / ${NIVEL_XP[fx]} XP para o nível ${fx + 1}` : `${xp()} XP · nível máximo`, faltam = Math.max(1, alvoCena() - (store.fase || 1) + 1);
+  view.innerHTML = `${hud("progress")}
+    <div class="cena-livro">${biblia()}</div>
+    <div class="titulo"><div class="fita">MENTE RENOVADA</div><small>${saud} · treino mental bíblico</small></div>
+    <div class="stats"><span class="stat">${ico("i-flame")}<b>${seq}</b> ${seq === 1 ? "dia" : "dias"} seguidos</span><span class="stat">${ico("i-cards")}<b>${(store.cartas || []).length}</b> ${(store.cartas || []).length === 1 ? "cartão" : "cartões"}</span></div>
     <div class="sobe">
-      <div class="card"><div class="rot">Sua jornada</div>
-        <div class="jornada"><div><h2>Fase ${store.fase || 1} · Nível ${nivelXP()}</h2><p class="pequeno" style="margin:2px 0 0">🪙 ${moedas()} moedas · 🖼️ ${(store.cartas || []).length} cartões</p></div></div>
+      <section class="card">
+        <div class="jor-topo"><div class="nivel"><small>NÍVEL</small><b>${fx}</b></div><div class="jor-txt"><div class="rot" style="margin-bottom:2px">Sua jornada</div><h2>Fase ${store.fase || 1}</h2><p>${xpTxt}</p></div></div>
         ${barraXP()}
-        <p class="pequeno" style="margin:6px 0 0">🎬 Próxima cena de mangá em <b>${Math.max(1, alvoCena() - (store.fase || 1) + 1)}</b> ${Math.max(1, alvoCena() - (store.fase || 1) + 1) === 1 ? "fase" : "fases"}</p>
-        <div class="proxima"><span>${prox.ico}</span><div><small>Próximo desafio</small><b>${prox.nome}</b></div></div>
-        <button class="btn ouro" id="jornada">${(store.fase || 1) === 1 ? "Começar jornada" : "Continuar jornada"}</button></div>
-      ${jaInstalado() || store.instalado || store.ocultaInstalar ? "" : `<div class="card" id="instalar"><div class="rot">📲 Leve no seu celular</div><h2>Instale o app</h2>
-        <p class="pequeno" style="margin:2px 0 12px">Um ícone na tela inicial, em tela cheia e funcionando sem internet.</p>
-        <button class="btn ouro" id="btn-instalar">Instalar app</button>
+        <div class="meta-dia"><span>Meta de hoje</span><div class="pts">${[0, 1, 2].map(i => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</div></div>
+        <div class="proxima">${tile(proximoJogo())}<div><small>Próximo desafio</small><b>${prox.nome}</b></div></div>
+        <button class="btn ouro grande" id="jornada" type="button">${(store.fase || 1) === 1 ? "COMEÇAR" : "CONTINUAR"} ${ico("i-arrow")}</button>
+        <p class="pequeno" style="text-align:center;margin:12px 0 0">${ico("i-film")} Próxima cena de mangá em <b>${faltam}</b> ${faltam === 1 ? "fase" : "fases"}</p>
+      </section>
+      ${jaInstalado() || store.instalado || store.ocultaInstalar ? "" : `<section class="card" id="instalar"><div class="rot">Leve no seu celular</div><h2>Instale o app</h2>
+        <p class="pequeno" style="margin:6px 0 14px">Um ícone na tela inicial, em tela cheia e funcionando sem internet.</p>
+        <button class="btn ouro" id="btn-instalar" type="button">Instalar app</button>
         <div id="guia" class="guia" hidden>${guiaInstalar()}</div>
-        <button class="link" id="agora-nao">Agora não</button></div>`}
-      ${ehDono() ? `<div class="card"><div class="rot">Só para você</div><h2>Convidar amigos</h2><p class="pequeno" style="margin:2px 0 12px">Estes botões só aparecem no seu aparelho. Quem receber o link joga normalmente, sem eles.</p>
-        <input class="campo" id="convite-nome" placeholder="Nome de quem vai receber (opcional)" aria-label="Nome de quem vai receber" autocomplete="off" style="margin-bottom:10px">
+        <button class="link" id="agora-nao" type="button">Agora não</button></section>`}
+      ${ehDono() ? `<section class="card"><div class="rot">Só para você</div><h2>Convidar amigos</h2><p class="pequeno" style="margin:6px 0 12px">Estes botões só aparecem no seu aparelho. Quem receber o link joga normalmente, sem eles.</p>
+        <input class="campo" id="convite-nome" placeholder="Nome de quem vai receber (opcional)" aria-label="Nome de quem vai receber" autocomplete="off" style="margin-bottom:12px">
         <div class="linha"><a class="btn ouro" id="convite-wa" target="_blank" rel="noopener" href="#">WhatsApp</a><a class="btn claro" id="convite-email" href="#">E-mail</a></div>
-        <p class="pequeno" style="margin:10px 0 0">Com um nome, o link leva uma marca (por exemplo <i>?de=maria</i>) e o seu painel de visitas mostra quantos abriram, jogaram e instalaram por convite. Quem recebe não vê a marca depois de abrir.</p></div>` : ""}
-      <div class="card"><div class="rot">Versículo do dia</div><div class="versiculo">“${esc(textoVersiculo(v))}”<cite>${esc(v.ref)}</cite></div></div>
+        <p class="pequeno" style="margin:12px 0 0">Com um nome, o link leva uma marca (por exemplo <i>?de=maria</i>) e o seu painel de visitas mostra quantos abriram, jogaram e instalaram por convite. Quem recebe não vê a marca depois de abrir.</p></section>` : ""}
+      <section class="card"><div class="rot">Versículo do dia</div><div class="versiculo">“${esc(textoVersiculo(v))}”<cite>${esc(v.ref)}</cite></div></section>
     </div>`;
-  view.querySelector("[data-som]").onclick = alternarSom;
+  ligarHud();
   const cn = $("#convite-nome");
   if (cn) {
     const montar = () => { const s = slug(cn.value), url = JOGO_URL + (s ? "?de=" + s : ""), wa = $("#convite-wa"), em = $("#convite-email");
@@ -858,8 +963,9 @@ function telaProgresso() {
   const hoje = dataStr(), dias = Array.from({ length: 7 }, (_, i) => addDias(hoje, i - 6));
   const nomes = ["D", "S", "T", "Q", "Q", "S", "S"];
   const ult = store.hist.slice(-8).reverse();
-  view.innerHTML = `<div class="topo" style="padding-bottom:24px"><small>Sua evolução</small><h1>Progresso</h1><p>Média das suas últimas partidas em cada área.</p></div>
-    <div class="pad">
+  view.innerHTML = `${hud("home")}
+    <div class="titulo"><div class="fita">PROGRESSO</div><small>Sua evolução em cada área da mente</small></div>
+    <div class="sobe">
       <div class="card"><div class="rot">Últimos 7 dias</div>
         <div class="cal">${dias.map(d => { const [y, m, dd] = d.split("-").map(Number); const wd = new Date(y, m - 1, dd).getDay();
           return `<div class="${diaCompleto(d) ? "feito" : ""} ${d === hoje ? "hoje" : ""}"><i>${diaCompleto(d) ? "✓" : ""}</i>${nomes[wd]}</div>`; }).join("")}</div>
@@ -867,26 +973,27 @@ function telaProgresso() {
       <div class="card"><div class="rot">Áreas da mente</div>
         ${CATS.map(c => { const m = mediaCat(c); return `<div class="cat"><div class="t"><span>${c}</span><span>${m === null ? "ainda não jogou" : m + "%"}</span></div><div class="trilho"><i style="width:${m || 0}%"></i></div></div>`; }).join("")}</div>
       <div class="card"><div class="rot">Últimas partidas</div>
-        ${ult.length ? `<div class="hist">${ult.map(h => `<div><span>${JOGOS[h.g].ico} ${JOGOS[h.g].nome}</span><b>${h.s}%</b></div>`).join("")}</div>` : '<p class="pequeno">Jogue o primeiro jogo para ver o seu histórico aqui.</p>'}</div>
+        ${ult.length ? `<div class="hist">${ult.map(h => `<div><span style="display:flex;align-items:center;gap:10px">${tile(h.g, true)}${JOGOS[h.g].nome}</span><b>${h.s}%</b></div>`).join("")}</div>` : '<p class="pequeno">Jogue o primeiro jogo para ver o seu histórico aqui.</p>'}</div>
       <div class="card"><div class="rot">Meus versículos (${(store.cartas || []).length}/${CARTAS.length})</div>
         ${(store.cartas || []).length ? `<div class="hist">${(store.cartas || []).map(r => CARTAS.find(c => c.ref === r)).filter(Boolean).map((c, i) => `<div style="display:block"><i style="font-family:Georgia,serif">“${esc(c.t)}”</i><br><b>${esc(c.ref)}</b> <button class="link" data-cartao="${i}">compartilhar</button></div>`).join("")}</div>` : '<p class="pequeno">Conclua a fase 3 da jornada para ganhar o primeiro cartão. Um novo a cada 3 fases!</p>'}</div>
       <div class="card"><div class="rot">Minhas cenas (${(store.cenasVistas || []).length}/${(window.MANGA ? window.MANGA.lista.length : 0)})</div>
         <p class="pequeno" style="margin:0 0 8px">Uma cena nova a cada 20 a 30 fases.</p>
-        <div class="hist">${(window.MANGA ? window.MANGA.lista : []).map((c, i) => (store.cenasVistas || []).includes(i) ? `<div><span>🎬 ${esc(c.t)}</span><button class="link" data-cena="${i}">assistir</button></div>` : `<div><span style="opacity:.5">🔒 Cena bloqueada</span></div>`).join("")}</div></div>
+        <div class="hist">${(window.MANGA ? window.MANGA.lista : []).map((c, i) => (store.cenasVistas || []).includes(i) ? `<div><span>${ico("i-film")} ${esc(c.t)}</span><button class="link" data-cena="${i}">assistir</button></div>` : `<div><span style="opacity:.55">${ico("i-lock")} Cena bloqueada</span></div>`).join("")}</div></div>
       <div class="card"><div class="rot">Som e narração</div>
         <p class="pequeno" style="margin:0 0 8px">Não ouve nada? Toque no botão. No iPhone, desligue a chave de silêncio ao lado e suba o volume.</p>
-        <button class="btn claro" id="testar-som" type="button">🔊 Testar som e voz</button><p class="pequeno" id="diag" style="margin-top:8px"></p></div>
+        <button class="btn claro" id="testar-som" type="button">${ico("i-sound")} Testar som e voz</button><p class="pequeno" id="diag" style="margin-top:8px"></p></div>
       ${jaInstalado() ? "" : `<div class="card"><div class="rot">Instalar no celular</div><div class="guia">${guiaInstalar()}</div></div>`}
       ${ehDono() ? '<button class="link" id="sair-dono" type="button">Sair do modo dono</button>' : `<button class="link" id="entrar-dono" type="button" style="opacity:.55">Área do dono</button>
         <form id="form-dono" hidden style="margin:8px 0 14px"><input class="campo" id="senha-dono" type="password" autocomplete="current-password" placeholder="Senha do painel de visitas" aria-label="Senha do painel de visitas"><button class="btn" type="submit" style="margin-top:8px">Entrar</button><p class="pequeno" id="msg-dono" style="margin-top:6px"></p></form>`}
       <button class="link" id="zerar">Apagar meu progresso</button>
       <p class="pequeno" style="margin-top:14px">Versículos na tradução Almeida Revista e Corrigida. O progresso fica salvo apenas neste aparelho. Para melhorar o jogo, contamos de forma anônima quantas pessoas abrem, jogam e instalam o app. Não guardamos seu nome, telefone nem localização.</p>
     </div>`;
+  ligarHud();
   const col = (store.cartas || []).map(r => CARTAS.find(c => c.ref === r)).filter(Boolean);
   view.querySelectorAll("[data-cartao]").forEach(b => b.onclick = () => compartilharCartao(col[+b.dataset.cartao]));
   view.querySelectorAll("[data-cena]").forEach(b => b.onclick = () => tocarManga(window.MANGA.lista[+b.dataset.cena]));
   $("#testar-som").onclick = () => {
-    destravarAudio(); if (!somLigado()) { $("#diag").textContent = "O som está desligado. Toque no botão 🔊 da tela inicial para ligar."; return; }
+    destravarAudio(); if (!somLigado()) { $("#diag").textContent = "O som está desligado. Toque no botão de som no topo da tela para ligar."; return; }
     bip(523, .3, 0, 1, true); bip(659, .3, .25, 1, true); bip(784, .4, .5, 1, true); narrar("Teste de narração. Se você ouviu esta voz, a narração está funcionando.");
     let nv = 0; try { nv = speechSynthesis.getVoices().length; } catch (e) {}
     $("#diag").textContent = `Som: ligado · Áudio: ${ac ? ac.state : "não iniciado"} · Vozes no aparelho: ${nv}${vozPt ? " (português: " + vozPt.name + ")" : " (nenhuma em português: só haverá legenda)"}`;
@@ -912,12 +1019,12 @@ function telaProgresso() {
 function jogar(id, jornada = false) {
   limpar(); appEl.classList.add("em-jogo"); window.scrollTo(0, 0);
   const g = JOGOS[id], nivel = nivelXP();
-  view.innerHTML = `<div class="gbar"><button class="x" id="sai" aria-label="Sair">✕</button><h2>${g.ico} ${g.nome}</h2><span class="prog" id="prog"></span><button class="x" data-som="x" aria-label="Som">${iconeSom()}</button></div>
-    <div class="barra"><i id="barra"></i></div><div class="stage" id="stage"></div>`;
-  $("#sai").onclick = () => ir("home");
-  view.querySelector("[data-som]").onclick = alternarSom;
+  appEl.classList.toggle("selva", id === "roda");
+  view.innerHTML = `${hud("home")}<div class="gpilula"><span class="pilula">${jornada ? "Fase " + (store.fase || 1) : "Treino"}<span id="prog"></span></span></div>
+    <div class="barra"><i id="barra"></i></div><div class="stage ${id === "roda" ? "selva-st" : ""}" id="stage"></div>`;
+  ligarHud();
   somAtual = id; somAbertura(id);
-  const progresso = (i, total) => { $("#prog").textContent = total > 1 ? `${Math.min(i + 1, total)}/${total}` : ""; $("#barra").style.width = (i / total * 100) + "%"; };
+  const progresso = (i, total) => { $("#prog").textContent = total > 1 ? ` · ${Math.min(i + 1, total)}/${total}` : ""; $("#barra").style.width = (i / total * 100) + "%"; };
   g.iniciar({ stage: $("#stage"), progresso, nivel, jornada, terminar: (s, vv, gi) => resultado(id, s, jornada, vv, gi) });
 }
 
@@ -963,26 +1070,34 @@ function resultado(id, score, jornada, extra, gi) {
   const msgs = ["Continue treinando, cada partida fortalece a mente.", "Bom começo! Mais uma partida e você melhora.", "Muito bom! Sua mente está ficando mais afiada.", "Excelente! Sabedoria e atenção em dia."];
   const v = (info && info.carta) || extra || pick(D.versiculos);
   const prox = info ? JOGOS[proximoJogo()] : null;
-  somFim(est, !!(info && info.subiu));
-  view.innerHTML = `<div class="resultado">
-    ${info && info.cena != null ? '<button class="btn claro" id="assistir">🎬 Assistir à cena</button>' : ""}
-    <div class="estrelas">${[0, 1, 2].map(i => `<span class="${i < est ? "" : "apagada"}">⭐</span>`).join("")}</div>
-    <div class="pontos">${score}<small>%</small></div>
-    <p>${info ? `<b>Fase ${info.fase} concluída!</b> +${info.xpGanho} XP · +${info.ganho} 🪙<br>${info.subiu ? `🎉 <b>Você subiu para o nível ${info.nivel}!</b> Os desafios ficam mais difíceis.<br>` : ""}${info.nova ? "✨ Novo cartão de versículo na sua coleção!<br>" : ""}${info.cena != null ? "🎬 <b>Grande conquista!</b> Você desbloqueou uma cena de mangá.<br>" : ""}` : ""}${msgs[est]}</p>
+  somFim(est, !!(info && info.subiu)); vibrar(est >= 2 ? [20, 40, 20] : 15);
+  const fita = info && info.subiu ? "VOCÊ SUBIU DE NÍVEL!" : score >= 85 ? "DEUS ESTÁ COM VOCÊ!" : score >= 60 ? "MUITO BEM!" : score >= 30 ? "BOM COMEÇO!" : "NÃO DESISTA!";
+  view.innerHTML = `<div class="resultado"><canvas id="confete"></canvas>
+    <div class="cena-livro">${biblia()}</div>
+    <div class="titulo" style="margin-top:-6px"><div class="fita">${fita}</div></div>
+    <div class="estrelas">${[0, 1, 2].map(i => estrelaSvg(i < est, .35 + i * .22)).join("")}</div>
+    <div class="r-medalha"><div class="pontos"><span id="r-num">0</span><small>%</small></div></div>
+    <p class="r-sub">${info ? `Fase ${info.fase} concluída! ` : ""}${msgs[est]}</p>
+    ${info ? `<div class="r-chips"><span class="chip ouro">${ico("i-spark")} +${info.xpGanho} XP</span><span class="chip">${ico("i-coin")} +${info.ganho} moedas</span></div>` : ""}
+    ${info && info.subiu ? `<div class="r-aviso">${ico("i-spark")} <b>Você subiu para o nível ${info.nivel}!</b> Os desafios ficam mais difíceis.</div>` : ""}
+    ${info && info.nova ? `<div class="r-aviso">${ico("i-cards")} <b>Novo cartão de versículo</b> na sua coleção!</div>` : ""}
+    ${info && info.cena != null ? `<div class="r-aviso">${ico("i-film")} <b>Grande conquista!</b> Você desbloqueou uma cena de mangá.</div><button class="btn claro" id="assistir" type="button">Assistir à cena</button>` : ""}
     ${info ? barraXP() : ""}
     <div class="versiculo">“${esc(textoVersiculo(v))}”<cite>${esc(v.ref)}</cite></div>
-    ${info && info.carta ? '<button class="btn" id="cartao">🖼️ Compartilhar cartão do versículo</button>' : ""}
-    ${info ? `<button class="btn ouro" id="prox">Próxima fase: ${prox.ico} ${prox.nome}</button>` : '<button class="btn ouro" id="again">Jogar de novo</button>'}
-    <button class="btn claro" id="inicio">Voltar ao início</button>
-    ${ehDono() && navigator.share ? '<button class="link" id="share">Compartilhar resultado</button>' : ""}</div>`;
+    ${info && info.carta ? `<button class="btn claro" id="cartao" type="button">${ico("i-share")} Compartilhar cartão do versículo</button>` : ""}
+    ${info ? `<div class="proxima">${tile(proximoJogo())}<div><small>Próximo desafio</small><b>${prox.nome}</b></div></div><button class="btn ouro grande" id="prox" type="button">PRÓXIMA FASE ${ico("i-arrow")}</button>` : '<button class="btn ouro grande" id="again" type="button">JOGAR DE NOVO</button>'}
+    <button class="btn claro" id="inicio" type="button">Voltar ao início</button>
+    ${ehDono() && navigator.share ? '<button class="link" id="share" type="button">Compartilhar resultado</button>' : ""}</div>`;
+  contar_ate($("#r-num"), score, 1000); if (est >= 2 || (info && (info.subiu || info.nova || info.cena != null))) confete(!!(info && (info.subiu || info.cena != null)));
   const ct = $("#cartao"); if (ct) ct.onclick = () => compartilharCartao(v);
-  if (info && info.cena != null) { const c = window.MANGA.lista[info.cena]; $("#assistir").textContent = "🎬 Assistir de novo: " + c.t; $("#assistir").onclick = () => tocarManga(c); later(() => tocarManga(c), 1700); }
+  if (info && info.cena != null) { const c = window.MANGA.lista[info.cena]; $("#assistir").textContent = "Assistir de novo: " + c.t; $("#assistir").onclick = () => tocarManga(c); later(() => tocarManga(c), 1700); }
   if (info) $("#prox").onclick = () => jogar(proximoJogo(), true); else $("#again").onclick = () => jogar(id);
   $("#inicio").onclick = () => ir("home");
   const sh = $("#share"); if (sh) sh.onclick = () => navigator.share({ title: "Mente Renovada", text: `Fiz ${score}% em “${JOGOS[id].nome}” no Mente Renovada! ${"⭐".repeat(est)}`, url: location.href.split("#")[0] }).catch(() => {});
   window.scrollTo(0, 0);
 }
 
+document.addEventListener("pointerdown", e => { const b = e.target.closest && e.target.closest("button"); if (b && !b.classList.contains("op") && !b.closest(".grade-pm")) tique(b.classList.contains("ouro")); }, true);
 document.querySelectorAll("#nav button").forEach(b => b.onclick = () => ir(b.dataset.go));
 ir("home");
 contar("abriu", "dia");
