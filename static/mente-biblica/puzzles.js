@@ -17,7 +17,7 @@ window.PUZZLES = {
     { tema: "Livros da Bíblia", palavras: ["GENESIS", "EXODO", "NUMEROS", "JOSUE", "RUTE", "SALMOS", "ATOS"], v: { ref: "2 Timóteo 3:16", t: "Toda a Escritura é divinamente inspirada, e proveitosa para ensinar, para repreender, para corrigir, para instruir em justiça." } },
     { tema: "Fruto do Espírito", palavras: ["AMOR", "GOZO", "PAZ", "FE", "BONDADE", "MANSIDAO"], v: { ref: "Gálatas 5:22", t: "Mas o fruto do Espírito é: amor, gozo, paz, longanimidade, benignidade, bondade, fé." } },
     { tema: "O Natal", palavras: ["MARIA", "JOSE", "BELEM", "ESTRELA", "ANJO", "PASTORES", "MAGOS"], v: { ref: "Mateus 1:21", t: "E dará à luz um filho e chamarás o seu nome Jesus; porque ele salvará o seu povo dos seus pecados." } },
-    { tema: "Heróis da fé", palavras: ["NOE", "ABRAAO", "MOISES", "DAVI", "ELIAS", "ESTER", "DANIEL"], v: { ref: "Hebreus 11:1", t: "Ora, a fé é o firme fundamento das coisas que se esperam, e a prova das coisas que não se veem." } },
+    { tema: "Heróis da fé", palavras: ["NOE", "ABRAAO", "MOISES", "DAVI", "ELIAS", "ESTER", "DANIEL"], v: { ref: "Hebreus 11:1", t: "Ora, a fé é o firme fundamento das coisas que se esperam, e a prova das coisas que se não veem." } },
     { tema: "A armadura de Deus", palavras: ["ESCUDO", "ESPADA", "CAPACETE", "COURACA", "VERDADE", "JUSTICA"], v: { ref: "Efésios 6:11", t: "Revesti-vos de toda a armadura de Deus, para que possais estar firmes contra as astutas ciladas do diabo." } }
   ],
 

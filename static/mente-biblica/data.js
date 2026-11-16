@@ -71,7 +71,7 @@ window.DADOS = {
     { nome: "os quatro Evangelhos", m: ["Mateus", "Marcos", "Lucas", "João"], f: ["Atos", "Romanos", "Gênesis", "Salmos"] },
     { nome: "livros da Lei (Pentateuco)", m: ["Gênesis", "Êxodo", "Levítico", "Números", "Deuteronômio"], f: ["Josué", "Rute", "Salmos", "Atos"] },
     { nome: "frutos do Espírito", m: ["Amor", "Paz", "Bondade", "Fé", "Mansidão"], f: ["Orgulho", "Inveja", "Ira", "Avareza"] },
-    { nome: "pragas do Egito", m: ["Sangue", "Rãs", "Piolhos", "Moscas", "Gafanhotos", "Trevas"], f: ["Dilúvio", "Terremoto", "Fogo do céu", "Maná"] },
+    { nome: "pragas do Egito", m: ["Sangue", "Rãs", "Piolhos", "Moscas", "Gafanhotos", "Trevas"], f: ["Dilúvio", "Terremoto", "Serpentes", "Maná"] },
     { nome: "mulheres da Bíblia", m: ["Sara", "Rebeca", "Raquel", "Rute", "Ester", "Débora"], f: ["Davi", "Jonas", "Sansão", "Samuel"] },
     { nome: "reis de Israel", m: ["Saul", "Davi", "Salomão"], f: ["Moisés", "Josué", "Elias", "Pedro"] },
     { nome: "filhos de Noé", m: ["Sem", "Cam", "Jafé"], f: ["Caim", "Abel", "Isaque", "Jacó"] }

@@ -88,48 +88,55 @@ function saida() {
   const entrada = ac.createGain(); entrada.connect(seco); entrada.connect(rev);
   return (mestre = entrada);
 }
-// timbres: parciais (harmônicos) por instrumento, mais quentes que uma onda simples
-const TIMBRE = { sine: [1, .18, .05], triangle: [1, .3, .12, .05], square: [1, .35, .2, .1], sawtooth: [1, .4, .25, .15, .08] };
+// ---- sons de cassino: sinos metálicos, moedas e tilintar de caça-níquel ----
+const METAL = [[1, 1], [2.76, .55], [5.40, .3], [8.93, .16]];   // parciais inarmônicos = timbre de sino/moeda
+function sino(f, atraso, dur, vol, brilho = 1) {
+  const out = saida(), t0 = ac.currentTime + atraso, fim = t0 + dur, g = ac.createGain();
+  g.gain.setValueAtTime(.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + .004); g.gain.exponentialRampToValueAtTime(.0001, fim); g.connect(out);
+  METAL.forEach(([m, amp], k) => { const o = ac.createOscillator(), h = ac.createGain(); o.type = "sine"; o.frequency.value = f * m; h.gain.value = amp * (k ? brilho : 1);
+    h.gain.setValueAtTime(amp * (k ? brilho : 1), t0); h.gain.exponentialRampToValueAtTime(.0001, t0 + dur * (k ? .45 : 1)); o.connect(h); h.connect(g); o.start(t0); o.stop(fim + .02); });
+}
+// "ka-ching" de moeda: duas pancadas agudas e rápidas
+function moeda(atraso = 0, forca = 1, tom = 1) {
+  sino(1568 * tom, atraso, .16, .26 * forca, 1.2); sino(2093 * tom, atraso + .07, .55, .3 * forca, 1.3);
+}
 function bip(freq, dur = 0.18, atraso = 0, forca = 1, musical = false) {
   if (!somLigado()) return;
   try {
-    const out = saida(), S = SONS[somAtual] || SONS.roda, erro = !musical && freq < 200, f = erro ? 196 : musical ? freq : quant(freq), t0 = ac.currentTime + atraso;
-    const fim = t0 + dur * (erro ? 1.6 : S.dec) + .08, g = ac.createGain(), fl = ac.createBiquadFilter();
-    fl.type = "lowpass"; fl.frequency.setValueAtTime(erro ? 700 : 5200, t0); fl.frequency.exponentialRampToValueAtTime(erro ? 260 : 1400, fim);
-    g.gain.setValueAtTime(.0001, t0);
-    g.gain.exponentialRampToValueAtTime((erro ? .16 : S.vol * .9) * forca, t0 + (S.atk || .012));
-    g.gain.exponentialRampToValueAtTime(.0001, fim);
-    fl.connect(g); g.connect(out);
-    (erro ? [1, .4] : TIMBRE[S.tipo] || [1]).forEach((amp, k) => {
-      const o = ac.createOscillator(), h = ac.createGain();
-      o.type = erro ? "triangle" : "sine"; o.frequency.setValueAtTime(f * (k + 1), t0);
-      if (erro) o.frequency.exponentialRampToValueAtTime(f * (k + 1) * .84, t0 + dur * 1.4);
-      o.detune.value = k ? (k % 2 ? 4 : -4) : 0; h.gain.value = amp; o.connect(h); h.connect(fl); o.start(t0); o.stop(fim + .02);
-    });
+    saida();
+    if (!musical && freq < 200) {                       // erro: "bzzt" curto de máquina, sem ser irritante
+      const out = saida(), t0 = ac.currentTime + atraso;
+      [0, .13].forEach((d, k) => { const o = ac.createOscillator(), g = ac.createGain(), fl = ac.createBiquadFilter(); o.type = "sawtooth"; o.frequency.value = k ? 98 : 117; fl.type = "lowpass"; fl.frequency.value = 520;
+        g.gain.setValueAtTime(.0001, t0 + d); g.gain.exponentialRampToValueAtTime(.2 * forca, t0 + d + .01); g.gain.exponentialRampToValueAtTime(.0001, t0 + d + .17); o.connect(fl); fl.connect(g); g.connect(out); o.start(t0 + d); o.stop(t0 + d + .19); });
+      return;
+    }
+    if (musical) { sino(freq, atraso, Math.min(1.2, dur * 3 + .25), .24 * forca); return; }
+    if (freq >= 700) { moeda(atraso, forca); return; }       // acertou: moeda!
+    sino(quant(freq) * 2, atraso, .22, .2 * forca, .8);      // toque comum: sininho na escala do jogo
   } catch (e) {}
 }
-// toque suave de botão
+// toque de botão: "tic" de ficha
 function tique(forte) {
   if (!somLigado()) return;
-  try {
-    const out = saida(), t0 = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
-    o.type = "sine"; o.frequency.setValueAtTime(forte ? 520 : 380, t0); o.frequency.exponentialRampToValueAtTime(forte ? 780 : 560, t0 + .05);
-    g.gain.setValueAtTime(.0001, t0); g.gain.exponentialRampToValueAtTime(.16, t0 + .008); g.gain.exponentialRampToValueAtTime(.0001, t0 + .11);
-    o.connect(g); g.connect(out); o.start(t0); o.stop(t0 + .13);
-  } catch (e) {}
+  try { saida(); sino(forte ? 2637 : 1976, 0, .09, forte ? .2 : .13, .5); } catch (e) {}
 }
 function vibrar(p) { try { if (navigator.vibrate && !store.mudo) navigator.vibrate(p); } catch (e) {} }
-// vinheta de abertura de cada desafio
+// vinheta de abertura de cada desafio: giro de caça-níquel
 function somAbertura(id) {
   const S = SONS[id]; if (!S) return;
-  S.motivo.forEach((m, i) => bip(S.root * Math.pow(2, m / 12), .16, i * .11, .8, true));
+  S.motivo.forEach((m, i) => bip(S.root * 2 * Math.pow(2, m / 12), .16, i * .09, .9, true));
 }
-// fim de fase: arpejo na escala do desafio; subir de nível ganha um floreio
+// fim de fase: chuva de moedas + arpejo; subir de nível = JACKPOT
 function somFim(est, subiu) {
-  const S = SONS[somAtual] || SONS.roda, notas = [...S.esc, ...S.esc.map(x => x + 12), ...S.esc.map(x => x + 24)];
-  const n = [2, 3, 5, 7][est];
-  for (let i = 0; i < n; i++) bip(S.root * 2 * Math.pow(2, notas[i] / 12), .22, i * .1, 1, true);
-  if (subiu) [0, 4, 7, 12, 16, 19].forEach((m, i) => bip(523.25 * Math.pow(2, m / 12), .35, .7 + i * .09, 1.1, true));
+  if (!somLigado()) return;
+  try {
+    saida();
+    const S = SONS[somAtual] || SONS.roda, notas = [0, 4, 7, 12, 16, 19, 24];
+    const n = [3, 5, 8, 12][est];
+    for (let i = 0; i < n; i++) moeda(i * (.13 - est * .012), .7, 1 + (i % 3) * .06);
+    [0, 1, 2, 3].slice(0, est + 2).forEach((k, i) => sino(S.root * 4 * Math.pow(2, notas[k + (est > 1 ? 1 : 0)] / 12), n * .1 + .1 + i * .12, .9, .25));
+    if (subiu) { for (let i = 0; i < 24; i++) moeda(1.3 + i * .07, .6, 1 + (i % 5) * .05); [0, 4, 7, 12, 16, 19, 24].forEach((m, i) => sino(523.25 * Math.pow(2, m / 12), 1.2 + i * .1, 1.2, .3)); }
+  } catch (e) {}
 }
 /* ---------- narração (voz do aparelho, em português) ---------- */
 let vozPt = null;
@@ -324,11 +331,11 @@ const JOGOS = {
     iniciar(c) {
       const seg = [14, 11, 9][c.nivel - 1];
       const modelos = [
-        () => { const a = pick([2, 3, 5, 7, 12]), b = pick([2, 3, 5, 7]); return [`Jesus tinha ${a} discípulos próximos e chamou mais ${b}. Quantos são ao todo?`, a + b]; },
-        () => { const a = pick([5, 12, 40]), b = pick([2, 3, 5]); return [`Cada um dos ${a} homens recebeu ${b} pães. Quantos pães ao todo?`, a * b]; },
-        () => { const t = 40, p = pick([7, 12, 15, 21, 25]); return [`O jejum durou ${t} dias. Se já passaram ${p}, quantos dias faltam?`, t - p]; },
+        () => { const a = pick([2, 3, 5, 7, 12]), b = pick([2, 3, 5, 7]); return [`Um pastor tinha ${a} ovelhas e ganhou mais ${b}. Quantas tem agora?`, a + b]; },
+        () => { const a = pick([5, 12, 40]), b = pick([2, 3, 5]); return [`Numa refeição, cada um dos ${a} convidados recebeu ${b} pães. Quantos pães ao todo?`, a * b]; },
+        () => { const t = 40, p = pick([7, 12, 15, 21, 25]); return [`O jejum de Jesus no deserto durou ${t} dias. Se já passaram ${p}, quantos dias faltam?`, t - p]; },
         () => { const a = pick([12, 24, 30, 36]), b = pick([2, 3, 4, 6]); return [`${a} pessoas se dividem em grupos de ${b}. Quantos grupos?`, a / b]; },
-        () => { const a = 5, b = 2, k = pick([2, 3, 4]); return [`Em cada cesto há ${a} pães e ${b} peixes. Quantos alimentos em ${k} cestos?`, (a + b) * k]; },
+        () => { const a = 5, b = 2, k = pick([2, 3, 4]); return [`Imagine que em cada cesto há ${a} pães e ${b} peixes. Quantos alimentos em ${k} cestos?`, (a + b) * k]; },
         () => { const a = pick([10, 12, 40, 70]), b = pick([3, 5, 7, 9]); return [`${a} + ${b} − 2 = ?`, a + b - 2]; }
       ];
       jogoEscolha({ ...c, rodadas: 8, tempo: seg, fazer: () => {
