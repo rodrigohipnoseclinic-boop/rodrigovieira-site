@@ -1,4 +1,4 @@
-const V = "mente-renovada-v20";
+const V = "mente-renovada-v21";
 const FILES = ["./", "index.html", "style.css", "data.js", "puzzles.js", "vocab.js", "conteudo.js", "fonts/nunito.woff2", "fonts/alfa.woff2", "fonts/fraunces.woff2", "manga.js", "app.js", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(V).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => {
