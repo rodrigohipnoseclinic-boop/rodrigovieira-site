@@ -156,6 +156,23 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden && ac
 function iconeSom() { return somLigado() ? "🔊" : "🔇"; }
 function alternarSom() { store.mudo = !store.mudo; salvar(); document.querySelectorAll("[data-som]").forEach(b => { b.textContent = iconeSom() + (b.dataset.som === "chip" ? " Som" : ""); b.setAttribute("aria-label", somLigado() ? "Desligar som" : "Ligar som"); }); if (somLigado()) bip(523, .15); else calarNarracao(); }
 
+/* ---------- sorteio sem repetição ---------- */
+// Cada banco (quiz, versículos, palavras...) lembra o que já saiu. Só volta a repetir depois de passar por todos.
+function tirar(chave, ids, n) {
+  const u = new Set((store.usados && store.usados[chave]) || []);
+  let livres = shuffle(ids.filter(i => !u.has(i))), saida = livres.slice(0, n);
+  if (saida.length < n) {                                  // acabou o banco: começa um ciclo novo sem repetir os que acabaram de sair
+    const resto = shuffle(ids.filter(i => !saida.includes(i)));
+    u.clear(); saida = saida.concat(resto.slice(0, n - saida.length));
+  }
+  saida.forEach(i => u.add(i));
+  (store.usados = store.usados || {})[chave] = [...u]; salvar();
+  return saida;
+}
+const todosIds = arr => arr.map((_, i) => i);
+const refHtml = (ref, txt) => ref ? `<div class="refbox">📖 <b>${esc(ref)}</b>${txt ? `<br><i>“${esc(txt)}”</i>` : '<br><span class="pequeno">Leia este trecho na sua Bíblia.</span>'}</div>` : "";
+const semAcento = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z]/g, "");
+
 /* ---------- jogos ---------- */
 const CATS = ["Memória", "Atenção", "Linguagem", "Raciocínio", "Conhecimento"];
 
@@ -198,7 +215,7 @@ const JOGOS = {
   versiculo: {
     nome: "Complete o Versículo", cat: "Memória", ico: "📖", desc: "Descubra a palavra que falta.",
     iniciar(c) {
-      const vs = sample(D.versiculos, 6);
+      const vs = tirar("ver", todosIds(D.versiculos), 6).map(i => D.versiculos[i]);
       jogoEscolha({ ...c, rodadas: 6, tempo: [0, 0, 30][c.nivel - 1], fazer: i => {
         const v = vs[i], correta = v.r, ops = [correta, ...sample(v.ops, 3)];
         const completo = v.t.replace("___", correta);
@@ -211,8 +228,8 @@ const JOGOS = {
   quiz: {
     nome: "Quiz Bíblico", cat: "Conhecimento", ico: "❓", desc: "Quanto você conhece das Escrituras?",
     iniciar(c) {
-      const qs = sample(D.quiz, 8);
-      jogoEscolha({ ...c, rodadas: 8, tempo: [0, 25, 15][c.nivel - 1], fazer: i => ({ enun: esc(qs[i].p), opcoes: qs[i].o, certa: 0, explica: `Resposta: <b>${esc(qs[i].o[0])}</b>.` }) });
+      const qs = tirar("quiz", todosIds(D.quiz), 8).map(i => D.quiz[i]);
+      jogoEscolha({ ...c, rodadas: 8, tempo: [0, 25, 15][c.nivel - 1], fazer: i => ({ enun: esc(qs[i].p), opcoes: qs[i].o, certa: 0, explica: `Resposta: <b>${esc(qs[i].o[0])}</b>.${refHtml(qs[i].r, qs[i].t)}` }) });
     }
   },
 
@@ -220,11 +237,11 @@ const JOGOS = {
     nome: "Quem não pertence?", cat: "Raciocínio", ico: "🔎", desc: "Encontre o intruso do grupo.",
     iniciar(c) {
       const seg = [14, 10, 7][c.nivel - 1];
-      const gs = sample(D.grupos, 8);
+      const gs = tirar("gru", todosIds(D.grupos), 8).map(i => D.grupos[i]);
       jogoEscolha({ ...c, rodadas: 8, tempo: seg, fazer: i => {
         const g = gs[i], membros = sample(g.m, 3), intruso = pick(g.f);
         return { enun: "<small>Qual deles NÃO pertence ao grupo?</small>", opcoes: [intruso, ...membros], certa: 0,
-          explica: `<b>${esc(intruso)}</b> não é um dos ${esc(g.nome)}.` };
+          explica: `<b>${esc(intruso)}</b> não é um dos ${esc(g.nome)}.${refHtml(g.r, g.t)}` };
       } });
     }
   },
@@ -254,7 +271,7 @@ const JOGOS = {
     nome: "Pares da Palavra", cat: "Memória", ico: "🃏", desc: "Una cada símbolo à sua história.",
     iniciar({ stage, progresso, terminar, nivel }) {
       const n = [4, 6, 8][nivel - 1], cols = n === 8 ? 4 : n === 6 ? 4 : 4;
-      const ps = sample(D.pares, n);
+      const ps = tirar("par", todosIds(D.pares), n).map(i => D.pares[i]);
       const cartas = shuffle(ps.flatMap((p, id) => [{ id, tipo: "e", txt: p.e }, { id, tipo: "n", txt: p.n }]));
       stage.innerHTML = `<div class="stats"><span id="jg">Jogadas: 0</span><span id="pr">Pares: 0/${n}</span></div>
         <div class="grade" style="grid-template-columns:repeat(${cols},1fr)">${cartas.map((c, k) =>
@@ -322,7 +339,7 @@ const JOGOS = {
         const livros = r % 2 === 0;
         const base = livros ? D.livros : D.eventos;
         // escolhe índices distintos e guarda a ordem correta
-        const idx = sample(base.map((_, i) => i), tam).sort((a, b) => a - b);
+        const idx = tirar(livros ? "liv" : "ev", todosIds(base), tam).sort((a, b) => a - b);
         const itens = shuffle(idx.map(i => base[i]));
         const certa = idx.map(i => base[i]);
         let prox = 0;
@@ -333,6 +350,7 @@ const JOGOS = {
           const nome = b.textContent;
           if (nome === certa[prox]) {
             b.classList.add("feito"); $(".n", b).textContent = ++prox; bip(500 + prox * 60, .12);
+            if (!livros && D.eventosRef && D.eventosRef[nome]) b.insertAdjacentHTML("beforeend", `<small class="refm">📖 ${esc(D.eventosRef[nome])}</small>`);
             if (prox === certa.length) later(() => { r++; rodada(); }, 700);
           } else {
             erros++; bip(170, .2); b.classList.remove("balanca"); void b.offsetWidth; b.classList.add("balanca");
@@ -346,12 +364,12 @@ const JOGOS = {
   palavras: {
     nome: "Palavras Embaralhadas", cat: "Linguagem", ico: "🔤", desc: "Monte nomes e termos da Bíblia.",
     iniciar({ stage, progresso, terminar, nivel }) {
-      const R = 6, maxLetras = [6, 8, 12][nivel - 1], lista = sample(D.palavras.filter(x => x[0].length <= maxLetras), R);
+      const R = 6, maxLetras = [6, 8, 12][nivel - 1], lista = tirar("pal", todosIds(D.palavras).filter(i => D.palavras[i][0].length <= maxLetras), R).map(i => D.palavras[i]);
       let r = 0, pontos = 0;
       function rodada() {
         if (r >= R) return terminar(Math.round(pontos / R * 100));
         progresso(r, R);
-        const [palavra, dica] = lista[r], alvo = Array.from(palavra);
+        const [palavra, dica, pref, ptxt] = lista[r], alvo = Array.from(palavra);
         let embaralhada; do { embaralhada = shuffle(alvo); } while (embaralhada.join("") === palavra);
         let montada = [], usadas = new Set(), erros = 0, usouDica = false;
         stage.innerHTML = `<div class="enun"><small>Palavra ${r + 1} de ${R}</small>${esc(dica)}</div>
@@ -364,18 +382,18 @@ const JOGOS = {
           letras.innerHTML = embaralhada.map((l, i) => `<button class="letra ${usadas.has(i) ? "usada" : ""}" data-i="${i}">${esc(l)}</button>`).join("");
           letras.querySelectorAll(".letra").forEach(b => b.onclick = () => add(+b.dataset.i));
         };
-        const avancar = pt => { pontos += pt; r++; later(rodada, 1500); };
+        const avancar = pt => { pontos += pt; r++; later(rodada, pref ? 3600 : 1500); };
         function add(i) {
           if (montada.length >= alvo.length) return;
           montada.push({ i, l: embaralhada[i] }); usadas.add(i); bip(480, .08); pintar();
           if (montada.length === alvo.length) {
             if (montada.map(m => m.l).join("") === palavra) {
-              bip(740, .2); $("#fb", stage).innerHTML = `<div class="feedback ok">Isso! <b>${esc(palavra)}</b></div>`;
+              bip(740, .2); $("#fb", stage).innerHTML = `<div class="feedback ok">Isso! <b>${esc(palavra)}</b>${refHtml(pref, ptxt)}</div>`;
               slots.querySelectorAll(".slot").forEach(s => s.style.background = "#e3f3ea");
               avancar(usouDica ? .5 : 1);
             } else {
               erros++; bip(170, .25); slots.classList.add("erro");
-              if (erros >= 2) { $("#fb", stage).innerHTML = `<div class="feedback erro">Era <b>${esc(palavra)}</b>.</div>`; avancar(0); return; }
+              if (erros >= 2) { $("#fb", stage).innerHTML = `<div class="feedback erro">Era <b>${esc(palavra)}</b>.${refHtml(pref, ptxt)}</div>`; avancar(0); return; }
               later(() => { slots.classList.remove("erro"); montada = []; usadas = new Set(); pintar(); }, 450);
             }
           }
@@ -600,7 +618,9 @@ Object.assign(JOGOS, {
   caca: {
     nome: "Caça-Palavras", cat: "Atenção", ico: "🔍", desc: "Deslize o dedo sobre as palavras escondidas.",
     iniciar({ stage, progresso, terminar, nivel }) {
-      const P = pick(window.PUZZLES.caca), n = [8, 9, 10][nivel - 1], palavras = sample(P.palavras, nivel === 1 ? 4 : 5);
+      const n = [8, 9, 10][nivel - 1], vv = D.versiculos[tirar("cacv", todosIds(D.versiculos), 1)[0]], P = { tema: "Palavras da Bíblia", v: { ref: vv.ref, t: vv.t.replace("___", vv.r) } };
+      const ids = todosIds(D.palavras).filter(i => { const l = semAcento(D.palavras[i][0]).length; return l >= 3 && l <= n; });
+      const palavras = [...new Set(tirar("cac", ids, nivel === 1 ? 4 : 5).map(i => semAcento(D.palavras[i][0])))];
       const dirs = [[0, 1], [1, 0]]; if (nivel >= 2) dirs.push([1, 1]); if (nivel >= 3) dirs.push([0, -1], [-1, 0], [-1, -1]);
       const g = gerarCaca(palavras, n, dirs);
       const achadas = new Set(); let ini = null, fim = null, erros = 0, dicas = 0, acabou = false;
@@ -646,7 +666,10 @@ Object.assign(JOGOS, {
   cruzadinha: {
     nome: "Cruzadinha Bíblica", cat: "Conhecimento", ico: "🧩", desc: "Resolva as dicas e cruze as respostas.",
     iniciar({ stage, progresso, terminar, nivel }) {
-      const P0 = pick(window.PUZZLES.cruz), P = { ...P0, palavras: sample(P0.palavras, [5, 6, 8][nivel - 1]) }, dicasDe = Object.fromEntries(P.palavras);
+      const vv = D.versiculos[tirar("cruv", todosIds(D.versiculos), 1)[0]];
+      const ids = todosIds(D.palavras).filter(i => { const l = semAcento(D.palavras[i][0]).length; return l >= 3 && l <= 9; });
+      const mapa = new Map(); tirar("cru", ids, [5, 6, 8][nivel - 1] + 2).forEach(i => { const w = semAcento(D.palavras[i][0]); if (!mapa.has(w)) mapa.set(w, D.palavras[i][1]); });
+      const P = { tema: "Palavras da Bíblia", palavras: [...mapa].slice(0, [5, 6, 8][nivel - 1]), v: { ref: vv.ref, t: vv.t.replace("___", vv.r) } }, dicasDe = Object.fromEntries(P.palavras);
       const grade = montarGrade(P.palavras.map(x => x[0]), true), ws = grade.words;
       const resp = new Map(), num = new Map(), user = new Map();
       ws.forEach(w => celulasDe(w).forEach(([r, c], k) => resp.set(r + "," + c, w.w[k])));
@@ -714,7 +737,7 @@ Object.assign(JOGOS, {
     iniciar({ stage, progresso, terminar, nivel }) {
       const limite = [14, 22, 34][nivel - 1];
       const todos = D.versiculos.map(v => ({ ref: v.ref, t: textoVersiculo(v) }));
-      const ok = todos.filter(v => v.t.split(/\s+/).length <= limite), v = pick(ok.length ? ok : todos);
+      const cand = todosIds(todos).filter(i => todos[i].t.split(/\s+/).length <= limite), v = todos[tirar("verso", cand.length ? cand : todosIds(todos), 1)[0]];
       const ps = v.t.split(/\s+/), alvo = [6, 8, 10][nivel - 1], tam = Math.ceil(ps.length / alvo), partes = [];
       for (let i = 0; i < ps.length; i += tam) partes.push(ps.slice(i, i + tam).join(" "));
       let ordem; do { ordem = shuffle(partes.map((_, i) => i)); } while (partes.length > 1 && ordem.every((x, i) => partes[x] === partes[i]));
