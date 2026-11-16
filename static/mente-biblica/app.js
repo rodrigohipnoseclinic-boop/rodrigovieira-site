@@ -331,11 +331,11 @@ const JOGOS = {
     iniciar(c) {
       const seg = [14, 11, 9][c.nivel - 1];
       const modelos = [
-        () => { const a = pick([2, 3, 5, 7, 12]), b = pick([2, 3, 5, 7]); return [`Jesus tinha ${a} discípulos próximos e chamou mais ${b}. Quantos são ao todo?`, a + b]; },
-        () => { const a = pick([5, 12, 40]), b = pick([2, 3, 5]); return [`Cada um dos ${a} homens recebeu ${b} pães. Quantos pães ao todo?`, a * b]; },
-        () => { const t = 40, p = pick([7, 12, 15, 21, 25]); return [`O jejum durou ${t} dias. Se já passaram ${p}, quantos dias faltam?`, t - p]; },
+        () => { const a = pick([2, 3, 5, 7, 12]), b = pick([2, 3, 5, 7]); return [`Um pastor tinha ${a} ovelhas e ganhou mais ${b}. Quantas tem agora?`, a + b]; },
+        () => { const a = pick([5, 12, 40]), b = pick([2, 3, 5]); return [`Numa refeição, cada um dos ${a} convidados recebeu ${b} pães. Quantos pães ao todo?`, a * b]; },
+        () => { const t = 40, p = pick([7, 12, 15, 21, 25]); return [`O jejum de Jesus no deserto durou ${t} dias. Se já passaram ${p}, quantos dias faltam?`, t - p]; },
         () => { const a = pick([12, 24, 30, 36]), b = pick([2, 3, 4, 6]); return [`${a} pessoas se dividem em grupos de ${b}. Quantos grupos?`, a / b]; },
-        () => { const a = 5, b = 2, k = pick([2, 3, 4]); return [`Em cada cesto há ${a} pães e ${b} peixes. Quantos alimentos em ${k} cestos?`, (a + b) * k]; },
+        () => { const a = 5, b = 2, k = pick([2, 3, 4]); return [`Imagine que em cada cesto há ${a} pães e ${b} peixes. Quantos alimentos em ${k} cestos?`, (a + b) * k]; },
         () => { const a = pick([10, 12, 40, 70]), b = pick([3, 5, 7, 9]); return [`${a} + ${b} − 2 = ?`, a + b - 2]; }
       ];
       jogoEscolha({ ...c, rodadas: 8, tempo: seg, fazer: () => {

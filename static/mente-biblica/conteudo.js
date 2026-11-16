@@ -6,7 +6,7 @@ const D = window.DADOS;
 
 /* ---------- 1) referências para as perguntas que já existiam: pergunta -> [referência, texto opcional] ---------- */
 const REF_QUIZ = {
-  "Quantos livros tem a Bíblia protestante?": ["2 Timóteo 3:16", "Toda a Escritura é divinamente inspirada, e proveitosa para ensinar, para repreender, para corrigir, para instruir em justiça;"],
+  "Quantos livros tem a Bíblia protestante?": [],
   "Qual é o primeiro livro da Bíblia?": ["Gênesis 1:1", "No princípio criou Deus os céus e a terra."],
   "Quem construiu a arca?": ["Gênesis 6:14"],
   "Quantos discípulos Jesus escolheu?": ["Mateus 10:2"],
@@ -15,21 +15,21 @@ const REF_QUIZ = {
   "Quem foi engolido por um grande peixe?": ["Jonas 1:17", "E o Senhor tinha preparado um grande peixe, para que tragasse a Jonas; e esteve Jonas três dias e três noites nas entranhas do peixe."],
   "Quanto tempo choveu durante o Dilúvio?": ["Gênesis 7:12", "E a chuva foi sobre a terra quarenta dias e quarenta noites."],
   "Quem traiu Jesus?": ["Mateus 26:14"],
-  "Quem recebeu os Dez Mandamentos no monte Sinai?": ["Êxodo 20:3", "Não terás outros deuses diante de mim."],
+  "Quem recebeu os Dez Mandamentos no monte Sinai?": ["Êxodo 31:18"],
   "Qual é o último livro da Bíblia?": ["Apocalipse 22:21", "A graça de nosso Senhor Jesus Cristo seja com todos vós. Amém."],
   "Qual foi o primeiro milagre de Jesus, em Caná?": ["João 2:11", "Este princípio de sinais fez Jesus em Caná da Galileia, e manifestou a sua glória; e os seus discípulos creram nele."],
   "Quem foi lançado na cova dos leões?": ["Daniel 6:16"],
   "Quantas tribos tinha Israel?": ["Gênesis 49:28"],
-  "Que cobrador de impostos subiu num sicômoro para ver Jesus?": ["Lucas 19:10", "Porque o Filho do Homem veio buscar e salvar o que se tinha perdido."],
+  "Que cobrador de impostos subiu num sicômoro para ver Jesus?": ["Lucas 19:4"],
   "Quem escreveu grande parte das cartas do Novo Testamento?": ["Romanos 1:1", "Paulo, servo de Jesus Cristo, chamado para apóstolo, separado para o evangelho de Deus,"],
   "Qual rei ficou famoso pela sua sabedoria?": ["1 Reis 3:12"],
   "Em que rio Jesus foi batizado?": ["Mateus 3:13", "Então veio Jesus da Galileia ter com João, junto do Jordão, para ser batizado por ele."],
-  "Quantos livros tem o Novo Testamento?": ["2 Timóteo 3:16", "Toda a Escritura é divinamente inspirada, e proveitosa para ensinar, para repreender, para corrigir, para instruir em justiça;"],
-  "Quantos livros tem o Antigo Testamento?": ["2 Timóteo 3:16", "Toda a Escritura é divinamente inspirada, e proveitosa para ensinar, para repreender, para corrigir, para instruir em justiça;"],
-  "Qual mar Moisés atravessou com o povo?": ["Êxodo 14:13", "E disse Moisés ao povo: Não temais; estai quietos, e vede o livramento do Senhor, que hoje vos fará;"],
+  "Quantos livros tem o Novo Testamento?": [],
+  "Quantos livros tem o Antigo Testamento?": [],
+  "Qual mar Moisés atravessou com o povo?": ["Êxodo 14:22"],
   "Quem foi vendido pelos próprios irmãos?": ["Gênesis 37:28"],
   "Quem foi o primeiro homem criado por Deus?": ["Gênesis 2:7", "E formou o Senhor Deus o homem do pó da terra, e soprou em seus narizes o fôlego da vida; e o homem foi feito alma vivente."],
-  "Quem negou Jesus três vezes?": ["Mateus 26:75", "E lembrou-se Pedro das palavras de Jesus, que lhe dissera: Antes que cante o galo, negar-me-ás três vezes. E, saindo dali, chorou amargamente."],
+  "Quem negou Jesus três vezes?": ["Mateus 26:75"],
   "Quem foi o primeiro rei de Israel?": ["1 Samuel 10:1"],
   "Quantos pães e peixes havia quando Jesus alimentou a multidão?": ["João 6:9", "Está aqui um rapaz que tem cinco pães de cevada e dois peixinhos; mas que é isto para tantos?"],
   "Qual livro vem logo depois de Salmos?": ["Provérbios 1:7", "O temor do Senhor é o princípio do conhecimento; os loucos desprezam a sabedoria e a instrução."],
@@ -38,7 +38,7 @@ const REF_QUIZ = {
   "Em que dia, depois da morte, Jesus ressuscitou?": ["1 Coríntios 15:4", "E que foi sepultado, e que ressuscitou ao terceiro dia, segundo as Escrituras;"],
   "Quantos dias Jesus jejuou no deserto?": ["Mateus 4:2", "E, tendo jejuado quarenta dias e quarenta noites, depois teve fome."],
   "Quem foi lançado num poço pelos irmãos e depois governou o Egito?": ["Gênesis 41:41", "Disse mais Faraó a José: Vês aqui, tenho-te posto sobre toda a terra do Egito."],
-  "Qual foi o primeiro livro do Novo Testamento?": ["Mateus 1:1", "Livro da genealogia de Jesus Cristo, filho de Davi, filho de Abraão."],
+  "Qual foi o primeiro livro do Novo Testamento?": ["Mateus 1:1", "Livro da geração de Jesus Cristo, filho de Davi, filho de Abraão."],
   "Quem era a mãe de Samuel, que o dedicou ao Senhor?": ["1 Samuel 1:27"]
 };
 D.quiz.forEach(q => { const r = REF_QUIZ[q.p]; if (r) { q.r = r[0]; if (r[1]) q.t = r[1]; } });
@@ -67,7 +67,7 @@ D.quiz.push(
   Q("Que dois profetas apareceram com Jesus na transfiguração?", ["Moisés e Elias", "Isaías e Jeremias", "Davi e Salomão", "Abraão e Isaque"], "Mateus 17:3", "E eis que lhes apareceram Moisés e Elias, falando com ele."),
   Q("Qual ofício Paulo exercia para se sustentar?", ["Fazer tendas", "Pescar", "Cobrar impostos", "Trabalhar com madeira"], "Atos 18:3", "E, por ser do mesmo ofício, ficou com eles, e trabalhava; pois tinham por ofício fazer tendas."),
   Q("Para quem Paulo escreveu duas cartas, chamando-o de amado filho?", ["Timóteo", "Tito", "Filemom", "Silas"], "2 Timóteo 1:2", "A Timóteo, meu amado filho: Graça, misericórdia e paz da parte de Deus Pai e de Cristo Jesus, nosso Senhor."),
-  Q("Quem Jesus encontrou andando sobre o mar, de madrugada?", ["Os discípulos no barco", "Os fariseus", "Os soldados", "A multidão na praia"], "Mateus 14:25", "Mas, à quarta vigília da noite, foi Jesus ter com eles, andando sobre o mar."),
+  Q("Quem viu Jesus andando sobre o mar, de madrugada?", ["Os discípulos no barco", "Os fariseus", "Os soldados", "A multidão na praia"], "Mateus 14:25", "Mas, à quarta vigília da noite, foi Jesus ter com eles, andando sobre o mar."),
   Q("Qual discípulo andou sobre as águas ao chamado de Jesus?", ["Pedro", "João", "André", "Tiago"], "Mateus 14:29", "E ele disse: Vem. E Pedro, descendo do barco, andou sobre as águas para ir ter com Jesus."),
   Q("Em que ilha João recebeu as visões do Apocalipse?", ["Patmos", "Creta", "Chipre", "Malta"], "Apocalipse 1:9"),
   Q("Jesus disse: Eu sou a ___ do mundo. Qual palavra completa a frase?", ["luz", "porta", "videira", "rocha"], "João 8:12", "Falou-lhes, pois, Jesus outra vez, dizendo: Eu sou a luz do mundo; quem me segue não andará em trevas, mas terá a luz da vida."),
@@ -152,7 +152,7 @@ D.versiculos.push(
   V("Isaías 9:6", "Porque um menino nos nasceu, um filho se nos deu; e o principado está sobre os seus ___; e o seu nome será Maravilhoso, Conselheiro, Deus Forte, Pai da Eternidade, Príncipe da Paz.", "ombros", ["braços", "pés", "olhos"]),
   V("Jeremias 29:11", "Porque eu bem sei os pensamentos que penso de vós, diz o Senhor; pensamentos de ___, e não de mal, para vos dar o fim que esperais.", "paz", ["bem", "luz", "vida"]),
   V("Lamentações 3:23", "As misericórdias do Senhor são a causa de não sermos consumidos, porque as suas misericórdias não têm fim; novas são cada ___; grande é a tua fidelidade.", "manhã", ["dia", "noite", "hora"]),
-  V("Miqueias 6:8", "Ele te declarou, ó homem, o que é bom; e que é o que o Senhor pede de ti, senão que pratiques a ___, e ames a benignidade, e andes humildemente com o teu Deus?", "justiça", ["verdade", "fé", "paz"]),
+  V("Miqueias 6:8", "Ele te declarou, ó homem, o que é bom; e que é o que o Senhor pede de ti, senão que pratiques a ___, e ames a beneficência, e andes humildemente com o teu Deus?", "justiça", ["verdade", "fé", "paz"]),
   V("Números 6:24", "O Senhor te abençoe e te ___;", "guarde", ["ensine", "ouça", "levante"])
 );
 
@@ -165,11 +165,11 @@ const REF_PAL = {
   SANSÃO: ["Juízes 16:17"], DANIEL: ["Daniel 6:16"], SALOMÃO: ["1 Reis 3:12"],
   JACÓ: ["Gênesis 28:12", "E sonhou: e eis uma escada posta na terra, cujo topo tocava nos céus; e eis que os anjos de Deus subiam e desciam por ela."],
   ISAQUE: ["Gênesis 21:3"], DÉBORA: ["Juízes 4:4", "E Débora, profetisa, mulher de Lapidote, julgava a Israel naquele tempo."], GIDEÃO: ["Juízes 7:7"], PAULO: ["Romanos 1:1", "Paulo, servo de Jesus Cristo, chamado para apóstolo, separado para o evangelho de Deus,"],
-  PEDRO: ["Mateus 26:75", "E lembrou-se Pedro das palavras de Jesus, que lhe dissera: Antes que cante o galo, negar-me-ás três vezes. E, saindo dali, chorou amargamente."],
+  PEDRO: ["Mateus 26:75"],
   GRAÇA: ["Efésios 2:8", "Porque pela graça sois salvos, por meio da fé; e isto não vem de vós, é dom de Deus."], ALIANÇA: ["Gênesis 9:13", "O meu arco tenho posto nas nuvens, e será por sinal da aliança entre mim e a terra."],
   ESPERANÇA: ["Romanos 15:13", "Ora, o Deus de esperança vos encha de todo o gozo e paz em crença, para que abundeis em esperança pela virtude do Espírito Santo."],
   SABEDORIA: ["Provérbios 1:7", "O temor do Senhor é o princípio do conhecimento; os loucos desprezam a sabedoria e a instrução."], EGITO: ["Êxodo 12:41"],
-  MARIA: ["Lucas 1:30", "Disse-lhe então o anjo: Maria, não temas, porque achaste graça diante de Deus."], ZAQUEU: ["Lucas 19:10", "Porque o Filho do Homem veio buscar e salvar o que se tinha perdido."],
+  MARIA: ["Lucas 1:30", "Disse-lhe então o anjo: Maria, não temas, porque achaste graça diante de Deus."], ZAQUEU: ["Lucas 19:4"],
   TIMÓTEO: ["2 Timóteo 1:2", "A Timóteo, meu amado filho: Graça, misericórdia e paz da parte de Deus Pai e de Cristo Jesus, nosso Senhor."]
 };
 D.palavras.forEach(x => { const r = REF_PAL[x[0]]; if (r) { x[2] = r[0]; if (r[1]) x[3] = r[1]; } });
@@ -185,8 +185,8 @@ D.palavras.push(
   P("JOSUÉ", "Sucessor de Moisés", "Josué 1:9", "Esforça-te, e tem bom ânimo; não pasmes, nem te espantes, porque o Senhor teu Deus é contigo, por onde quer que andares."),
   P("SAMUEL", "Menino que ouviu a voz de Deus no templo", "1 Samuel 3:10", "E veio o Senhor, e pôs-se ali, e chamou como das outras vezes: Samuel, Samuel. Então disse Samuel: Fala, porque o teu servo ouve."),
   P("ISAÍAS", "Profeta que respondeu: Eis-me aqui", "Isaías 6:8", "Depois disto ouvi a voz do Senhor, que dizia: A quem enviarei, e quem há de ir por nós? Então disse eu: Eis-me aqui, envia-me a mim."),
-  P("JEREMIAS", "Profeta chamado de chorão", "Jeremias 29:11", "Porque eu bem sei os pensamentos que penso de vós, diz o Senhor; pensamentos de paz, e não de mal, para vos dar o fim que esperais."),
-  P("JOÃO", "Discípulo que escreveu um Evangelho e o Apocalipse", "João 3:16", "Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito, para que todo aquele que nele crê não pereça, mas tenha a vida eterna."),
+  P("JEREMIAS", "Profeta conhecido como o profeta chorão", "Jeremias 9:1"),
+  P("JOÃO", "Discípulo amado, autor de um Evangelho", "João 3:16", "Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito, para que todo aquele que nele crê não pereça, mas tenha a vida eterna."),
   P("TIAGO", "Autor de uma carta sobre fé e obras", "Tiago 1:5", "E, se algum de vós tem falta de sabedoria, peça-a a Deus, que a todos dá liberalmente, e o não lança em rosto, e ser-lhe-á dada."),
   P("ANDRÉ", "Pescador, irmão de Pedro", "Mateus 4:18"),
   P("TOMÉ", "Discípulo que quis ver as marcas de Jesus", "João 20:29", "Disse-lhe Jesus: Porque me viste, Tomé, creste; bem-aventurados os que não viram e creram."),
@@ -221,7 +221,7 @@ D.grupos.forEach(g => { const r = REF_GRUPO[g.nome]; if (r) { g.r = r[0]; if (r[
 D.grupos.push(
   { nome: "livros poéticos e de sabedoria", m: ["Jó", "Salmos", "Provérbios", "Eclesiastes", "Cantares"], f: ["Rute", "Atos", "Judas", "Ester"], r: "Provérbios 1:7", t: "O temor do Senhor é o princípio do conhecimento; os loucos desprezam a sabedoria e a instrução." },
   { nome: "cartas de Paulo", m: ["Romanos", "Gálatas", "Efésios", "Filipenses", "Colossenses"], f: ["Tiago", "Judas", "1 João", "Apocalipse"], r: "Romanos 1:1", t: "Paulo, servo de Jesus Cristo, chamado para apóstolo, separado para o evangelho de Deus," },
-  { nome: "cidades da Bíblia", m: ["Belém", "Nazaré", "Jericó", "Cafarnaum", "Jerusalém"], f: ["Sinai", "Jordão", "Horebe", "Carmelo"], r: "Mateus 2:1", t: "E, tendo nascido Jesus em Belém de Judá, no tempo do rei Herodes, eis que uns magos vieram do Oriente a Jerusalém," },
+  { nome: "cidades da Bíblia", m: ["Belém", "Nazaré", "Jericó", "Cafarnaum", "Jerusalém"], f: ["Sinai", "Jordão", "Horebe", "Tabor"], r: "Mateus 2:1", t: "E, tendo nascido Jesus em Belém de Judá, no tempo do rei Herodes, eis que uns magos vieram do Oriente a Jerusalém," },
   { nome: "peças da armadura de Deus", m: ["Escudo da fé", "Capacete da salvação", "Espada do Espírito", "Couraça da justiça"], f: ["Lança de Golias", "Funda de Davi", "Arco de Jônatas", "Machado de Elias"], r: "Efésios 6:11", t: "Revesti-vos de toda a armadura de Deus, para que possais estar firmes contra as astutas ciladas do diabo." },
   { nome: "filhos de Jacó", m: ["Rúben", "Simeão", "Levi", "Judá", "José"], f: ["Esaú", "Isaque", "Abraão", "Caim"], r: "Gênesis 49:28" }
 );
@@ -229,7 +229,7 @@ D.grupos.push(
 /* ---------- 6) Ordem Certa: onde cada acontecimento está na Bíblia ---------- */
 D.eventosRef = {
   "A Criação do mundo": "Gênesis 1:1", "O Dilúvio de Noé": "Gênesis 7:12", "O chamado de Abraão": "Gênesis 12:1", "José vendido ao Egito": "Gênesis 37:28",
-  "A travessia do Mar Vermelho": "Êxodo 14:13", "Os Dez Mandamentos no Sinai": "Êxodo 20:3", "A queda de Jericó": "Josué 6:20", "Davi vence Golias": "1 Samuel 17:50",
+  "A travessia do Mar Vermelho": "Êxodo 14:22", "Os Dez Mandamentos no Sinai": "Êxodo 20:3", "A queda de Jericó": "Josué 6:20", "Davi vence Golias": "1 Samuel 17:50",
   "O exílio na Babilônia": "2 Reis 25:11", "O nascimento de Jesus": "Mateus 2:1", "A ressurreição de Jesus": "Mateus 28:6", "O dia de Pentecostes": "Atos 2:4"
 };
 
