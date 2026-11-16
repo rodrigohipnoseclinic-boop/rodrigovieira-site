@@ -8,8 +8,8 @@
   "categories": ["education", "games", "lifestyle"],
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#1c2a4a",
-  "theme_color": "#1c2a4a",
+  "background_color": "#7B1325",
+  "theme_color": "#7B1325",
   "lang": "pt-BR",
   "icons": [
     {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
