@@ -85,7 +85,7 @@ function videoEmbed(url = "") {
   m = url.match(/vimeo\.com\/(\d+)/);
   if (m) return `<div class="video"><iframe src="https://player.vimeo.com/video/${m[1]}" title="Vídeo" loading="lazy" allow="fullscreen; picture-in-picture" allowfullscreen></iframe></div>`;
   m = url.match(/instagram\.com\/(?:reel|reels|p)\/([\w-]+)/);
-  if (m) return `<div class="video video--insta"><iframe src="https://www.instagram.com/p/${m[1]}/embed" title="Vídeo do Instagram" loading="lazy" allowfullscreen scrolling="no"></iframe></div>`;
+  if (m) return `<div class="video video--insta"><iframe src="https://www.instagram.com/p/${m[1]}/embed" title="Vídeo do Instagram" loading="lazy" allowfullscreen scrolling="no"></iframe></div><p class="video__alt"><a href="https://www.instagram.com/reel/${m[1]}/" target="_blank" rel="noopener">O vídeo não carregou? Assistir no Instagram</a></p>`;
   if (/\.(mp4|webm)(\?|$)/i.test(url)) return `<div class="video video--arquivo"><video src="${esc(url)}" controls preload="metadata" playsinline></video></div>`;
   return "";
 }
