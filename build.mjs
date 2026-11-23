@@ -226,16 +226,21 @@ ${scripts}
 </html>`;
 }
 
-const cardPost = (p, nivel = "h3") => `
+const cardPost = (p, nivel = "h3") => {
+  // Com "link_externo" preenchido, o clique no card abre direto o link (ex.: Reels do Instagram)
+  const href = p.link_externo ? esc(p.link_externo) : p.url;
+  const alvo = p.link_externo ? ' target="_blank" rel="noopener"' : "";
+  return `
 <article class="card-post">
-  <a class="card-post__img" href="${p.url}" tabindex="-1" aria-hidden="true"><img src="${esc(p.capa || "/img/capas/padrao.svg")}" alt="" loading="lazy"></a>
+  <a class="card-post__img" href="${href}"${alvo} tabindex="-1" aria-hidden="true"><img src="${esc(p.capa || "/img/capas/padrao.svg")}" alt="" loading="lazy"></a>
   <div class="card-post__txt">
     ${p.categoria ? `<span class="etiqueta">${esc(p.categoria)}</span>` : ""}
-    <${nivel}><a href="${p.url}">${esc(p.titulo)}</a></${nivel}>
+    <${nivel}><a href="${href}"${alvo}>${esc(p.titulo)}</a></${nivel}>
     <p>${esc(p.resumo || "")}</p>
-    <span class="card-post__meta">${p.video ? "Vídeo · " : ""}${p.minutos} min de leitura</span>
+    <span class="card-post__meta">${p.link_externo ? "Assistir no Instagram" : (p.video ? "Vídeo · " : "") + p.minutos + " min de leitura"}</span>
   </div>
 </article>`;
+};
 
 // ---------- páginas ----------
 // Destaca *trecho* em itálico colorido (como na landing page)

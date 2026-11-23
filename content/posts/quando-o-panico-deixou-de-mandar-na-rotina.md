@@ -7,6 +7,7 @@ tags:
   - depoimento
   - pânico
 video: "https://www.instagram.com/reel/DXb23UVkQhP/"
+link_externo: "https://www.instagram.com/reel/DXb23UVkQhP/"
 rascunho: false
 ---
 

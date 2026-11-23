@@ -44,6 +44,7 @@ collections:
         options: ["Ansiedade e pânico", "Hipnose clínica", "Tratamento", "Neurociência", "Relacionamentos", "Crianças e família", "Compulsões e vícios", "Autoestima"]
       - { name: tags, label: Palavras-chave, widget: list, required: false, hint: "Separe por vírgula. Ajudam a mostrar posts relacionados." }
       - { name: video, label: Vídeo principal (opcional), widget: string, required: false, hint: "Cole o link do YouTube, Vimeo ou Reels do Instagram. Ele aparece no topo do post." }
+      - { name: link_externo, label: Abrir direto em outro link (opcional), widget: string, required: false, hint: "Cole o link do Reels ou post do Instagram. Quando preenchido, quem clicar no post no blog vai direto para esse link, em outra aba." }
       - { name: body, label: Texto, widget: markdown, hint: "Use 'Título 2' (H2) para cada subtítulo em forma de pergunta: o índice é criado automaticamente. Para incluir um vídeo no meio do texto, cole o link sozinho numa linha." }
       - { name: rascunho, label: Salvar como rascunho (não aparece no site), widget: boolean, default: false, required: false }
 
