@@ -2,6 +2,8 @@
 titulo: "Quando o pânico deixou de mandar na rotina"
 data: 2026-11-21T17:50:00-03:00
 resumo: "Depoimento em vídeo de uma pessoa que passou pelo atendimento por causa do pânico."
+capa: /img/uploads/depoimento-panico-capa.jpg
+capa_descricao: "Paciente sorrindo, sentada em uma poltrona, durante o depoimento em vídeo"
 categoria: Depoimentos
 tags:
   - depoimento
