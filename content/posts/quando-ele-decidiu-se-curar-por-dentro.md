@@ -1,6 +1,6 @@
 ---
 titulo: "Quando ele decidiu se curar por dentro"
-data: 2026-11-23T07:55:00-03:00
+data: 2026-11-23T07:30:00-03:00
 resumo: "Depoimento em vídeo de um paciente que, depois da terapia, passou a se posicionar e a ser quem ele é."
 capa: /img/uploads/depoimento-ele-capa.jpg
 capa_descricao: "Paciente sentado em uma poltrona, durante o depoimento em vídeo"

@@ -1,6 +1,6 @@
 ---
 titulo: "Trauma de relacionamentos: depoimento em vídeo"
-data: 2026-11-23T07:54:00-03:00
+data: 2026-11-23T07:29:00-03:00
 resumo: "Depoimento em vídeo de uma paciente que passou pelo atendimento por causa de traumas de relacionamento."
 capa: /img/uploads/depoimento-relacionamentos-capa.jpg
 capa_descricao: "Paciente sentada em uma poltrona verde, durante o depoimento em vídeo"
